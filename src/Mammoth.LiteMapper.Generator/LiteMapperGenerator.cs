@@ -203,6 +203,8 @@ namespace Mammoth.LiteMapper.Generator
             var location = method.Locations.FirstOrDefault();
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
             var preconditions = ImmutableArray.CreateBuilder<PreconditionModel>();
+            var helpers = ImmutableArray.CreateBuilder<MappingModel>();
+            var helperNames = new HashSet<string>(StringComparer.Ordinal);
             var usedSources = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
             var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
             var explicitConfigurations = ParseExplicitConfigurations(method, sourceType, targetType, sourceMembers, diagnostics);
@@ -276,7 +278,7 @@ namespace Mammoth.LiteMapper.Generator
                     continue;
                 }
 
-                var conversion = ResolveConversion(method, explicitConfiguration, match.Member, targetMember, compilation, externalTypes, diagnostics);
+                var conversion = ResolveConversion(method, explicitConfiguration, match.Member, targetMember, compilation, externalTypes, diagnostics, helpers, helperNames, options);
                 if (conversion == null)
                 {
                     continue;
@@ -319,7 +321,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, construction, preconditions.ToImmutable(), assignments.ToImmutable());
+            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null);
         }
 
         private static ImmutableArray<ExplicitMemberConfiguration> ParseExplicitConfigurations(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, ISymbol[] sourceMembers, ICollection<Diagnostic> diagnostics)
@@ -388,7 +390,7 @@ namespace Mammoth.LiteMapper.Generator
             return names;
         }
 
-        private static ConversionModel? ResolveConversion(IMethodSymbol mappingMethod, ExplicitMemberConfiguration? explicitConfiguration, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, INamedTypeSymbol[] externalTypes, ICollection<Diagnostic> diagnostics)
+        private static ConversionModel? ResolveConversion(IMethodSymbol mappingMethod, ExplicitMemberConfiguration? explicitConfiguration, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, INamedTypeSymbol[] externalTypes, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options)
         {
             var parameterName = mappingMethod.Parameters[0].Name;
             var sourcePath = explicitConfiguration == null ? null : explicitConfiguration.SelectedSource;
@@ -444,8 +446,156 @@ namespace Mammoth.LiteMapper.Generator
                 return new ConversionModel(expression, sourceMember, sourceMember != null && SourceMayBeNull(sourceMember), sourceMember == null ? string.Empty : sourceMember.Name, nullCheckExpression: null);
             }
 
+            var visibleMapping = ResolveVisibleMapping(mappingMethod.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location);
+            if (visibleMapping != null)
+            {
+                return visibleMapping;
+            }
+
+            var nested = ResolveNestedMapping(mappingMethod, sourceType, targetType, expression, sourceMember, targetMember, compilation, diagnostics, helpers, helperNames, options);
+            if (nested != null)
+            {
+                return nested;
+            }
+
             diagnostics.Add(Diagnostic.Create(Diagnostics.ConversionNotFound, location, sourceType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
             return null;
+        }
+
+        private static ConversionModel? ResolveVisibleMapping(INamedTypeSymbol mapperType, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, string targetName, Location? location)
+        {
+            var candidates = mapperType.GetMembers().OfType<IMethodSymbol>()
+                .Where(m => !m.IsImplicitlyDeclared && !HasAttribute(m, MappingConverterAttributeName) && IsUsableConverter(m, mapperType, sourceType, targetType, compilation))
+                .OrderBy(static m => m.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), StringComparer.Ordinal)
+                .ToArray();
+            if (candidates.Length == 0)
+            {
+                return null;
+            }
+
+            if (candidates.Length != 1)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousMapping, location, targetName));
+                return null;
+            }
+
+            return new ConversionModel(candidates[0].Name + "(" + expression + ")", sourceMember, potentiallyNull: false, targetName, nullCheckExpression: null);
+        }
+
+        private static ConversionModel? ResolveNestedMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options)
+        {
+            var location = targetMember.Locations.FirstOrDefault() ?? mappingMethod.Locations.FirstOrDefault();
+            if (sourceType.SpecialType == SpecialType.System_Object)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.RuntimeObjectDispatchNotSupported, location, targetMember.Name));
+                return null;
+            }
+
+            if (!(sourceType is INamedTypeSymbol namedSource) || !(targetType is INamedTypeSymbol namedTarget))
+            {
+                return null;
+            }
+
+            if (namedTarget.SpecialType == SpecialType.System_Object || namedTarget.TypeKind == TypeKind.Interface || namedTarget.IsAbstract)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.AbstractDestinationNotSupported, location, namedTarget.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                return null;
+            }
+
+            if (!IsStructuralObjectType(namedSource) || !IsStructuralObjectType(namedTarget))
+            {
+                return null;
+            }
+
+            var helperName = "MapNested_" + SanitizeIdentifier(namedSource.Name) + "_To_" + SanitizeIdentifier(namedTarget.Name);
+            if (helperNames.Add(helperName))
+            {
+                var helper = CreateNestedMappingModel(mappingMethod, namedSource, namedTarget, helperName, compilation, diagnostics, options);
+                if (helper == null)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.StructuralNestedMappingFailed, location, namedSource.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), namedTarget.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                    return null;
+                }
+
+                helpers.Add(helper);
+            }
+
+            var potentiallyNull = sourceMember != null && SourceMayBeNull(sourceMember);
+            if (potentiallyNull && !TargetIsNonNullable(targetMember))
+            {
+                return new ConversionModel(expression + " == null ? null : " + helperName + "(" + expression + ")", sourceMember, potentiallyNull: false, targetMember.Name, nullCheckExpression: null);
+            }
+
+            return new ConversionModel(helperName + "(" + expression + ")", sourceMember, potentiallyNull, targetMember.Name, nullCheckExpression: null);
+        }
+
+        private static MappingModel? CreateNestedMappingModel(IMethodSymbol rootMethod, INamedTypeSymbol sourceType, INamedTypeSymbol targetType, string helperName, Compilation compilation, ICollection<Diagnostic> diagnostics, EffectiveMappingOptions options)
+        {
+            var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
+            var construction = SelectConstruction(targetType, rootMethod.ContainingType, sourceMembers, options.NameMatching, compilation, rootMethod.Locations.FirstOrDefault(), diagnostics);
+            if (construction == null)
+            {
+                return null;
+            }
+
+            var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
+            var preconditions = ImmutableArray.CreateBuilder<PreconditionModel>();
+            var helpers = ImmutableArray.CreateBuilder<MappingModel>();
+            var helperNames = new HashSet<string>(StringComparer.Ordinal);
+            var externalTypes = GetRegisteredMapperTypes(rootMethod.ContainingType, compilation).ToArray();
+
+            foreach (var targetMember in GetTargetMembers(targetType, diagnostics, includeConstructorOnly: true))
+            {
+                if (construction.BoundTargetMembers.Any(m => SymbolEqualityComparer.Default.Equals(m, targetMember)))
+                {
+                    continue;
+                }
+
+                var match = MatchSource(targetMember, sourceMembers, options.NameMatching);
+                if (match.Ambiguous || match.Member == null)
+                {
+                    return null;
+                }
+
+                var conversion = ResolveConversion(rootMethod, null, match.Member, targetMember, compilation, externalTypes, diagnostics, helpers, helperNames, options);
+                if (conversion == null)
+                {
+                    return null;
+                }
+
+                if (conversion.PotentiallyNull && TargetIsNonNullable(targetMember))
+                {
+                    if (options.NullableMismatch == NullableMismatchPolicyError)
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.NullableToNonNullable, targetMember.Locations.FirstOrDefault() ?? rootMethod.Locations.FirstOrDefault(), targetMember.Name));
+                        return null;
+                    }
+
+                    conversion = new ConversionModel(conversion.Expression + " ?? throw new global::System.InvalidOperationException(\"Source member '" + conversion.MemberPath + "' was null.\")", conversion.SourceMember, potentiallyNull: false, conversion.MemberPath, nullCheckExpression: null);
+                }
+
+                assignments.Add(new AssignmentModel(targetMember.Name, conversion.Expression));
+            }
+
+            return new MappingModel(rootMethod, sourceNullable: false, returnNullable: false, options.NullableMismatch, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), helperName, sourceType, targetType);
+        }
+
+        private static string SanitizeIdentifier(string value)
+        {
+            var builder = new StringBuilder(value.Length);
+            foreach (var ch in value)
+            {
+                builder.Append(char.IsLetterOrDigit(ch) || ch == '_' ? ch : '_');
+            }
+
+            return builder.ToString();
+        }
+
+        private static bool IsStructuralObjectType(INamedTypeSymbol type)
+        {
+            return type.SpecialType == SpecialType.None &&
+                type.TypeKind != TypeKind.Enum &&
+                (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct);
         }
 
         private static ConversionModel? ResolveNamedConverter(IMethodSymbol mappingMethod, INamedTypeSymbol? converterType, INamedTypeSymbol[] externalTypes, string name, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, Location? location)
@@ -1142,6 +1292,10 @@ namespace Mammoth.LiteMapper.Generator
             foreach (var mapping in mappings.OrderBy(static m => m.Method.Name, StringComparer.Ordinal))
             {
                 AppendMapping(builder, mapping);
+                foreach (var helper in FlattenHelpers(mapping).OrderBy(static h => h.HelperName, StringComparer.Ordinal))
+                {
+                    AppendMapping(builder, helper);
+                }
             }
             builder.AppendLine("}");
 
@@ -1159,19 +1313,23 @@ namespace Mammoth.LiteMapper.Generator
             var method = mapping.Method;
             var parameter = method.Parameters[0];
             builder.Append("    ");
-            builder.Append(ToAccessibility(method.DeclaredAccessibility));
+            builder.Append(mapping.HelperName == null ? ToAccessibility(method.DeclaredAccessibility) : "private");
             builder.Append(' ');
-            if (method.IsStatic)
+            if (method.IsStatic || mapping.HelperName != null)
             {
                 builder.Append("static ");
             }
 
-            builder.Append("partial ");
-            builder.Append(method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+            if (mapping.HelperName == null)
+            {
+                builder.Append("partial ");
+            }
+
+            builder.Append((mapping.HelperTargetType ?? method.ReturnType).ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
             builder.Append(' ');
-            builder.Append(method.Name);
+            builder.Append(mapping.HelperName ?? method.Name);
             builder.Append('(');
-            builder.Append(parameter.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+            builder.Append((mapping.HelperSourceType ?? parameter.Type).ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
             builder.Append(' ');
             builder.Append(parameter.Name);
             builder.AppendLine(")");
@@ -1221,7 +1379,7 @@ namespace Mammoth.LiteMapper.Generator
             }
 
             builder.Append("        var target = new ");
-            builder.Append(method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?'));
+            builder.Append((mapping.HelperTargetType ?? method.ReturnType).ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?'));
             builder.Append('(');
             if (mapping.Construction != null)
             {
@@ -1266,6 +1424,18 @@ namespace Mammoth.LiteMapper.Generator
 
             builder.AppendLine("        return target;");
             builder.AppendLine("    }");
+        }
+
+        private static IEnumerable<MappingModel> FlattenHelpers(MappingModel mapping)
+        {
+            foreach (var helper in mapping.Helpers)
+            {
+                yield return helper;
+                foreach (var nested in FlattenHelpers(helper))
+                {
+                    yield return nested;
+                }
+            }
         }
 
         private static string ToAccessibility(Accessibility accessibility)
@@ -1338,7 +1508,7 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class MappingModel
         {
-            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments)
+            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments, ImmutableArray<MappingModel> helpers, string? helperName, ITypeSymbol? helperSourceType, ITypeSymbol? helperTargetType)
             {
                 Method = method;
                 SourceNullable = sourceNullable;
@@ -1347,6 +1517,10 @@ namespace Mammoth.LiteMapper.Generator
                 Construction = construction;
                 Preconditions = preconditions;
                 Assignments = assignments;
+                Helpers = helpers;
+                HelperName = helperName;
+                HelperSourceType = helperSourceType;
+                HelperTargetType = helperTargetType;
             }
 
             public IMethodSymbol Method { get; }
@@ -1362,6 +1536,14 @@ namespace Mammoth.LiteMapper.Generator
             public ImmutableArray<PreconditionModel> Preconditions { get; }
 
             public ImmutableArray<AssignmentModel> Assignments { get; }
+
+            public ImmutableArray<MappingModel> Helpers { get; }
+
+            public string? HelperName { get; }
+
+            public ITypeSymbol? HelperSourceType { get; }
+
+            public ITypeSymbol? HelperTargetType { get; }
         }
 
         private sealed class ConstructionModel

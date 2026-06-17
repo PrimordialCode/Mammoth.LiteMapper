@@ -144,8 +144,12 @@
 - Focused validation: nested mapping tests.
 - Full validation: full solution tests and snapshot review.
 - Completion criteria: helpers are private, closed-type, deterministic, and no runtime dispatch is used.
-- Risks: ambiguity resolution across visible mappings.
-- Out of scope: recursive cycle tracking.
+- Status: Completed on 2026-06-17 with automatic private structural helpers for closed source/destination type pairs, visible local mapping reuse before structural helper generation, nullable nested member handling for implemented new-object mappings, object/runtime-dispatch rejection, abstract/interface destination rejection, ambiguous visible mapping diagnostics, runtime invocation coverage, and a checked-in generated-source snapshot.
+- Deviations: helper names are deterministic implementation details based on closed source and destination type names; exact helper naming remains non-public generated formatting.
+- Remaining tasks: none for Milestone 8.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore --filter Milestone8NestedObjectMappingTests` initially failed for expected missing nested behavior, then passed with 4 tests after implementation and snapshot update; `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore` passed with 31 tests; `dotnet restore Mammoth.LiteMapper.sln` passed; `dotnet build Mammoth.LiteMapper.sln --no-restore` passed with 0 warnings; `dotnet test Mammoth.LiteMapper.sln --no-build` passed with 43 total tests.
+- Risks: recursive component analysis and cycle-tracker plumbing remain deferred to Milestone 12; collection element nested helpers remain deferred to Milestone 9.
+- Out of scope: collections, existing-target nested mutation/update semantics, enum mapping, recursive cycle tracking, open generic helper templates.
 
 ## Milestone 9: arrays, collections, sets, and dictionaries
 

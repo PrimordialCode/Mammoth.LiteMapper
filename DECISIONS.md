@@ -164,6 +164,26 @@
 - Specification references: 6.3, 12.4, 12.5, 15.11, 16.3, 25.
 - Consequences: Null-collection and patch-null tests remain documented as later-milestone validation even though their configuration APIs already exist.
 
+### DEC-0018
+
+- Date: 2026-06-17
+- Milestone: 8
+- Status: Accepted
+- Context: Section 14 requires private closed-type structural nested helpers, while section 24.4 states exact generated helper organization and local names are not public API.
+- Decision: Emit deterministic private helper methods named from the closed source and destination type names, and treat the names as generated implementation details only.
+- Specification references: 14.1, 14.2, 19.7, 24.4.
+- Consequences: Generated source is deterministic and reviewable; future generator refactoring may rename helpers without changing public API.
+
+### DEC-0019
+
+- Date: 2026-06-17
+- Milestone: 8
+- Status: Accepted
+- Context: Section 14.1 requires reuse of a visible explicit or default mapping before automatic structural nested mapping, and DEC-0016 previously avoided arbitrary local helper selection for scalar conversion.
+- Decision: For nested structural type pairs only, consider compatible visible local mapping methods as default mappings before generating a structural helper; equal-precedence multiple compatible methods report `LITEMAPPER3001`.
+- Specification references: 11.1, 14.1, 20.4, 28.4.
+- Consequences: Nested mapping honors the specified precedence without extending arbitrary local helper selection to scalar conversions.
+
 ## Pending specification questions
 
 ### PENDING-0001

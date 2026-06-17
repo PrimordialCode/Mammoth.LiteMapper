@@ -33,6 +33,10 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor InvalidMemberConfiguration = Error("LITEMAPPER2005", "InvalidMemberConfiguration", "Member configuration '{0}' is invalid");
         public static readonly DiagnosticDescriptor InvalidConverter = Error("LITEMAPPER2006", "InvalidConverter", "Converter '{0}' is invalid");
         public static readonly DiagnosticDescriptor AmbiguousConverter = Error("LITEMAPPER2007", "AmbiguousConverter", "Converter resolution for '{0}' is ambiguous");
+        public static readonly DiagnosticDescriptor RuntimeObjectDispatchNotSupported = Error("LITEMAPPER2012", "RuntimeObjectDispatchNotSupported", "Runtime object dispatch is required for '{0}'");
+        public static readonly DiagnosticDescriptor AmbiguousMapping = Error("LITEMAPPER3001", "AmbiguousMapping", "Mapping resolution for '{0}' is ambiguous");
+        public static readonly DiagnosticDescriptor StructuralNestedMappingFailed = Error("LITEMAPPER3004", "StructuralNestedMappingFailed", "Structural nested mapping from '{0}' to '{1}' cannot be generated");
+        public static readonly DiagnosticDescriptor AbstractDestinationNotSupported = Error("LITEMAPPER3005", "AbstractDestinationNotSupported", "Destination type '{0}' is abstract or an interface");
         public static readonly DiagnosticDescriptor UnmappedSourceMember = Info("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor UnmappedSourceMemberWarning = Warning("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor InternalGeneratorFailure = Error("LITEMAPPER9001", "InternalGeneratorFailure", "Unexpected failure while processing mapper '{0}'");
