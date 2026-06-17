@@ -1,0 +1,145 @@
+#nullable enable
+Mammoth.LiteMapper.DefaultMappingAttribute
+Mammoth.LiteMapper.DefaultMappingAttribute.DefaultMappingAttribute() -> void
+Mammoth.LiteMapper.EnumMappingStrategy
+Mammoth.LiteMapper.EnumMappingStrategy.ByName = 1 -> Mammoth.LiteMapper.EnumMappingStrategy
+Mammoth.LiteMapper.EnumMappingStrategy.ByValue = 2 -> Mammoth.LiteMapper.EnumMappingStrategy
+Mammoth.LiteMapper.EnumMappingStrategy.Unspecified = 0 -> Mammoth.LiteMapper.EnumMappingStrategy
+Mammoth.LiteMapper.EnumNumericConversion
+Mammoth.LiteMapper.EnumNumericConversion.Checked = 1 -> Mammoth.LiteMapper.EnumNumericConversion
+Mammoth.LiteMapper.EnumNumericConversion.Unchecked = 2 -> Mammoth.LiteMapper.EnumNumericConversion
+Mammoth.LiteMapper.EnumNumericConversion.Unspecified = 0 -> Mammoth.LiteMapper.EnumNumericConversion
+Mammoth.LiteMapper.IgnoreSourceAttribute
+Mammoth.LiteMapper.IgnoreSourceAttribute.IgnoreSourceAttribute(string! member) -> void
+Mammoth.LiteMapper.IgnoreSourceAttribute.Member.get -> string!
+Mammoth.LiteMapper.IgnoreTargetAttribute
+Mammoth.LiteMapper.IgnoreTargetAttribute.IgnoreTargetAttribute(string! member) -> void
+Mammoth.LiteMapper.IgnoreTargetAttribute.Member.get -> string!
+Mammoth.LiteMapper.LiteMapperAttribute
+Mammoth.LiteMapper.LiteMapperAttribute.AllowExplicitOperators.get -> bool
+Mammoth.LiteMapper.LiteMapperAttribute.AllowExplicitOperators.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.EnumMapping.get -> Mammoth.LiteMapper.EnumMappingStrategy
+Mammoth.LiteMapper.LiteMapperAttribute.EnumMapping.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.EnumNumericConversion.get -> Mammoth.LiteMapper.EnumNumericConversion
+Mammoth.LiteMapper.LiteMapperAttribute.EnumNumericConversion.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.IgnoreNullSourceMembers.get -> bool
+Mammoth.LiteMapper.LiteMapperAttribute.IgnoreNullSourceMembers.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.LiteMapperAttribute() -> void
+Mammoth.LiteMapper.LiteMapperAttribute.NameMatching.get -> Mammoth.LiteMapper.NameMatching
+Mammoth.LiteMapper.LiteMapperAttribute.NameMatching.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.NullCollections.get -> Mammoth.LiteMapper.NullCollectionStrategy
+Mammoth.LiteMapper.LiteMapperAttribute.NullCollections.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.NullableMismatch.get -> Mammoth.LiteMapper.NullableMismatchPolicy
+Mammoth.LiteMapper.LiteMapperAttribute.NullableMismatch.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.NumericConversion.get -> Mammoth.LiteMapper.NumericConversion
+Mammoth.LiteMapper.LiteMapperAttribute.NumericConversion.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.ReferenceHandling.get -> Mammoth.LiteMapper.ReferenceHandling
+Mammoth.LiteMapper.LiteMapperAttribute.ReferenceHandling.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.UnmappedSourceMembers.get -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.LiteMapperAttribute.UnmappedSourceMembers.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.UnmappedTargetMembers.get -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.LiteMapperAttribute.UnmappedTargetMembers.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.UnmatchedEnumValues.get -> Mammoth.LiteMapper.UnmatchedEnumValuePolicy
+Mammoth.LiteMapper.LiteMapperAttribute.UnmatchedEnumValues.set -> void
+Mammoth.LiteMapper.LiteMapperCycleException
+Mammoth.LiteMapper.LiteMapperCycleException.DestinationType.get -> System.Type!
+Mammoth.LiteMapper.LiteMapperCycleException.LiteMapperCycleException(System.Type! sourceType, System.Type! destinationType, string! mappingMethod, string! memberPath) -> void
+Mammoth.LiteMapper.LiteMapperCycleException.MappingMethod.get -> string!
+Mammoth.LiteMapper.LiteMapperCycleException.MemberPath.get -> string!
+Mammoth.LiteMapper.LiteMapperCycleException.SourceType.get -> System.Type!
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.LiteMapperDefaultsAttribute() -> void
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.NameMatching.get -> Mammoth.LiteMapper.NameMatching
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.NameMatching.set -> void
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.NullCollections.get -> Mammoth.LiteMapper.NullCollectionStrategy
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.NullCollections.set -> void
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.NullableMismatch.get -> Mammoth.LiteMapper.NullableMismatchPolicy
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.NullableMismatch.set -> void
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.UnmappedSourceMembers.get -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.UnmappedSourceMembers.set -> void
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.UnmappedTargetMembers.get -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.LiteMapperDefaultsAttribute.UnmappedTargetMembers.set -> void
+Mammoth.LiteMapper.MapPropertyAttribute
+Mammoth.LiteMapper.MapPropertyAttribute.ConverterType.get -> System.Type?
+Mammoth.LiteMapper.MapPropertyAttribute.ConverterType.set -> void
+Mammoth.LiteMapper.MapPropertyAttribute.MapPropertyAttribute() -> void
+Mammoth.LiteMapper.MapPropertyAttribute.Source.get -> string?
+Mammoth.LiteMapper.MapPropertyAttribute.Source.set -> void
+Mammoth.LiteMapper.MapPropertyAttribute.Target.get -> string?
+Mammoth.LiteMapper.MapPropertyAttribute.Target.set -> void
+Mammoth.LiteMapper.MapPropertyAttribute.Use.get -> string?
+Mammoth.LiteMapper.MapPropertyAttribute.Use.set -> void
+Mammoth.LiteMapper.MappingConstructorAttribute
+Mammoth.LiteMapper.MappingConstructorAttribute.MappingConstructorAttribute() -> void
+Mammoth.LiteMapper.MappingConverterAttribute
+Mammoth.LiteMapper.MappingConverterAttribute.MappingConverterAttribute() -> void
+Mammoth.LiteMapper.MappingOptionsAttribute
+Mammoth.LiteMapper.MappingOptionsAttribute.AllowExplicitOperators.get -> Mammoth.LiteMapper.OptionState
+Mammoth.LiteMapper.MappingOptionsAttribute.AllowExplicitOperators.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.EnumMapping.get -> Mammoth.LiteMapper.EnumMappingStrategy
+Mammoth.LiteMapper.MappingOptionsAttribute.EnumMapping.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.EnumNumericConversion.get -> Mammoth.LiteMapper.EnumNumericConversion
+Mammoth.LiteMapper.MappingOptionsAttribute.EnumNumericConversion.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.IgnoreNullSourceMembers.get -> Mammoth.LiteMapper.OptionState
+Mammoth.LiteMapper.MappingOptionsAttribute.IgnoreNullSourceMembers.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.MappingOptionsAttribute() -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.NameMatching.get -> Mammoth.LiteMapper.NameMatching
+Mammoth.LiteMapper.MappingOptionsAttribute.NameMatching.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.NullCollections.get -> Mammoth.LiteMapper.NullCollectionStrategy
+Mammoth.LiteMapper.MappingOptionsAttribute.NullCollections.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.NullableMismatch.get -> Mammoth.LiteMapper.NullableMismatchPolicy
+Mammoth.LiteMapper.MappingOptionsAttribute.NullableMismatch.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.NumericConversion.get -> Mammoth.LiteMapper.NumericConversion
+Mammoth.LiteMapper.MappingOptionsAttribute.NumericConversion.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.ReferenceHandling.get -> Mammoth.LiteMapper.ReferenceHandling
+Mammoth.LiteMapper.MappingOptionsAttribute.ReferenceHandling.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.UnmappedSourceMembers.get -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.MappingOptionsAttribute.UnmappedSourceMembers.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.UnmappedTargetMembers.get -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.MappingOptionsAttribute.UnmappedTargetMembers.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.UnmatchedEnumValues.get -> Mammoth.LiteMapper.UnmatchedEnumValuePolicy
+Mammoth.LiteMapper.MappingOptionsAttribute.UnmatchedEnumValues.set -> void
+Mammoth.LiteMapper.NameMatching
+Mammoth.LiteMapper.NameMatching.Exact = 1 -> Mammoth.LiteMapper.NameMatching
+Mammoth.LiteMapper.NameMatching.ExactThenIgnoreCase = 2 -> Mammoth.LiteMapper.NameMatching
+Mammoth.LiteMapper.NameMatching.IgnoreCase = 3 -> Mammoth.LiteMapper.NameMatching
+Mammoth.LiteMapper.NameMatching.Unspecified = 0 -> Mammoth.LiteMapper.NameMatching
+Mammoth.LiteMapper.NullCollectionStrategy
+Mammoth.LiteMapper.NullCollectionStrategy.Empty = 3 -> Mammoth.LiteMapper.NullCollectionStrategy
+Mammoth.LiteMapper.NullCollectionStrategy.Error = 1 -> Mammoth.LiteMapper.NullCollectionStrategy
+Mammoth.LiteMapper.NullCollectionStrategy.Preserve = 2 -> Mammoth.LiteMapper.NullCollectionStrategy
+Mammoth.LiteMapper.NullCollectionStrategy.Unspecified = 0 -> Mammoth.LiteMapper.NullCollectionStrategy
+Mammoth.LiteMapper.NullableMismatchPolicy
+Mammoth.LiteMapper.NullableMismatchPolicy.Error = 1 -> Mammoth.LiteMapper.NullableMismatchPolicy
+Mammoth.LiteMapper.NullableMismatchPolicy.Throw = 2 -> Mammoth.LiteMapper.NullableMismatchPolicy
+Mammoth.LiteMapper.NullableMismatchPolicy.Unspecified = 0 -> Mammoth.LiteMapper.NullableMismatchPolicy
+Mammoth.LiteMapper.NumericConversion
+Mammoth.LiteMapper.NumericConversion.Checked = 2 -> Mammoth.LiteMapper.NumericConversion
+Mammoth.LiteMapper.NumericConversion.ImplicitOnly = 1 -> Mammoth.LiteMapper.NumericConversion
+Mammoth.LiteMapper.NumericConversion.Unchecked = 3 -> Mammoth.LiteMapper.NumericConversion
+Mammoth.LiteMapper.NumericConversion.Unspecified = 0 -> Mammoth.LiteMapper.NumericConversion
+Mammoth.LiteMapper.OptionState
+Mammoth.LiteMapper.OptionState.Disabled = 1 -> Mammoth.LiteMapper.OptionState
+Mammoth.LiteMapper.OptionState.Enabled = 2 -> Mammoth.LiteMapper.OptionState
+Mammoth.LiteMapper.OptionState.Unspecified = 0 -> Mammoth.LiteMapper.OptionState
+Mammoth.LiteMapper.ReferenceHandling
+Mammoth.LiteMapper.ReferenceHandling.None = 1 -> Mammoth.LiteMapper.ReferenceHandling
+Mammoth.LiteMapper.ReferenceHandling.ThrowOnCycle = 2 -> Mammoth.LiteMapper.ReferenceHandling
+Mammoth.LiteMapper.ReferenceHandling.Unspecified = 0 -> Mammoth.LiteMapper.ReferenceHandling
+Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.UnmappedMemberPolicy.Error = 4 -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.UnmappedMemberPolicy.Ignore = 1 -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.UnmappedMemberPolicy.Info = 2 -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.UnmappedMemberPolicy.Unspecified = 0 -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.UnmappedMemberPolicy.Warning = 3 -> Mammoth.LiteMapper.UnmappedMemberPolicy
+Mammoth.LiteMapper.UnmatchedEnumValuePolicy
+Mammoth.LiteMapper.UnmatchedEnumValuePolicy.ByValue = 3 -> Mammoth.LiteMapper.UnmatchedEnumValuePolicy
+Mammoth.LiteMapper.UnmatchedEnumValuePolicy.Error = 1 -> Mammoth.LiteMapper.UnmatchedEnumValuePolicy
+Mammoth.LiteMapper.UnmatchedEnumValuePolicy.Throw = 2 -> Mammoth.LiteMapper.UnmatchedEnumValuePolicy
+Mammoth.LiteMapper.UnmatchedEnumValuePolicy.Unspecified = 0 -> Mammoth.LiteMapper.UnmatchedEnumValuePolicy
+Mammoth.LiteMapper.UseMapperAttribute
+Mammoth.LiteMapper.UseMapperAttribute.MapperType.get -> System.Type!
+Mammoth.LiteMapper.UseMapperAttribute.UseMapperAttribute(System.Type! mapperType) -> void
+Mammoth.LiteMapper.UseTargetDefaultAttribute
+Mammoth.LiteMapper.UseTargetDefaultAttribute.Member.get -> string!
+Mammoth.LiteMapper.UseTargetDefaultAttribute.UseTargetDefaultAttribute(string! member) -> void

@@ -1,10 +1,14 @@
 # Mammoth.LiteMapper Status
 
-- Current milestone: Milestone 1, repository, solution, package, and CI skeleton.
+- Current milestone: Milestone 2, public abstractions API and public API baselines.
 - Current state: Complete.
-- Completed milestones: Milestone 1.
+- Completed milestones: Milestone 1; Milestone 2.
 - Current work: None.
-- Validation evidence: `dotnet restore Mammoth.LiteMapper.sln`, `dotnet build Mammoth.LiteMapper.sln --no-restore`, `dotnet test Mammoth.LiteMapper.sln --no-build`, `dotnet sln Mammoth.LiteMapper.sln list`, `dotnet sln Mammoth.LiteMapper.slnx list`, structural project/package checks, YAML syntax parse, runtime output leak check, and final tree inspection all passed on 2026-06-17.
+- Work completed: Added all section 5 public abstraction enums, attributes, and `LiteMapperCycleException`; added Roslyn PublicApiAnalyzer configuration and public API baseline files; updated runtime and packaging tests for the Milestone 2 public surface and dependency boundaries.
+- Tests added or updated: Replaced the Milestone 1 empty-public-surface runtime test with `Milestone2PublicApiTests`; added runtime repository-root helper; added packaging coverage for private PublicApiAnalyzer usage and baseline files.
+- Diagnostics added: none; generator diagnostics are deferred to Milestone 3. Public API analyzer warnings are configured as build-time API checks.
+- Validation evidence: initial focused runtime test failed before implementation because Milestone 2 public API types were missing; `dotnet package search Microsoft.CodeAnalysis.PublicApiAnalyzers --exact-match --format json` found version `3.3.4`; `dotnet restore Mammoth.LiteMapper.sln` passed; `dotnet test tests\Mammoth.LiteMapper.Runtime.Tests\Mammoth.LiteMapper.Runtime.Tests.csproj --no-restore` passed; `dotnet test tests\Mammoth.LiteMapper.Packaging.Tests\Mammoth.LiteMapper.Packaging.Tests.csproj --no-restore` passed; `dotnet build src\Mammoth.LiteMapper.Abstractions\Mammoth.LiteMapper.Abstractions.csproj --no-restore` passed with 0 warnings; `dotnet build Mammoth.LiteMapper.sln --no-restore` passed with 0 warnings; `dotnet test Mammoth.LiteMapper.sln --no-build` passed; `dotnet sln Mammoth.LiteMapper.sln list` passed; `dotnet sln Mammoth.LiteMapper.slnx list` passed; `dotnet package search Microsoft.DotNet.ApiCompat.Tool --exact-match --format json` found version `10.0.301`; `dotnet tool install Microsoft.DotNet.ApiCompat.Tool --version 10.0.301 --tool-path $env:TEMP\mammoth-lite-api-tools` passed; `dotnet pack src\Mammoth.LiteMapper.Abstractions\Mammoth.LiteMapper.Abstractions.csproj -c Release -o artifacts\packages` passed with the existing NuGet readme warning; `apicompat package artifacts\packages\Mammoth.LiteMapper.Abstractions.1.0.0.nupkg --run-api-compat` passed; `dotnet pack src\Mammoth.LiteMapper\Mammoth.LiteMapper.csproj -c Release -o artifacts\packages` passed with the existing NuGet readme warning; `apicompat package artifacts\packages\Mammoth.LiteMapper.1.0.0.nupkg --run-api-compat` passed.
+- Skipped validation: none for the currently available Milestone 2 validation suite.
 - Blockers: none known.
 - Known issues: CI workflow runtime execution can only be fully proven by GitHub Actions after push/PR.
-- Next permitted action: Milestone 2, public abstractions API and public API baselines.
+- Next permitted action: Milestone 3, generator discovery, incremental infrastructure, and declaration diagnostics.

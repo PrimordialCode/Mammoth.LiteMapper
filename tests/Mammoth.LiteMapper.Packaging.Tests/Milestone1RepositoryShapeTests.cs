@@ -107,6 +107,19 @@ namespace Mammoth.LiteMapper.Packaging.Tests
                 (string?)r.Attribute("PrivateAssets") == "all"));
         }
 
+        [TestMethod]
+        public void AbstractionsUsePublicApiAnalyzersAsPrivateBuildDependency()
+        {
+            var xml = XDocument.Load(Repository.Path("src/Mammoth.LiteMapper.Abstractions/Mammoth.LiteMapper.Abstractions.csproj"));
+            var analyzerReference = xml.Descendants("PackageReference").SingleOrDefault(r =>
+                (string?)r.Attribute("Include") == "Microsoft.CodeAnalysis.PublicApiAnalyzers");
+
+            Assert.IsNotNull(analyzerReference);
+            Assert.AreEqual("all", (string?)analyzerReference.Attribute("PrivateAssets"));
+            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicApi.Shipped.txt")));
+            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicApi.Unshipped.txt")));
+        }
+
         private static string ValueOrDefault(XDocument document, string name, string defaultValue)
         {
             return document.Descendants(name).Select(e => e.Value).FirstOrDefault() ?? defaultValue;

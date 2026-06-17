@@ -64,6 +64,36 @@
 - Specification references: 22.8, 25.
 - Consequences: CI skeleton exists; release, trimming, AOT, package-consumer, and benchmark validation remain later milestones.
 
+### DEC-0008
+
+- Date: 2026-06-17
+- Milestone: 2
+- Status: Accepted
+- Context: Milestone 2 requires public API baselines and Roslyn public API analyzer use.
+- Decision: Reference `Microsoft.CodeAnalysis.PublicApiAnalyzers` `3.3.4` from `Mammoth.LiteMapper.Abstractions` with `PrivateAssets="all"` and maintain `PublicApi.Shipped.txt` plus `PublicApi.Unshipped.txt` in that project.
+- Specification references: 22.20, 24.4, 25.2.
+- Consequences: API changes are checked at build time without adding a runtime package dependency.
+
+### DEC-0009
+
+- Date: 2026-06-17
+- Milestone: 2
+- Status: Accepted
+- Context: The specification assigns public abstraction types to the abstractions package and does not require the primary package assembly itself to expose forwarding public types in this milestone.
+- Decision: Keep `Mammoth.LiteMapper` with no exported public types during Milestone 2 while it references `Mammoth.LiteMapper.Abstractions` as the normal dependency.
+- Specification references: 4.1, 5, 25.
+- Consequences: Consumers get the public API through the dependency; package-consumer behavior remains a later validation milestone.
+
+### DEC-0010
+
+- Date: 2026-06-17
+- Milestone: 2
+- Status: Accepted
+- Context: Section 22.20 requires package-level API compatibility validation.
+- Decision: Use `Microsoft.DotNet.ApiCompat.Tool` `10.0.301` as a temporary validation tool and run `apicompat package --run-api-compat` against the Milestone 2 packages.
+- Specification references: 22.20, 24.4.
+- Consequences: Package API compatibility is validated without adding tool binaries or package outputs to the repository.
+
 ## Pending specification questions
 
 None.
