@@ -1,0 +1,26 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Mammoth.LiteMapper.Benchmarks/Mammoth.LiteMapper.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Mammoth.LiteMapper.Samples.AspNetCore/Mammoth.LiteMapper.Samples.AspNetCore.csproj" />
+    <Project Path="samples/Mammoth.LiteMapper.Samples.Basic/Mammoth.LiteMapper.Samples.Basic.csproj" />
+    <Project Path="samples/Mammoth.LiteMapper.Samples.Collections/Mammoth.LiteMapper.Samples.Collections.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Mammoth.LiteMapper.Abstractions/Mammoth.LiteMapper.Abstractions.csproj" />
+    <Project Path="src/Mammoth.LiteMapper.Generator/Mammoth.LiteMapper.Generator.csproj" />
+    <Project Path="src/Mammoth.LiteMapper/Mammoth.LiteMapper.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Mammoth.LiteMapper.Generator.Tests/Mammoth.LiteMapper.Generator.Tests.csproj" />
+    <Project Path="tests/Mammoth.LiteMapper.IntegrationTests/Mammoth.LiteMapper.IntegrationTests.csproj" />
+    <Project Path="tests/Mammoth.LiteMapper.Packaging.Tests/Mammoth.LiteMapper.Packaging.Tests.csproj" />
+    <Project Path="tests/Mammoth.LiteMapper.Runtime.Tests/Mammoth.LiteMapper.Runtime.Tests.csproj" />
+  </Folder>
+</Solution>

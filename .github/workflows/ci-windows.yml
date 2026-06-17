@@ -1,0 +1,25 @@
+name: ci-windows
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore Mammoth.LiteMapper.sln
+      - name: Build
+        run: dotnet build Mammoth.LiteMapper.sln --no-restore
+      - name: Test
+        run: dotnet test Mammoth.LiteMapper.sln --no-build
+      - name: Validate solution paths
+        shell: pwsh
+        run: |
+          dotnet sln Mammoth.LiteMapper.sln list
+          dotnet sln Mammoth.LiteMapper.slnx list
