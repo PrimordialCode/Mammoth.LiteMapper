@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <Description>Primary installation package for Mammoth.LiteMapper.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Mammoth.LiteMapper.Abstractions\Mammoth.LiteMapper.Abstractions.csproj" />
+    <ProjectReference Include="..\Mammoth.LiteMapper.Generator\Mammoth.LiteMapper.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
+  </ItemGroup>
+</Project>
