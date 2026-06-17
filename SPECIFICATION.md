@@ -2212,8 +2212,8 @@ Automated packaging tests MUST:
 CI MUST use Roslyn public API analyzers with:
 
 ```text
-PublicApi.Shipped.txt
-PublicApi.Unshipped.txt
+PublicAPI.Shipped.txt
+PublicAPI.Unshipped.txt
 ```
 
 It MUST also perform package-level API compatibility validation.

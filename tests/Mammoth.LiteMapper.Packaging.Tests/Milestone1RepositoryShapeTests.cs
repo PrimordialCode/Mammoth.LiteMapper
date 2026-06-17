@@ -116,8 +116,8 @@ namespace Mammoth.LiteMapper.Packaging.Tests
 
             Assert.IsNotNull(analyzerReference);
             Assert.AreEqual("all", (string?)analyzerReference.Attribute("PrivateAssets"));
-            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicApi.Shipped.txt")));
-            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicApi.Unshipped.txt")));
+            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicAPI.Shipped.txt")));
+            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicAPI.Unshipped.txt")));
         }
 
         private static string ValueOrDefault(XDocument document, string name, string defaultValue)

@@ -70,7 +70,7 @@
 - Milestone: 2
 - Status: Accepted
 - Context: Milestone 2 requires public API baselines and Roslyn public API analyzer use.
-- Decision: Reference `Microsoft.CodeAnalysis.PublicApiAnalyzers` `3.3.4` from `Mammoth.LiteMapper.Abstractions` with `PrivateAssets="all"` and maintain `PublicApi.Shipped.txt` plus `PublicApi.Unshipped.txt` in that project.
+- Decision: Reference `Microsoft.CodeAnalysis.PublicApiAnalyzers` `3.3.4` from `Mammoth.LiteMapper.Abstractions` with `PrivateAssets="all"` and maintain `PublicAPI.Shipped.txt` plus `PublicAPI.Unshipped.txt` in that project.
 - Specification references: 22.20, 24.4, 25.2.
 - Consequences: API changes are checked at build time without adding a runtime package dependency.
 
@@ -183,6 +183,16 @@
 - Decision: For nested structural type pairs only, consider compatible visible local mapping methods as default mappings before generating a structural helper; equal-precedence multiple compatible methods report `LITEMAPPER3001`.
 - Specification references: 11.1, 14.1, 20.4, 28.4.
 - Consequences: Nested mapping honors the specified precedence without extending arbitrary local helper selection to scalar conversions.
+
+### DEC-0020
+
+- Date: 2026-06-17
+- Milestone: Cross-cutting validation
+- Status: Accepted
+- Context: Linux builds reported `RS0016` for public abstraction types because `Microsoft.CodeAnalysis.PublicApiAnalyzers` only auto-includes files named `PublicAPI.Shipped.txt` and `PublicAPI.Unshipped.txt`; the repository used `PublicApi.*`, which worked only on case-insensitive filesystems.
+- Decision: Rename public API baseline files and specification/test references to the analyzer-required `PublicAPI.*` casing.
+- Specification references: 22.20.
+- Consequences: Public API analyzer baselines are loaded consistently on Windows and Linux.
 
 ## Pending specification questions
 

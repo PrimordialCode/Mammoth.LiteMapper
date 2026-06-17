@@ -149,8 +149,8 @@ namespace Mammoth.LiteMapper.Runtime.Tests
         [TestMethod]
         public void PublicApiBaselinesExist()
         {
-            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicApi.Shipped.txt")));
-            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicApi.Unshipped.txt")));
+            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicAPI.Shipped.txt")));
+            Assert.IsTrue(File.Exists(Repository.Path("src/Mammoth.LiteMapper.Abstractions/PublicAPI.Unshipped.txt")));
         }
 
         private static void AssertAttribute<T>(AttributeTargets targets, bool allowMultiple)
