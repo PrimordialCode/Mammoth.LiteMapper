@@ -49,8 +49,12 @@
 - Focused validation: generator declaration tests.
 - Full validation: full solution tests and Roslyn baseline matrix where available.
 - Completion criteria: declaration diagnostics stable and tested; generator is `IIncrementalGenerator`; no mapping bodies generated beyond declaration infrastructure.
-- Risks: Roslyn 4.0.1 API baseline limits helper APIs.
-- Out of scope: flat mapping behavior.
+- Status: Completed on 2026-06-17 with incremental generator discovery, declaration-only generated source, declaration/configuration diagnostics, language-version validation, tracked incremental-step validation, and generator declaration tests.
+- Deviations: raised the Roslyn compile-time baseline from 4.0.1 to 4.8.0 by approved specification decision `DEC-0013`.
+- Remaining tasks: none for Milestone 3.
+- Validation commands: `dotnet restore Mammoth.LiteMapper.sln`; `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore`; `dotnet build Mammoth.LiteMapper.sln --no-restore`; `dotnet test Mammoth.LiteMapper.sln --no-build`.
+- Risks: the official Roslyn source-generator MSTest package only exists up to `1.1.2` and emits NU1608 warnings because it depends on Workspaces 3.8.0 while the repository resolves Roslyn 4.8.0.
+- Out of scope: flat mapping behavior, mapping method bodies, member matching, construction, converters, collections, existing-target mapping, enum mapping, recursive mapping, package-consumer validation, trimming, Native AOT, benchmarks.
 
 ## Milestone 4: flat mapping
 

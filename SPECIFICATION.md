@@ -178,7 +178,7 @@ It MUST:
 - keep `Microsoft.CodeAnalysis` dependencies private;
 - not be advertised as the normal installation route.
 
-The minimum supported compiler host is Roslyn 4.0.1. The generator MUST compile against the Microsoft.CodeAnalysis 4.0.1 API baseline unless an approved specification change raises that minimum. APIs introduced after the baseline MUST NOT be called directly by the baseline generator asset.
+The minimum supported compiler host is Roslyn 4.8.0. The generator MUST compile against the Microsoft.CodeAnalysis 4.8.0 API baseline unless an approved specification change raises that minimum. APIs introduced after the baseline MUST NOT be called directly by the baseline generator asset.
 
 ### 4.2 Shipping target frameworks
 
@@ -2028,11 +2028,10 @@ CI MUST test:
 
 CI MUST test:
 
-- Roslyn 4.0.1;
 - Roslyn 4.8.0;
 - the current stable Roslyn version pinned by the repository.
 
-The generator package MUST reference Roslyn 4.0.1 for its compile-time API baseline, with `PrivateAssets="all"` for build dependencies.
+The generator package MUST reference Roslyn 4.8.0 for its compile-time API baseline, with `PrivateAssets="all"` for build dependencies.
 
 ### 22.8 Operating systems
 

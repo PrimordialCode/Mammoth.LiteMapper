@@ -38,11 +38,11 @@
 
 - Date: 2026-06-17
 - Milestone: 1
-- Status: Accepted
-- Context: The generator must use the Roslyn 4.0.1 API baseline.
+- Status: Superseded by DEC-0013
+- Context: The generator originally had to use the Roslyn 4.0.1 API baseline.
 - Decision: Pin `Microsoft.CodeAnalysis.CSharp` to `4.0.1` in central package management and reference it from the generator with `PrivateAssets="all"`.
 - Specification references: 4.1, 22.7.
-- Consequences: Generator code must avoid APIs introduced after Roslyn 4.0.1 unless a later approved specification change raises the baseline.
+- Consequences: Superseded because the approved minimum requirement is now netstandard2.0 generator output with .NET 8.0+ consumer/compiler support, and the Roslyn baseline has been raised to 4.8.0.
 
 ### DEC-0005
 
@@ -94,9 +94,47 @@
 - Specification references: 22.20, 24.4.
 - Consequences: Package API compatibility is validated without adding tool binaries or package outputs to the repository.
 
+### DEC-0011
+
+- Date: 2026-06-17
+- Milestone: 3
+- Status: Superseded by DEC-0013
+- Context: Milestone 3 required Roslyn source-generator test infrastructure while the generator was still constrained to the Roslyn 4.0.1 API baseline.
+- Decision: Use the available official `Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing.MSTest` `1.1.2` package and a custom Roslyn compilation harness for generator execution, diagnostics, deterministic source inspection, and baseline-compatible incremental checks.
+- Specification references: 19.1, 21, 22.2, 22.7.
+- Consequences: Superseded because the approved Roslyn baseline is now 4.8.0.
+
+### DEC-0012
+
+- Date: 2026-06-17
+- Milestone: 3
+- Status: Accepted
+- Context: Milestone 3 must establish source emission infrastructure without implementing flat mapping behavior assigned to Milestone 4.
+- Decision: Generate one deterministic declaration-only partial source file per valid mapper and intentionally omit mapping method bodies until Milestone 4.
+- Specification references: 19.5, 19.7, 19.8, 25.
+- Consequences: Generated source can be inspected for deterministic layout, namespace, nesting, and hint names without introducing mapping semantics early.
+
+### DEC-0013
+
+- Date: 2026-06-17
+- Milestone: 3
+- Status: Accepted
+- Context: The approved support floor is a `netstandard2.0` generator assembly and .NET 8.0 minimum consumer/compiler requirements. Roslyn 4.0.1 prevented required observable tracked incremental-step validation.
+- Decision: Raise the generator compile-time Roslyn baseline from 4.0.1 to 4.8.0 and update `SPECIFICATION.md`, central package management, tests, and status to match.
+- Specification references: 4.1, 22.7.
+- Consequences: The generator remains `netstandard2.0`, can use Roslyn 4.8.0 APIs, and Milestone 3 can satisfy tracked incremental generator validation without the previous 4.0.1 blocker.
+
 ## Pending specification questions
 
-None.
+### PENDING-0001
+
+- Date: 2026-06-17
+- Milestone: 3
+- Status: Resolved by DEC-0013
+- Context: Section 19.2 requires incrementality to be tested through observable tracked generator steps, but section 22.7 requires the generator baseline to remain Roslyn 4.0.1. The newer public tracked-step inspection APIs used by current Roslyn tests are not available in the Roslyn 4.0.1 API surface used by this milestone.
+- Question: Should Milestone 3 raise the test harness Roslyn API level for tracked-step inspection only, define an approved custom observable tracking mechanism, or defer tracked-step inspection until a later approved Roslyn baseline?
+- Specification references: 19.2, 21.4, 22.2, 22.7.
+- Consequences: User approved raising the generator compile-time Roslyn baseline to 4.8.0; Milestone 3 may proceed with Roslyn tracked incremental-step validation.
 
 ## Rejected alternatives
 
