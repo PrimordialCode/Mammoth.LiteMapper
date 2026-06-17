@@ -17,6 +17,7 @@ namespace Mammoth.LiteMapper.Generator
     {
         private const string LiteMapperAttributeName = "Mammoth.LiteMapper.LiteMapperAttribute";
         private const string LiteMapperDefaultsAttributeName = "Mammoth.LiteMapper.LiteMapperDefaultsAttribute";
+        private const string MappingConstructorAttributeName = "Mammoth.LiteMapper.MappingConstructorAttribute";
         private const string MappingOptionsAttributeName = "Mammoth.LiteMapper.MappingOptionsAttribute";
         private const string UseMapperAttributeName = "Mammoth.LiteMapper.UseMapperAttribute";
         private const string NameMatchingExact = "Exact";
@@ -195,20 +196,31 @@ namespace Mammoth.LiteMapper.Generator
             var location = method.Locations.FirstOrDefault();
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
             var usedSources = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+            var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
 
             if (sourceNullable && !returnNullable)
             {
                 diagnostics.Add(Diagnostic.Create(Diagnostics.NullableToNonNullable, location, method.Parameters[0].Name));
             }
 
-            if (!(targetType is INamedTypeSymbol namedTarget) || !HasAccessibleParameterlessConstructor(namedTarget))
+            var construction = targetType is INamedTypeSymbol namedTarget ? SelectConstruction(namedTarget, method.ContainingType, sourceMembers, options.NameMatching, compilation, location, diagnostics) : null;
+            if (construction == null)
             {
                 diagnostics.Add(Diagnostic.Create(Diagnostics.ConstructorNotFound, location, targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
             }
 
-            var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
-            foreach (var targetMember in GetTargetMembers(targetType, diagnostics))
+            foreach (var argument in construction == null ? Enumerable.Empty<ConstructorArgumentModel>() : construction.Arguments)
             {
+                usedSources.Add(argument.SourceMember);
+            }
+
+            foreach (var targetMember in GetTargetMembers(targetType, diagnostics, includeConstructorOnly: true))
+            {
+                if (construction != null && construction.BoundTargetMembers.Any(m => SymbolEqualityComparer.Default.Equals(m, targetMember)))
+                {
+                    continue;
+                }
+
                 var match = MatchSource(targetMember, sourceMembers, options.NameMatching);
                 if (match.Ambiguous)
                 {
@@ -216,8 +228,25 @@ namespace Mammoth.LiteMapper.Generator
                     continue;
                 }
 
+                if (IsRequired(targetMember) && !CanAssignInInitializer(targetMember) && (construction == null || !construction.SetsRequiredMembers))
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.RequiredTargetMemberNotMapped, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
+                    continue;
+                }
+
                 if (match.Member == null)
                 {
+                    if (IsRequired(targetMember) && (construction == null || !construction.SetsRequiredMembers))
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.RequiredTargetMemberNotMapped, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
+                        continue;
+                    }
+
+                    if (IsRequired(targetMember) && construction != null && construction.SetsRequiredMembers)
+                    {
+                        continue;
+                    }
+
                     ReportUnmappedTarget(targetMember, options.UnmappedTargetMembers, diagnostics);
                     continue;
                 }
@@ -246,7 +275,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            return new MappingModel(method, sourceNullable, returnNullable, assignments.ToImmutable());
+            return new MappingModel(method, sourceNullable, returnNullable, construction, assignments.ToImmutable());
         }
 
         private static EffectiveMappingOptions EffectiveOptions(IMethodSymbol method)
@@ -287,9 +316,11 @@ namespace Mammoth.LiteMapper.Generator
             return GetVisibleMembers(type, diagnostics, static m => m is IFieldSymbol field && !field.IsConst || m is IPropertySymbol property && property.Parameters.Length == 0 && property.GetMethod != null && property.GetMethod.DeclaredAccessibility == Accessibility.Public);
         }
 
-        private static IEnumerable<ISymbol> GetTargetMembers(ITypeSymbol type, ICollection<Diagnostic> diagnostics)
+        private static IEnumerable<ISymbol> GetTargetMembers(ITypeSymbol type, ICollection<Diagnostic> diagnostics, bool includeConstructorOnly = false)
         {
-            return GetVisibleMembers(type, diagnostics, static m => m is IFieldSymbol field && !field.IsReadOnly && !field.IsConst || m is IPropertySymbol property && property.Parameters.Length == 0 && property.SetMethod != null && property.SetMethod.DeclaredAccessibility == Accessibility.Public);
+            return GetVisibleMembers(type, diagnostics, m =>
+                m is IFieldSymbol field && !field.IsConst && (includeConstructorOnly || !field.IsReadOnly) ||
+                m is IPropertySymbol property && property.Parameters.Length == 0 && (includeConstructorOnly || property.SetMethod != null && property.SetMethod.DeclaredAccessibility == Accessibility.Public));
         }
 
         private static IEnumerable<ISymbol> GetVisibleMembers(ITypeSymbol type, ICollection<Diagnostic> diagnostics, Func<ISymbol, bool> predicate)
@@ -334,9 +365,189 @@ namespace Mammoth.LiteMapper.Generator
             return new MatchResult(null, exact.Length > 1);
         }
 
-        private static bool HasAccessibleParameterlessConstructor(INamedTypeSymbol targetType)
+        private static ConstructionModel? SelectConstruction(INamedTypeSymbol targetType, INamedTypeSymbol mapperType, ISymbol[] sourceMembers, string nameMatching, Compilation compilation, Location? location, ICollection<Diagnostic> diagnostics)
         {
-            return targetType.Constructors.Any(static c => c.Parameters.Length == 0 && c.DeclaredAccessibility == Accessibility.Public);
+            var constructors = targetType.Constructors
+                .Where(c => IsAccessibleConstructor(c, targetType, mapperType) && !IsRecordCopyConstructor(c, targetType))
+                .OrderBy(static c => c.Parameters.Length)
+                .ToArray();
+            var marked = constructors.Where(c => HasAttribute(c, MappingConstructorAttributeName)).ToArray();
+            if (marked.Length > 1)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.MultipleMappingConstructors, location, targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                return null;
+            }
+
+            if (marked.Length == 1)
+            {
+                var plan = TryCreateConstruction(marked[0], targetType, sourceMembers, nameMatching, compilation);
+                if (plan != null)
+                {
+                    return plan;
+                }
+
+                diagnostics.Add(Diagnostic.Create(Diagnostics.MappingConstructorNotSatisfiable, location, targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                return null;
+            }
+
+            var satisfiable = constructors
+                .Where(static c => c.Parameters.Length > 0)
+                .Select(c => TryCreateConstruction(c, targetType, sourceMembers, nameMatching, compilation))
+                .Where(static c => c != null)
+                .Cast<ConstructionModel>()
+                .ToArray();
+            if (satisfiable.Length == 1)
+            {
+                return satisfiable[0];
+            }
+
+            if (satisfiable.Length > 1)
+            {
+                var max = satisfiable.Max(static c => c.ParameterCount);
+                var best = satisfiable.Where(c => c.ParameterCount == max).ToArray();
+                if (best.Length == 1)
+                {
+                    return best[0];
+                }
+
+                diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousConstructor, location, targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                return null;
+            }
+
+            var parameterless = constructors.Where(static c => c.Parameters.Length == 0).ToArray();
+            if (targetType.IsValueType || parameterless.Length == 1)
+            {
+                var constructor = parameterless.FirstOrDefault();
+                return new ConstructionModel(0, constructor == null ? ImmutableArray<ConstructorArgumentModel>.Empty : ImmutableArray<ConstructorArgumentModel>.Empty, ImmutableArray<ISymbol>.Empty, constructor != null && HasSetsRequiredMembers(constructor));
+            }
+
+            if (parameterless.Length > 1)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousConstructor, location, targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+            }
+
+            return null;
+        }
+
+        private static ConstructionModel? TryCreateConstruction(IMethodSymbol constructor, INamedTypeSymbol targetType, ISymbol[] sourceMembers, string nameMatching, Compilation compilation)
+        {
+            var arguments = ImmutableArray.CreateBuilder<ConstructorArgumentModel>();
+            var boundMembers = ImmutableArray.CreateBuilder<ISymbol>();
+            var targetMembers = GetTargetMembers(targetType, new List<Diagnostic>(), includeConstructorOnly: true).ToArray();
+
+            foreach (var parameter in constructor.Parameters)
+            {
+                var match = MatchParameter(parameter, sourceMembers, nameMatching);
+                if (match.Ambiguous)
+                {
+                    return null;
+                }
+
+                if (match.Member == null)
+                {
+                    if (parameter.IsOptional)
+                    {
+                        var optionalTargetMatch = MatchTargetForParameter(parameter, targetMembers, nameMatching);
+                        if (optionalTargetMatch.Member != null && !optionalTargetMatch.Ambiguous)
+                        {
+                            boundMembers.Add(optionalTargetMatch.Member);
+                        }
+
+                        continue;
+                    }
+
+                    return null;
+                }
+
+                if (!compilation.ClassifyConversion(GetMemberType(match.Member), parameter.Type).IsImplicit)
+                {
+                    return null;
+                }
+
+                arguments.Add(new ConstructorArgumentModel(parameter.Name, match.Member.Name, match.Member));
+                var targetMatch = MatchTargetForParameter(parameter, targetMembers, nameMatching);
+                if (targetMatch.Member != null && !targetMatch.Ambiguous)
+                {
+                    boundMembers.Add(targetMatch.Member);
+                }
+            }
+
+            return new ConstructionModel(constructor.Parameters.Length, arguments.ToImmutable(), boundMembers.ToImmutable(), HasSetsRequiredMembers(constructor));
+        }
+
+        private static MatchResult MatchParameter(IParameterSymbol parameter, ISymbol[] sourceMembers, string nameMatching)
+        {
+            var exact = sourceMembers.Where(s => string.Equals(s.Name, parameter.Name, StringComparison.OrdinalIgnoreCase) && s.Name == parameter.Name).ToArray();
+            if (nameMatching == NameMatchingExact || exact.Length == 1)
+            {
+                return new MatchResult(exact.Length == 1 ? exact[0] : null, exact.Length > 1);
+            }
+
+            var insensitive = sourceMembers.Where(s => string.Equals(s.Name, parameter.Name, StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (nameMatching == NameMatchingIgnoreCase || exact.Length == 0)
+            {
+                return new MatchResult(insensitive.Length == 1 ? insensitive[0] : null, insensitive.Length > 1);
+            }
+
+            return new MatchResult(null, exact.Length > 1);
+        }
+
+        private static MatchResult MatchTargetForParameter(IParameterSymbol parameter, ISymbol[] targetMembers, string nameMatching)
+        {
+            var exact = targetMembers.Where(s => s.Name == parameter.Name).ToArray();
+            if (nameMatching == NameMatchingExact || exact.Length == 1)
+            {
+                return new MatchResult(exact.Length == 1 ? exact[0] : null, exact.Length > 1);
+            }
+
+            var insensitive = targetMembers.Where(s => string.Equals(s.Name, parameter.Name, StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (nameMatching == NameMatchingIgnoreCase || exact.Length == 0)
+            {
+                return new MatchResult(insensitive.Length == 1 ? insensitive[0] : null, insensitive.Length > 1);
+            }
+
+            return new MatchResult(null, exact.Length > 1);
+        }
+
+        private static bool IsAccessibleConstructor(IMethodSymbol constructor, INamedTypeSymbol targetType, INamedTypeSymbol mapperType)
+        {
+            return constructor.DeclaredAccessibility == Accessibility.Public ||
+                constructor.DeclaredAccessibility == Accessibility.Internal ||
+                constructor.DeclaredAccessibility == Accessibility.Private && IsNestedWithin(mapperType, targetType);
+        }
+
+        private static bool IsNestedWithin(INamedTypeSymbol nested, INamedTypeSymbol containing)
+        {
+            for (var current = nested.ContainingType; current != null; current = current.ContainingType)
+            {
+                if (SymbolEqualityComparer.Default.Equals(current, containing))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsRecordCopyConstructor(IMethodSymbol constructor, INamedTypeSymbol targetType)
+        {
+            return constructor.Parameters.Length == 1 && SymbolEqualityComparer.Default.Equals(constructor.Parameters[0].Type, targetType);
+        }
+
+        private static bool HasSetsRequiredMembers(IMethodSymbol constructor)
+        {
+            return constructor.GetAttributes().Any(static a => a.AttributeClass != null && a.AttributeClass.ToDisplayString() == "System.Diagnostics.CodeAnalysis.SetsRequiredMembersAttribute");
+        }
+
+        private static bool IsRequired(ISymbol member)
+        {
+            return member is IPropertySymbol property && property.IsRequired || member is IFieldSymbol field && field.IsRequired;
+        }
+
+        private static bool CanAssignInInitializer(ISymbol member)
+        {
+            return member is IFieldSymbol field && !field.IsReadOnly && !field.IsConst ||
+                member is IPropertySymbol property && property.SetMethod != null && property.SetMethod.DeclaredAccessibility == Accessibility.Public;
         }
 
         private static bool IsMaybeNull(IParameterSymbol parameter)
@@ -613,16 +824,48 @@ namespace Mammoth.LiteMapper.Generator
 
             builder.Append("        var target = new ");
             builder.Append(method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?'));
-            builder.AppendLine("();");
-            foreach (var assignment in mapping.Assignments)
+            builder.Append('(');
+            if (mapping.Construction != null)
             {
-                builder.Append("        target.");
-                builder.Append(assignment.TargetName);
-                builder.Append(" = ");
-                builder.Append(parameter.Name);
-                builder.Append('.');
-                builder.Append(assignment.SourceName);
+                var first = true;
+                foreach (var argument in mapping.Construction.Arguments)
+                {
+                    if (!first)
+                    {
+                        builder.Append(", ");
+                    }
+
+                    first = false;
+                    builder.Append(argument.ParameterName);
+                    builder.Append(": ");
+                    builder.Append(parameter.Name);
+                    builder.Append('.');
+                    builder.Append(argument.SourceName);
+                }
+            }
+
+            builder.Append(')');
+            if (mapping.Assignments.Length == 0)
+            {
                 builder.AppendLine(";");
+            }
+            else
+            {
+                builder.AppendLine();
+                builder.AppendLine("        {");
+                for (var i = 0; i < mapping.Assignments.Length; i++)
+                {
+                    var assignment = mapping.Assignments[i];
+                    builder.Append("            ");
+                    builder.Append(assignment.TargetName);
+                    builder.Append(" = ");
+                    builder.Append(parameter.Name);
+                    builder.Append('.');
+                    builder.Append(assignment.SourceName);
+                    builder.AppendLine(i == mapping.Assignments.Length - 1 ? string.Empty : ",");
+                }
+
+                builder.AppendLine("        };");
             }
 
             builder.AppendLine("        return target;");
@@ -699,11 +942,12 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class MappingModel
         {
-            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, ImmutableArray<AssignmentModel> assignments)
+            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, ConstructionModel? construction, ImmutableArray<AssignmentModel> assignments)
             {
                 Method = method;
                 SourceNullable = sourceNullable;
                 ReturnNullable = returnNullable;
+                Construction = construction;
                 Assignments = assignments;
             }
 
@@ -713,7 +957,44 @@ namespace Mammoth.LiteMapper.Generator
 
             public bool ReturnNullable { get; }
 
+            public ConstructionModel? Construction { get; }
+
             public ImmutableArray<AssignmentModel> Assignments { get; }
+        }
+
+        private sealed class ConstructionModel
+        {
+            public ConstructionModel(int parameterCount, ImmutableArray<ConstructorArgumentModel> arguments, ImmutableArray<ISymbol> boundTargetMembers, bool setsRequiredMembers)
+            {
+                ParameterCount = parameterCount;
+                Arguments = arguments;
+                BoundTargetMembers = boundTargetMembers;
+                SetsRequiredMembers = setsRequiredMembers;
+            }
+
+            public int ParameterCount { get; }
+
+            public ImmutableArray<ConstructorArgumentModel> Arguments { get; }
+
+            public ImmutableArray<ISymbol> BoundTargetMembers { get; }
+
+            public bool SetsRequiredMembers { get; }
+        }
+
+        private sealed class ConstructorArgumentModel
+        {
+            public ConstructorArgumentModel(string parameterName, string sourceName, ISymbol sourceMember)
+            {
+                ParameterName = parameterName;
+                SourceName = sourceName;
+                SourceMember = sourceMember;
+            }
+
+            public string ParameterName { get; }
+
+            public string SourceName { get; }
+
+            public ISymbol SourceMember { get; }
         }
 
         private sealed class AssignmentModel

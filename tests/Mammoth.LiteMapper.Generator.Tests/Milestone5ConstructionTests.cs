@@ -11,10 +11,10 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Mammoth.LiteMapper.Generator.Tests
 {
     [TestClass]
-    public sealed class Milestone4FlatMappingTests
+    public sealed class Milestone5ConstructionTests
     {
         [TestMethod]
-        public void FlatMappingGeneratesDirectAssignmentsAndRuns()
+        public void ParameterizedConstructorIsSelectedAndBoundMembersAreNotAssignedAgain()
         {
             var result = RunGenerator(@"
 using Mammoth.LiteMapper;
@@ -25,223 +25,173 @@ public static partial class Mapper
     public static partial Target ToTarget(Source source);
 }
 
-public sealed class Source
-{
-    public string? Name { get; set; }
-    public int Age;
-}
-
+public sealed class Source { public int Id { get; set; } public string Name { get; set; } = string.Empty; }
 public sealed class Target
 {
-    public string? Name { get; set; }
-    public int Age;
+    public Target(int id) { Id = id; }
+    public int Id { get; }
+    public string Name { get; set; } = string.Empty;
 }
 ");
 
             AssertNoLiteMapperDiagnostics(result.RunResult);
             var generated = SingleGeneratedSource(result.RunResult);
-            StringAssert.Contains(generated, "var target = new Target()");
+            StringAssert.Contains(generated, "new Target(id: source.Id)");
+            Assert.IsFalse(generated.Contains("target.Id =", StringComparison.Ordinal), generated);
             StringAssert.Contains(generated, "Name = source.Name");
-            StringAssert.Contains(generated, "Age = source.Age");
-            Assert.AreEqual(
-                Normalize(File.ReadAllText(Repository.Path("tests/Mammoth.LiteMapper.Generator.Tests/Snapshots/Milestone4FlatMapping.Mapper.g.cs"))),
-                Normalize(generated));
-            AssertNoRuntimeFeatures(generated);
 
             var assembly = Emit(result.Compilation);
             var source = assembly.CreateInstance("Source")!;
+            source.GetType().GetProperty("Id")!.SetValue(source, 42);
             source.GetType().GetProperty("Name")!.SetValue(source, "Ada");
-            source.GetType().GetField("Age")!.SetValue(source, 37);
-
             var target = assembly.GetType("Mapper")!.GetMethod("ToTarget")!.Invoke(null, new[] { source })!;
-
+            Assert.AreEqual(42, target.GetType().GetProperty("Id")!.GetValue(target));
             Assert.AreEqual("Ada", target.GetType().GetProperty("Name")!.GetValue(target));
-            Assert.AreEqual(37, target.GetType().GetField("Age")!.GetValue(target));
         }
 
         [TestMethod]
-        public void NameMatchingPolicyControlsCaseFallback()
+        public void ConstructorDiagnosticsUseStableIds()
         {
-            var exact = RunGenerator(@"
-using Mammoth.LiteMapper;
-
-[LiteMapper(NameMatching = NameMatching.Exact)]
-public static partial class Mapper
-{
-    public static partial Target ToTarget(Source source);
-}
-
-public sealed class Source { public int name { get; set; } }
-public sealed class Target { public int Name { get; set; } }
-");
-
-            AssertDiagnostic(exact.RunResult, "LITEMAPPER1001");
-
-            var fallback = RunGenerator(@"
+            AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;
 
 [LiteMapper]
-public static partial class Mapper
-{
-    public static partial Target ToTarget(Source source);
-}
-
-public sealed class Source { public int name { get; set; } }
-public sealed class Target { public int Name { get; set; } }
-");
-
-            AssertNoLiteMapperDiagnostics(fallback.RunResult);
-            StringAssert.Contains(SingleGeneratedSource(fallback.RunResult), "Name = source.name");
-        }
-
-        [TestMethod]
-        public void UnmappedPoliciesReportConfiguredDiagnostics()
-        {
-            var result = RunGenerator(@"
-using Mammoth.LiteMapper;
-
-[LiteMapper(UnmappedSourceMembers = UnmappedMemberPolicy.Warning, UnmappedTargetMembers = UnmappedMemberPolicy.Error)]
-public static partial class Mapper
-{
-    public static partial Target ToTarget(Source source);
-}
-
-public sealed class Source
-{
-    public int Used { get; set; }
-    public int Extra { get; set; }
-}
-
+public static partial class Mapper { public static partial Target ToTarget(Source source); }
+public sealed class Source { public int Id { get; set; } public int Other { get; set; } }
 public sealed class Target
 {
-    public int Used { get; set; }
-    public int Missing { get; set; }
+    public Target(int id) { }
+    public Target(int other) { }
 }
-");
+").RunResult, "LITEMAPPER1011");
 
-            AssertDiagnostic(result.RunResult, "LITEMAPPER1001");
-            AssertDiagnostic(result.RunResult, "LITEMAPPER1003");
-            Assert.AreEqual(0, result.RunResult.GeneratedTrees.Length);
+            AssertDiagnostic(RunGenerator(@"
+using Mammoth.LiteMapper;
+
+[LiteMapper]
+public static partial class Mapper { public static partial Target ToTarget(Source source); }
+public sealed class Source { }
+public sealed class Target
+{
+    [MappingConstructor] public Target(int id) { }
+}
+").RunResult, "LITEMAPPER1013");
+
+            AssertDiagnostic(RunGenerator(@"
+using Mammoth.LiteMapper;
+
+[LiteMapper]
+public static partial class Mapper { public static partial Target ToTarget(Source source); }
+public sealed class Source { public int Id { get; set; } }
+public sealed class Target
+{
+    [MappingConstructor] public Target(int id) { }
+    [MappingConstructor] public Target() { }
+}
+").RunResult, "LITEMAPPER1012");
+
+            AssertDiagnostic(RunGenerator(@"
+using Mammoth.LiteMapper;
+
+[LiteMapper]
+public static partial class Mapper { public static partial Target ToTarget(Source source); }
+public sealed class Source { }
+public sealed class Target
+{
+    private Target() { }
+}
+").RunResult, "LITEMAPPER1010");
         }
 
         [TestMethod]
-        public void InvalidFlatMappingMembersReportDiagnostics()
+        public void OptionalParametersRecordsInitRequiredAndValueTypesAreSupported()
+        {
+            var result = RunGenerator(@"
+#nullable enable
+using Mammoth.LiteMapper;
+
+[LiteMapper]
+public static partial class Mapper
+{
+    public static partial Target ToTarget(Source source);
+    public static partial PersonRecord ToRecord(Source source);
+    public static partial PointStruct ToStruct(Source source);
+}
+
+public sealed class Source { public int Id { get; set; } public string Name { get; set; } = string.Empty; public int X { get; set; } public int Y { get; set; } }
+public sealed class Target
+{
+    public Target(int id, int optional = 9) { Id = id; Optional = optional; }
+    public int Id { get; }
+    public int Optional { get; }
+    public required string Name { get; init; }
+}
+public record PersonRecord(int Id) { public required string Name { get; init; } }
+public readonly record struct PointStruct(int X, int Y);
+");
+
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var generated = string.Join("\n", result.RunResult.GeneratedTrees.Select(static t => t.GetText().ToString()));
+            StringAssert.Contains(generated, "new Target(id: source.Id)");
+            Assert.IsFalse(generated.Contains("default!", StringComparison.Ordinal), generated);
+            StringAssert.Contains(generated, "Name = source.Name");
+            StringAssert.Contains(generated, "new PersonRecord(Id: source.Id)");
+            StringAssert.Contains(generated, "new PointStruct(X: source.X, Y: source.Y)");
+        }
+
+        [TestMethod]
+        public void RequiredReadOnlyMembersRequireConstructorBindingUnlessConstructorSetsRequiredMembers()
         {
             AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;
 
 [LiteMapper]
-public static partial class Mapper
-{
-    public static partial Target ToTarget(Source source);
-}
+public static partial class Mapper { public static partial Target ToTarget(Source source); }
+public sealed class Source { }
+public sealed class Target { public required string Name { get; } }
+").RunResult, "LITEMAPPER1002");
 
-public sealed class Source { public int Id { get; set; } public int ID { get; set; } }
-public sealed class Target { public int id { get; set; } }
-").RunResult, "LITEMAPPER1004");
-
-            AssertDiagnostic(RunGenerator(@"
+            var result = RunGenerator(@"
+using System.Diagnostics.CodeAnalysis;
 using Mammoth.LiteMapper;
 
 [LiteMapper]
-public static partial class Mapper
+public static partial class Mapper { public static partial Target ToTarget(Source source); }
+public sealed class Source { }
+public sealed class Target
 {
-    public static partial Target ToTarget(Source source);
+    [SetsRequiredMembers]
+    public Target() { Name = ""set""; }
+    public required string Name { get; }
 }
+");
 
-public sealed class Source { public string Name { get; set; } = string.Empty; }
-public sealed class Target { public int Name { get; set; } }
-").RunResult, "LITEMAPPER2004");
+            AssertNoLiteMapperDiagnostics(result.RunResult);
         }
 
         [TestMethod]
-        public void InheritedMembersMapAndHiddenMembersWarn()
+        public void PrivateConstructorIsUsableWhenMapperIsNestedInTargetType()
         {
             var result = RunGenerator(@"
 using Mammoth.LiteMapper;
 
-[LiteMapper]
-public static partial class Mapper
+public sealed partial class Target
 {
-    public static partial Target ToTarget(Source source);
+    private Target() { }
+    public int Id { get; init; }
+
+    [LiteMapper]
+    public static partial class Mapper
+    {
+        public static partial Target ToTarget(Source source);
+    }
 }
 
-public class SourceBase { public int Id { get; set; } public string? Name { get; set; } }
-public sealed class Source : SourceBase { public new string? Name { get; set; } }
-public class TargetBase { public int Id { get; set; } }
-public sealed class Target : TargetBase { public string? Name { get; set; } }
+public sealed class Source { public int Id { get; set; } }
 ");
 
-            AssertDiagnostic(result.RunResult, "LITEMAPPER1005");
-            var generated = SingleGeneratedSource(result.RunResult);
-            StringAssert.Contains(generated, "Id = source.Id");
-            StringAssert.Contains(generated, "Name = source.Name");
-        }
-
-        [TestMethod]
-        public void NullableRootAndMemberBehaviorIsEnforced()
-        {
-            var nullableReturn = RunGenerator(@"
-#nullable enable
-using Mammoth.LiteMapper;
-
-[LiteMapper]
-public static partial class Mapper
-{
-    public static partial Target? ToTarget(Source? source);
-}
-
-public sealed class Source { public string? Name { get; set; } }
-public sealed class Target { public string? Name { get; set; } }
-");
-
-            AssertNoLiteMapperDiagnostics(nullableReturn.RunResult);
-            StringAssert.Contains(SingleGeneratedSource(nullableReturn.RunResult), "if (source == null)");
-            StringAssert.Contains(SingleGeneratedSource(nullableReturn.RunResult), "return null;");
-
-            var nonNullReturn = RunGenerator(@"
-#nullable enable
-using Mammoth.LiteMapper;
-
-[LiteMapper]
-public static partial class Mapper
-{
-    public static partial Target ToTarget(Source? source);
-}
-
-public sealed class Source { public string? Name { get; set; } }
-public sealed class Target { public string? Name { get; set; } }
-");
-
-            AssertDiagnostic(nonNullReturn.RunResult, "LITEMAPPER2001");
-
-            var memberMismatch = RunGenerator(@"
-#nullable enable
-using Mammoth.LiteMapper;
-
-[LiteMapper]
-public static partial class Mapper
-{
-    public static partial Target ToTarget(Source source);
-}
-
-public sealed class Source { public string? Name { get; set; } }
-public sealed class Target { public string Name { get; set; } = string.Empty; }
-");
-
-            AssertDiagnostic(memberMismatch.RunResult, "LITEMAPPER2001");
-        }
-
-        private static void AssertNoRuntimeFeatures(string source)
-        {
-            Assert.IsFalse(source.Contains("System.Reflection", StringComparison.Ordinal), source);
-            Assert.IsFalse(source.Contains("dynamic", StringComparison.Ordinal), source);
-            Assert.IsFalse(source.Contains("Assembly", StringComparison.Ordinal), source);
-        }
-
-        private static string Normalize(string text)
-        {
-            return text.Replace("\r\n", "\n").TrimEnd();
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            StringAssert.Contains(SingleGeneratedSource(result.RunResult), "new Target()");
         }
 
         private static string SingleGeneratedSource(GeneratorDriverRunResult result)
@@ -261,7 +211,7 @@ public sealed class Target { public string Name { get; set; } = string.Empty; }
             Assert.AreEqual(0, diagnostics.Length, string.Join(Environment.NewLine, diagnostics.Select(static d => d.ToString())));
         }
 
-        private static GeneratorRun RunGenerator(string source, LanguageVersion languageVersion = LanguageVersion.CSharp9)
+        private static GeneratorRun RunGenerator(string source, LanguageVersion languageVersion = LanguageVersion.CSharp11)
         {
             var compilation = CreateCompilation(source, languageVersion);
             GeneratorDriver driver = CSharpGeneratorDriver.Create(

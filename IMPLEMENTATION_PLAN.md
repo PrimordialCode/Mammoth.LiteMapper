@@ -87,7 +87,11 @@
 - Focused validation: constructor test suite.
 - Full validation: full solution tests.
 - Completion criteria: construction behavior matches section 10 and never emits `default!`.
-- Risks: C# required metadata across TFMs.
+- Status: Completed on 2026-06-17 with constructor planning, records and record structs, object-initializer rendering for `init` members, required-member validation, `SetsRequiredMembersAttribute` handling, readonly constructor binding, value-type construction, and constructor diagnostics.
+- Deviations: rendered all new-object member assignments with object initializers so `init` properties and ordinary settable members share one deterministic code path.
+- Remaining tasks: none for Milestone 5.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore --filter Milestone5ConstructionTests` initially failed for expected missing constructor behavior; after implementation it passed with 5 tests. `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore` passed with 19 tests. `dotnet restore Mammoth.LiteMapper.sln` passed with known NU1608 warnings. `dotnet build Mammoth.LiteMapper.sln --no-restore` passed with the same 3 NU1608 warnings. `dotnet test Mammoth.LiteMapper.sln --no-build` passed with 31 total tests.
+- Risks: C# required metadata across TFMs remains a future portability matrix concern; current validation uses the available net10.0 test host.
 - Out of scope: converters and explicit member configuration.
 
 ## Milestone 6: explicit member configuration and converters

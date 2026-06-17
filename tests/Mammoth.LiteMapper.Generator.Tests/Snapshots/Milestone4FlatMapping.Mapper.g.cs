@@ -8,9 +8,11 @@ static partial class Mapper
         {
             throw new global::System.ArgumentNullException(nameof(source));
         }
-        var target = new Target();
-        target.Age = source.Age;
-        target.Name = source.Name;
+        var target = new Target()
+        {
+            Age = source.Age,
+            Name = source.Name
+        };
         return target;
     }
 }

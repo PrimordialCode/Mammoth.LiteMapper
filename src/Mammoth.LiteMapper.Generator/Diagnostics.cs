@@ -23,7 +23,11 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor UnmappedTargetMemberError = Error("LITEMAPPER1001", "UnmappedTargetMember", "Target member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor AmbiguousMemberMatch = Error("LITEMAPPER1004", "AmbiguousMemberMatch", "Multiple source members match target member '{0}'");
         public static readonly DiagnosticDescriptor HiddenMemberSelected = Warning("LITEMAPPER1005", "HiddenMemberSelected", "Hidden member '{0}' was selected");
-        public static readonly DiagnosticDescriptor ConstructorNotFound = Error("LITEMAPPER1010", "ConstructorNotFound", "Target type '{0}' does not have an accessible parameterless constructor");
+        public static readonly DiagnosticDescriptor RequiredTargetMemberNotMapped = Error("LITEMAPPER1002", "RequiredTargetMemberNotMapped", "Required target member '{0}' is not mapped");
+        public static readonly DiagnosticDescriptor ConstructorNotFound = Error("LITEMAPPER1010", "ConstructorNotFound", "Target type '{0}' does not have a legal construction path");
+        public static readonly DiagnosticDescriptor AmbiguousConstructor = Error("LITEMAPPER1011", "AmbiguousConstructor", "Target type '{0}' has ambiguous satisfiable constructors");
+        public static readonly DiagnosticDescriptor MultipleMappingConstructors = Error("LITEMAPPER1012", "MultipleMappingConstructors", "Target type '{0}' has multiple mapping constructors");
+        public static readonly DiagnosticDescriptor MappingConstructorNotSatisfiable = Error("LITEMAPPER1013", "MappingConstructorNotSatisfiable", "Mapping constructor for target type '{0}' cannot be satisfied");
         public static readonly DiagnosticDescriptor NullableToNonNullable = Error("LITEMAPPER2001", "NullableToNonNullable", "Potential null value cannot be mapped to non-null target '{0}'");
         public static readonly DiagnosticDescriptor ConversionNotFound = Error("LITEMAPPER2004", "ConversionNotFound", "No conversion exists from '{0}' to '{1}'");
         public static readonly DiagnosticDescriptor UnmappedSourceMember = Info("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");

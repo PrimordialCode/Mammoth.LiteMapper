@@ -134,6 +134,16 @@
 - Specification references: 6.2, 9.1, 20.1, 20.2.
 - Consequences: Generated output is suppressed when an effective policy is `Error`; future diagnostics work should verify editorconfig severity override behavior for configurable diagnostics.
 
+### DEC-0015
+
+- Date: 2026-06-17
+- Milestone: 5
+- Status: Accepted
+- Context: Milestone 5 requires `init` property support while Milestone 4 emitted ordinary post-construction assignments for flat mappings.
+- Decision: Render new-object member assignments through object initializers for both `init` properties and ordinary settable members.
+- Specification references: 10.5, 19.7, 25.
+- Consequences: Generated source remains deterministic and direct; the representative Milestone 4 snapshot was updated to the new construction shape.
+
 ## Pending specification questions
 
 ### PENDING-0001
