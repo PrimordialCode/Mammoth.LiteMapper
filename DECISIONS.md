@@ -144,6 +144,16 @@
 - Specification references: 10.5, 19.7, 25.
 - Consequences: Generated source remains deterministic and direct; the representative Milestone 4 snapshot was updated to the new construction shape.
 
+### DEC-0016
+
+- Date: 2026-06-17
+- Milestone: 6
+- Status: Accepted
+- Context: Section 11.3 forbids selecting arbitrary compatible helper methods solely by signature while section 11.1 includes local converters and mapping methods in the resolution chain.
+- Decision: For Milestone 6, local member conversion is limited to explicit `MapProperty.Use`, local `[MappingConverter]` methods, and local `Map{TargetMember}` methods. Unmarked local helper methods are not selected by signature. Registered external types may contribute converter or mapping methods because registration is explicit user intent.
+- Specification references: 11.1, 11.3, 11.4, 11.5, 28.4.
+- Consequences: Local helper methods remain ordinary C# unless explicitly named or marked; future nested/default mapping work can add mapping-method/default resolution without introducing arbitrary local helper selection.
+
 ## Pending specification questions
 
 ### PENDING-0001

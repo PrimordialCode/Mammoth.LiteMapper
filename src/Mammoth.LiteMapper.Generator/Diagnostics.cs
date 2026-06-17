@@ -30,6 +30,9 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor MappingConstructorNotSatisfiable = Error("LITEMAPPER1013", "MappingConstructorNotSatisfiable", "Mapping constructor for target type '{0}' cannot be satisfied");
         public static readonly DiagnosticDescriptor NullableToNonNullable = Error("LITEMAPPER2001", "NullableToNonNullable", "Potential null value cannot be mapped to non-null target '{0}'");
         public static readonly DiagnosticDescriptor ConversionNotFound = Error("LITEMAPPER2004", "ConversionNotFound", "No conversion exists from '{0}' to '{1}'");
+        public static readonly DiagnosticDescriptor InvalidMemberConfiguration = Error("LITEMAPPER2005", "InvalidMemberConfiguration", "Member configuration '{0}' is invalid");
+        public static readonly DiagnosticDescriptor InvalidConverter = Error("LITEMAPPER2006", "InvalidConverter", "Converter '{0}' is invalid");
+        public static readonly DiagnosticDescriptor AmbiguousConverter = Error("LITEMAPPER2007", "AmbiguousConverter", "Converter resolution for '{0}' is ambiguous");
         public static readonly DiagnosticDescriptor UnmappedSourceMember = Info("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor UnmappedSourceMemberWarning = Warning("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor InternalGeneratorFailure = Error("LITEMAPPER9001", "InternalGeneratorFailure", "Unexpected failure while processing mapper '{0}'");

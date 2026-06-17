@@ -106,8 +106,12 @@
 - Focused validation: configuration and converter tests.
 - Full validation: full solution tests.
 - Completion criteria: full precedence chain is deterministic and tested.
-- Risks: exact diagnostic locations for attribute arguments.
-- Out of scope: collection, enum, recursive behavior.
+- Status: Completed on 2026-06-17 with explicit `MapProperty` source paths, `IgnoreTarget`, `IgnoreSource`, `UseTargetDefault`, local converter resolution, `Map{TargetMember}` resolution, registered external converter and mapping-method resolution, invalid configuration diagnostics, invalid converter diagnostics, ambiguity diagnostics, runtime invocation coverage, and a checked-in generated-source snapshot.
+- Deviations: local unmarked helper methods are not selected by signature; only explicit `Use`, `[MappingConverter]`, `Map{TargetMember}`, registered external methods, and implicit conversion are active in this milestone so arbitrary local helper selection is avoided.
+- Remaining tasks: none for Milestone 6.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore --filter Milestone6ConfigurationAndConverterTests` initially failed for expected missing Milestone 6 behavior, then passed with 5 tests after implementation; `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore` passed with 24 tests; `dotnet restore Mammoth.LiteMapper.sln` passed with known NU1608 warnings; `dotnet build Mammoth.LiteMapper.sln --no-restore` passed with the same 3 NU1608 warnings; `dotnet test Mammoth.LiteMapper.sln --no-build` passed with 36 total tests.
+- Risks: constructor-parameter explicit configuration and optional-parameter `UseTargetDefault` interactions need broader coverage when constructor binding is expanded beyond current member-initializer scenarios.
+- Out of scope: nullable policy completion, nested structural mapping, collections, enum mapping, recursive behavior, existing-target mapping, explicit operators and numeric narrowing policy.
 
 ## Milestone 7: nullable behavior
 

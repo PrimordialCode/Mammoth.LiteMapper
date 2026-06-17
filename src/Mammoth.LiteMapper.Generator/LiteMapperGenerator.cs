@@ -17,9 +17,14 @@ namespace Mammoth.LiteMapper.Generator
     {
         private const string LiteMapperAttributeName = "Mammoth.LiteMapper.LiteMapperAttribute";
         private const string LiteMapperDefaultsAttributeName = "Mammoth.LiteMapper.LiteMapperDefaultsAttribute";
+        private const string IgnoreSourceAttributeName = "Mammoth.LiteMapper.IgnoreSourceAttribute";
+        private const string IgnoreTargetAttributeName = "Mammoth.LiteMapper.IgnoreTargetAttribute";
+        private const string MapPropertyAttributeName = "Mammoth.LiteMapper.MapPropertyAttribute";
+        private const string MappingConverterAttributeName = "Mammoth.LiteMapper.MappingConverterAttribute";
         private const string MappingConstructorAttributeName = "Mammoth.LiteMapper.MappingConstructorAttribute";
         private const string MappingOptionsAttributeName = "Mammoth.LiteMapper.MappingOptionsAttribute";
         private const string UseMapperAttributeName = "Mammoth.LiteMapper.UseMapperAttribute";
+        private const string UseTargetDefaultAttributeName = "Mammoth.LiteMapper.UseTargetDefaultAttribute";
         private const string NameMatchingExact = "Exact";
         private const string NameMatchingIgnoreCase = "IgnoreCase";
         private const string UnmappedMemberPolicyIgnore = "Ignore";
@@ -197,6 +202,11 @@ namespace Mammoth.LiteMapper.Generator
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
             var usedSources = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
             var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
+            var explicitConfigurations = ParseExplicitConfigurations(method, sourceType, targetType, sourceMembers, diagnostics);
+            var ignoredTargets = ParseMemberNames(method, IgnoreTargetAttributeName, targetType, diagnostics);
+            var ignoredSources = ParseMemberNames(method, IgnoreSourceAttributeName, sourceType, diagnostics);
+            var targetDefaults = ParseMemberNames(method, UseTargetDefaultAttributeName, targetType, diagnostics);
+            var externalTypes = GetRegisteredMapperTypes(method.ContainingType, compilation).ToArray();
 
             if (sourceNullable && !returnNullable)
             {
@@ -221,7 +231,19 @@ namespace Mammoth.LiteMapper.Generator
                     continue;
                 }
 
-                var match = MatchSource(targetMember, sourceMembers, options.NameMatching);
+                if (ignoredTargets.Contains(targetMember.Name) || targetDefaults.Contains(targetMember.Name))
+                {
+                    if (targetDefaults.Contains(targetMember.Name) && !HasWritableDefault(targetMember) && (construction == null || !construction.BoundTargetMembers.Any(m => SymbolEqualityComparer.Default.Equals(m, targetMember))))
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidMemberConfiguration, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
+                    }
+
+                    continue;
+                }
+
+                var explicitConfiguration = explicitConfigurations.FirstOrDefault(c => c.TargetName == targetMember.Name);
+                var selected = explicitConfiguration == null ? null : explicitConfiguration.SelectedSource;
+                var match = selected == null ? MatchSource(targetMember, sourceMembers, options.NameMatching) : new MatchResult(selected.SourceMember, false);
                 if (match.Ambiguous)
                 {
                     diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousMemberMatch, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
@@ -251,31 +273,343 @@ namespace Mammoth.LiteMapper.Generator
                     continue;
                 }
 
-                if (SourceMayBeNull(match.Member) && TargetIsNonNullable(targetMember))
+                var conversion = ResolveConversion(method, explicitConfiguration, match.Member, targetMember, compilation, externalTypes, diagnostics);
+                if (conversion == null)
+                {
+                    continue;
+                }
+
+                if (conversion.SourceMember != null && SourceMayBeNull(conversion.SourceMember) && TargetIsNonNullable(targetMember))
                 {
                     diagnostics.Add(Diagnostic.Create(Diagnostics.NullableToNonNullable, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
                     continue;
                 }
 
-                if (!compilation.ClassifyConversion(GetMemberType(match.Member), GetMemberType(targetMember)).IsImplicit)
+                if (conversion.SourceMember != null)
                 {
-                    diagnostics.Add(Diagnostic.Create(Diagnostics.ConversionNotFound, targetMember.Locations.FirstOrDefault() ?? location, GetMemberType(match.Member).ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), GetMemberType(targetMember).ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
-                    continue;
+                    usedSources.Add(conversion.SourceMember);
                 }
 
-                usedSources.Add(match.Member);
-                assignments.Add(new AssignmentModel(targetMember.Name, match.Member.Name));
+                assignments.Add(new AssignmentModel(targetMember.Name, conversion.Expression));
             }
 
             if (options.UnmappedSourceMembers != UnmappedMemberPolicyIgnore)
             {
-                foreach (var sourceMember in sourceMembers.Where(m => !usedSources.Contains(m)).OrderBy(static m => m.Name, StringComparer.Ordinal))
+                foreach (var sourceMember in sourceMembers.Where(m => !usedSources.Contains(m) && !ignoredSources.Contains(m.Name)).OrderBy(static m => m.Name, StringComparer.Ordinal))
                 {
                     ReportUnmappedSource(sourceMember, options.UnmappedSourceMembers, diagnostics);
                 }
             }
 
             return new MappingModel(method, sourceNullable, returnNullable, construction, assignments.ToImmutable());
+        }
+
+        private static ImmutableArray<ExplicitMemberConfiguration> ParseExplicitConfigurations(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, ISymbol[] sourceMembers, ICollection<Diagnostic> diagnostics)
+        {
+            var builder = ImmutableArray.CreateBuilder<ExplicitMemberConfiguration>();
+            var seenTargets = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var attribute in method.GetAttributes().Where(static a => IsAttribute(a, MapPropertyAttributeName)))
+            {
+                var targetName = ReadStringNamedArgument(attribute, "Target");
+                var sourcePath = ReadStringNamedArgument(attribute, "Source");
+                var use = ReadStringNamedArgument(attribute, "Use");
+                var converterType = ReadTypeNamedArgument(attribute, "ConverterType");
+                var location = attribute.ApplicationSyntaxReference == null ? method.Locations.FirstOrDefault() : attribute.ApplicationSyntaxReference.GetSyntax().GetLocation();
+                if (string.IsNullOrWhiteSpace(targetName) || targetName!.IndexOf('.') >= 0 || !HasDirectMember(targetType, targetName))
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidMemberConfiguration, location, targetName ?? "Target"));
+                    continue;
+                }
+
+                if (!seenTargets.Add(targetName!))
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.DuplicateConfiguration, location, targetName));
+                    continue;
+                }
+
+                SourcePathModel? selectedSource = null;
+                if (!string.IsNullOrWhiteSpace(sourcePath))
+                {
+                    selectedSource = ResolveSourcePath(sourceType, sourceMembers, sourcePath!, diagnostics, location);
+                    if (selectedSource == null)
+                    {
+                        continue;
+                    }
+                }
+                else if (string.IsNullOrWhiteSpace(use))
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidMemberConfiguration, location, targetName));
+                    continue;
+                }
+
+                builder.Add(new ExplicitMemberConfiguration(targetName!, selectedSource, use, converterType));
+            }
+
+            return builder.ToImmutable();
+        }
+
+        private static HashSet<string> ParseMemberNames(IMethodSymbol method, string attributeName, ITypeSymbol declaringType, ICollection<Diagnostic> diagnostics)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var attribute in method.GetAttributes().Where(a => IsAttribute(a, attributeName)))
+            {
+                var memberName = attribute.ConstructorArguments.Length == 1 ? attribute.ConstructorArguments[0].Value as string : null;
+                var location = attribute.ApplicationSyntaxReference == null ? method.Locations.FirstOrDefault() : attribute.ApplicationSyntaxReference.GetSyntax().GetLocation();
+                if (string.IsNullOrWhiteSpace(memberName) || memberName!.IndexOf('.') >= 0 || !HasDirectMember(declaringType, memberName))
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidMemberConfiguration, location, memberName ?? attributeName));
+                    continue;
+                }
+
+                if (!names.Add(memberName))
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.DuplicateConfiguration, location, memberName));
+                }
+            }
+
+            return names;
+        }
+
+        private static ConversionModel? ResolveConversion(IMethodSymbol mappingMethod, ExplicitMemberConfiguration? explicitConfiguration, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, INamedTypeSymbol[] externalTypes, ICollection<Diagnostic> diagnostics)
+        {
+            var parameterName = mappingMethod.Parameters[0].Name;
+            var sourcePath = explicitConfiguration == null ? null : explicitConfiguration.SelectedSource;
+            var expression = sourcePath == null ? parameterName + "." + sourceMember!.Name : parameterName + "." + sourcePath.Expression;
+            var sourceType = sourcePath == null ? GetMemberType(sourceMember!) : sourcePath.Type;
+            var targetType = GetMemberType(targetMember);
+            var location = targetMember.Locations.FirstOrDefault() ?? mappingMethod.Locations.FirstOrDefault();
+
+            if (explicitConfiguration != null && !string.IsNullOrWhiteSpace(explicitConfiguration.Use))
+            {
+                var explicitSourceType = sourcePath == null ? mappingMethod.Parameters[0].Type : sourceType;
+                var explicitExpression = sourcePath == null ? parameterName : expression;
+                return ResolveNamedConverter(mappingMethod, explicitConfiguration.ConverterType, externalTypes, explicitConfiguration.Use!, explicitSourceType, targetType, explicitExpression, sourcePath == null ? null : sourcePath.SourceMember, compilation, diagnostics, location);
+            }
+
+            if (sourcePath != null && compilation.ClassifyConversion(sourceType, targetType).IsImplicit)
+            {
+                return new ConversionModel(expression, sourcePath.SourceMember);
+            }
+
+            var localMarked = ResolveConverterSet(mappingMethod.ContainingType, static m => HasAttribute(m, MappingConverterAttributeName), sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location);
+            if (localMarked != null)
+            {
+                return localMarked;
+            }
+
+            var named = ResolveConverterSet(mappingMethod.ContainingType, m => m.Name == "Map" + targetMember.Name, sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location);
+            if (named != null)
+            {
+                return named;
+            }
+
+            foreach (var externalType in externalTypes)
+            {
+                var externalConverter = ResolveConverterSet(externalType, static m => HasAttribute(m, MappingConverterAttributeName), sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location, qualifyWithType: true);
+                if (externalConverter != null)
+                {
+                    return externalConverter;
+                }
+            }
+
+            foreach (var externalType in externalTypes)
+            {
+                var externalMapping = ResolveConverterSet(externalType, static m => !HasAttribute(m, MappingConverterAttributeName), sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location, qualifyWithType: true);
+                if (externalMapping != null)
+                {
+                    return externalMapping;
+                }
+            }
+
+            if (compilation.ClassifyConversion(sourceType, targetType).IsImplicit)
+            {
+                return new ConversionModel(expression, sourceMember);
+            }
+
+            diagnostics.Add(Diagnostic.Create(Diagnostics.ConversionNotFound, location, sourceType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+            return null;
+        }
+
+        private static ConversionModel? ResolveNamedConverter(IMethodSymbol mappingMethod, INamedTypeSymbol? converterType, INamedTypeSymbol[] externalTypes, string name, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, Location? location)
+        {
+            if (converterType != null)
+            {
+                return ResolveConverterSet(converterType, m => m.Name == name, sourceType, targetType, expression, sourceMember, compilation, diagnostics, name, location, qualifyWithType: true, invalidWhenNone: true);
+            }
+
+            var local = ResolveConverterSet(mappingMethod.ContainingType, m => m.Name == name, sourceType, targetType, expression, sourceMember, compilation, diagnostics, name, location, invalidWhenNone: true);
+            if (local != null)
+            {
+                return local;
+            }
+
+            foreach (var externalType in externalTypes)
+            {
+                var external = ResolveConverterSet(externalType, m => m.Name == name, sourceType, targetType, expression, sourceMember, compilation, diagnostics, name, location, qualifyWithType: true);
+                if (external != null)
+                {
+                    return external;
+                }
+            }
+
+            diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidConverter, location, name));
+            return null;
+        }
+
+        private static ConversionModel? ResolveConverterSet(INamedTypeSymbol type, Func<IMethodSymbol, bool> predicate, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, string targetName, Location? location, bool qualifyWithType = false, bool invalidWhenNone = false)
+        {
+            var candidates = type.GetMembers().OfType<IMethodSymbol>()
+                .Where(m => !m.IsImplicitlyDeclared && predicate(m) && IsUsableConverter(m, type, sourceType, targetType, compilation))
+                .Select(m => new { Method = m, Rank = compilation.ClassifyConversion(sourceType, m.Parameters[0].Type).IsIdentity ? 0 : 1 })
+                .OrderBy(static c => c.Rank)
+                .ThenBy(static c => c.Method.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), StringComparer.Ordinal)
+                .ToArray();
+            if (candidates.Length == 0)
+            {
+                if (invalidWhenNone)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidConverter, location, targetName));
+                }
+
+                return null;
+            }
+
+            var bestRank = candidates[0].Rank;
+            var best = candidates.Where(c => c.Rank == bestRank).ToArray();
+            if (best.Length != 1)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousConverter, location, targetName));
+                return null;
+            }
+
+            var method = best[0].Method;
+            var receiver = qualifyWithType ? type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat) + "." : string.Empty;
+            return new ConversionModel(receiver + method.Name + "(" + expression + ")", sourceMember);
+        }
+
+        private static bool IsUsableConverter(IMethodSymbol method, INamedTypeSymbol lookupType, ITypeSymbol sourceType, ITypeSymbol targetType, Compilation compilation)
+        {
+            if (method.IsAsync || method.IsGenericMethod || method.Parameters.Length != 1 || method.ReturnsVoid || method.Parameters[0].RefKind != RefKind.None)
+            {
+                return false;
+            }
+
+            if (lookupType.IsStatic && !method.IsStatic)
+            {
+                return false;
+            }
+
+            return compilation.ClassifyConversion(sourceType, method.Parameters[0].Type).IsImplicit &&
+                compilation.ClassifyConversion(method.ReturnType, targetType).IsImplicit;
+        }
+
+        private static INamedTypeSymbol[] GetRegisteredMapperTypes(INamedTypeSymbol mapperType, Compilation compilation)
+        {
+            return mapperType.GetAttributes()
+                .Concat(compilation.Assembly.GetAttributes())
+                .Where(static a => IsAttribute(a, UseMapperAttributeName))
+                .Select(static a => a.ConstructorArguments.Length == 1 ? a.ConstructorArguments[0].Value as INamedTypeSymbol : null)
+                .Where(static t => t != null && t.IsStatic)
+                .Cast<INamedTypeSymbol>()
+                .GroupBy(static t => t.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), StringComparer.Ordinal)
+                .Select(static g => g.First())
+                .OrderBy(static t => t.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        private static SourcePathModel? ResolveSourcePath(ITypeSymbol sourceType, ISymbol[] rootMembers, string sourcePath, ICollection<Diagnostic> diagnostics, Location? location)
+        {
+            if (sourcePath.IndexOf('(') >= 0 || sourcePath.IndexOf('[') >= 0)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidMemberConfiguration, location, sourcePath));
+                return null;
+            }
+
+            var segments = sourcePath.Split('.');
+            if (segments.Length == 0 || segments.Any(static s => string.IsNullOrWhiteSpace(s)))
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidMemberConfiguration, location, sourcePath));
+                return null;
+            }
+
+            ISymbol? first = rootMembers.FirstOrDefault(m => m.Name == segments[0]);
+            if (first == null)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidMemberConfiguration, location, segments[0]));
+                return null;
+            }
+
+            ITypeSymbol currentType = GetMemberType(first);
+            for (var i = 1; i < segments.Length; i++)
+            {
+                var member = GetReadableDirectMembers(currentType).FirstOrDefault(m => m.Name == segments[i]);
+                if (member == null)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidMemberConfiguration, location, segments[i]));
+                    return null;
+                }
+
+                currentType = GetMemberType(member);
+            }
+
+            return new SourcePathModel(sourcePath, first, currentType);
+        }
+
+        private static IEnumerable<ISymbol> GetReadableDirectMembers(ITypeSymbol type)
+        {
+            return type.GetMembers()
+                .Where(static m => !m.IsStatic && m.DeclaredAccessibility == Accessibility.Public)
+                .Where(static m => m is IFieldSymbol field && !field.IsConst || m is IPropertySymbol property && property.Parameters.Length == 0 && property.GetMethod != null && property.GetMethod.DeclaredAccessibility == Accessibility.Public);
+        }
+
+        private static bool HasDirectMember(ITypeSymbol type, string memberName)
+        {
+            return type.GetMembers().Any(m => !m.IsStatic && m.DeclaredAccessibility == Accessibility.Public && m.Name == memberName && (m is IFieldSymbol field && !field.IsConst || m is IPropertySymbol property && property.Parameters.Length == 0));
+        }
+
+        private static bool HasWritableDefault(ISymbol member)
+        {
+            foreach (var syntaxReference in member.DeclaringSyntaxReferences)
+            {
+                var syntax = syntaxReference.GetSyntax();
+                if (syntax is PropertyDeclarationSyntax property && property.Initializer != null)
+                {
+                    return true;
+                }
+
+                if (syntax is VariableDeclaratorSyntax variable && variable.Initializer != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string? ReadStringNamedArgument(AttributeData attribute, string name)
+        {
+            foreach (var argument in attribute.NamedArguments)
+            {
+                if (argument.Key == name)
+                {
+                    return argument.Value.Value as string;
+                }
+            }
+
+            return null;
+        }
+
+        private static INamedTypeSymbol? ReadTypeNamedArgument(AttributeData attribute, string name)
+        {
+            foreach (var argument in attribute.NamedArguments)
+            {
+                if (argument.Key == name)
+                {
+                    return argument.Value.Value as INamedTypeSymbol;
+                }
+            }
+
+            return null;
         }
 
         private static EffectiveMappingOptions EffectiveOptions(IMethodSymbol method)
@@ -859,9 +1193,7 @@ namespace Mammoth.LiteMapper.Generator
                     builder.Append("            ");
                     builder.Append(assignment.TargetName);
                     builder.Append(" = ");
-                    builder.Append(parameter.Name);
-                    builder.Append('.');
-                    builder.Append(assignment.SourceName);
+                    builder.Append(assignment.Expression);
                     builder.AppendLine(i == mapping.Assignments.Length - 1 ? string.Empty : ",");
                 }
 
@@ -999,15 +1331,63 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class AssignmentModel
         {
-            public AssignmentModel(string targetName, string sourceName)
+            public AssignmentModel(string targetName, string expression)
             {
                 TargetName = targetName;
-                SourceName = sourceName;
+                Expression = expression;
             }
 
             public string TargetName { get; }
 
-            public string SourceName { get; }
+            public string Expression { get; }
+        }
+
+        private sealed class ExplicitMemberConfiguration
+        {
+            public ExplicitMemberConfiguration(string targetName, SourcePathModel? selectedSource, string? use, INamedTypeSymbol? converterType)
+            {
+                TargetName = targetName;
+                SelectedSource = selectedSource;
+                Use = use;
+                ConverterType = converterType;
+            }
+
+            public string TargetName { get; }
+
+            public SourcePathModel? SelectedSource { get; }
+
+            public string? Use { get; }
+
+            public INamedTypeSymbol? ConverterType { get; }
+        }
+
+        private sealed class SourcePathModel
+        {
+            public SourcePathModel(string expression, ISymbol sourceMember, ITypeSymbol type)
+            {
+                Expression = expression;
+                SourceMember = sourceMember;
+                Type = type;
+            }
+
+            public string Expression { get; }
+
+            public ISymbol SourceMember { get; }
+
+            public ITypeSymbol Type { get; }
+        }
+
+        private sealed class ConversionModel
+        {
+            public ConversionModel(string expression, ISymbol? sourceMember)
+            {
+                Expression = expression;
+                SourceMember = sourceMember;
+            }
+
+            public string Expression { get; }
+
+            public ISymbol? SourceMember { get; }
         }
 
         private sealed class EffectiveMappingOptions
