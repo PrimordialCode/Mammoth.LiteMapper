@@ -154,6 +154,16 @@
 - Specification references: 11.1, 11.3, 11.4, 11.5, 28.4.
 - Consequences: Local helper methods remain ordinary C# unless explicitly named or marked; future nested/default mapping work can add mapping-method/default resolution without introducing arbitrary local helper selection.
 
+### DEC-0017
+
+- Date: 2026-06-17
+- Milestone: 7
+- Status: Accepted
+- Context: Milestone 7 nullable behavior must be implemented without starting collection mapping or existing-target patch mapping, which are later milestones.
+- Decision: Apply nullable mismatch `Error` and `Throw` behavior to mapping shapes already implemented through Milestone 6. Defer collection null materialization and `IgnoreNullSourceMembers` patch behavior until the milestones that introduce those mapping forms.
+- Specification references: 6.3, 12.4, 12.5, 15.11, 16.3, 25.
+- Consequences: Null-collection and patch-null tests remain documented as later-milestone validation even though their configuration APIs already exist.
+
 ## Pending specification questions
 
 ### PENDING-0001

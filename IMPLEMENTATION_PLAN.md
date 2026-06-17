@@ -125,8 +125,12 @@
 - Focused validation: nullability tests.
 - Full validation: full solution tests.
 - Completion criteria: compile-time errors and runtime throws match effective policy.
-- Risks: nullable annotations differ by reference assembly.
-- Out of scope: nested object mapping unless required by null tests.
+- Status: Completed on 2026-06-17 with effective nullable-mismatch policy resolution, `Error` diagnostics with invalid implementation suppression, `Throw` root/member/source-path runtime checks, nullable-oblivious coverage, and focused runtime invocation tests.
+- Deviations: Milestone 7 covers nullable behavior only for mapping shapes already implemented through Milestone 6; collection-specific null strategies and existing-target patch null skipping remain deferred because collections and existing-target mappings are Milestones 9 and 10.
+- Remaining tasks: none for currently reachable Milestone 7 behavior.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore --filter Milestone7NullableBehaviorTests` initially failed for expected missing `NullableMismatch.Throw` behavior, then passed with 3 tests after implementation; `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore` passed with 27 tests; `dotnet restore Mammoth.LiteMapper.sln` passed with known NU1608 warnings; `dotnet build Mammoth.LiteMapper.sln --no-restore` passed with the same 3 NU1608 warnings; `dotnet test Mammoth.LiteMapper.sln --no-build` passed with 39 total tests.
+- Risks: nullable annotations differ by reference assembly; nullable source-path flow checks are currently direct generated guards for implemented flat/explicit paths and may need sharing with nested/collection renderers in later milestones.
+- Out of scope: nested object mapping unless required by null tests; collection mapping and null collection materialization; existing-target mapping and patch null skipping.
 
 ## Milestone 8: nested object mapping
 
