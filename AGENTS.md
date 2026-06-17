@@ -141,3 +141,16 @@ Keep these files current as required by the specification.
 You may add verified repository-specific operational guidance, including exact build, test, packaging, formatting, and benchmark commands.
 
 Do not remove, weaken, or reinterpret the user-authored normative rules in this file without explicit approval.
+
+## Milestone execution
+
+Implement exactly one milestone per task unless the user explicitly authorizes a range.
+
+Before starting a milestone, read SPECIFICATION.md, IMPLEMENTATION_PLAN.md,
+DECISIONS.md, and STATUS.md in full.
+
+A milestone is not complete merely because the solution compiles.
+
+When SPECIFICATION.md is ambiguous, contradictory, or incomplete, stop all
+implementation, record the issue in DECISIONS.md with section references, and
+request an explicit decision. Do not infer or invent normative behavior.
