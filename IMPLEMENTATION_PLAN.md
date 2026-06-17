@@ -158,12 +158,16 @@
 - Prerequisites: Milestone 8 complete.
 - Files: collection planner/renderer, collection tests.
 - Public API affected: none.
-- Diagnostics affected: `LITEMAPPER4001`-`LITEMAPPER4006`.
-- Tests written first: every mandatory shape, unsupported shapes, single enumeration, capacity, comparers, key collision.
+- Diagnostics affected: `LITEMAPPER2002`, `LITEMAPPER4001`, `LITEMAPPER4002`, `LITEMAPPER4003`, `LITEMAPPER4006`; `LITEMAPPER4004` and `LITEMAPPER4005` remain for existing-target collection behavior in Milestone 10.
+- Tests written first: top-level arrays/lists, member arrays/sets/dictionaries, nested element mapping, null collections, unsupported rectangular arrays/queues/custom targets, single enumeration without count, comparer preservation, and dictionary key collision.
 - Focused validation: collection tests.
 - Full validation: full solution tests.
 - Completion criteria: supported shapes map correctly and unsupported shapes diagnose.
-- Risks: interface availability such as `IReadOnlySet<T>` by compilation.
+- Status: Completed on 2026-06-17 with top-level and member collection helpers, supported interface target defaults, mutable-copy behavior, nested element mapping, dictionary key/value conversion, null collection handling, one-pass enumerable mapping, cheap-count capacity use, comparer preservation for compatible sets/dictionaries, collision-through-`Add` behavior, and unsupported-shape diagnostics.
+- Deviations: collection helper methods use generated custom loop bodies within the existing mapping model rather than a separate planner type; exact helper names remain deterministic generated implementation details.
+- Remaining tasks: none for Milestone 9 new-object collection behavior.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore --filter Milestone9CollectionMappingTests` initially failed for expected missing collection behavior, then passed with 6 tests after implementation; `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore` passed with 37 tests; `dotnet restore Mammoth.LiteMapper.sln` passed; `dotnet build Mammoth.LiteMapper.sln --no-restore` passed with 0 warnings; `dotnet test Mammoth.LiteMapper.sln --no-build` passed with 49 total tests; `git diff --check` passed.
+- Risks: broader TFM/language matrix remains a later capability/portability milestone; collection helper formatting is not public API.
 - Out of scope: existing-target update semantics.
 
 ## Milestone 10: existing-target mapping and patch behavior

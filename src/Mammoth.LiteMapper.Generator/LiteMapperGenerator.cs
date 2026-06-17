@@ -32,6 +32,9 @@ namespace Mammoth.LiteMapper.Generator
         private const string UnmappedMemberPolicyError = "Error";
         private const string NullableMismatchPolicyError = "Error";
         private const string NullableMismatchPolicyThrow = "Throw";
+        private const string NullCollectionStrategyError = "Error";
+        private const string NullCollectionStrategyPreserve = "Preserve";
+        private const string NullCollectionStrategyEmpty = "Empty";
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
@@ -201,6 +204,12 @@ namespace Mammoth.LiteMapper.Generator
             var returnNullable = IsMaybeNull(method.ReturnType);
             var options = EffectiveOptions(method);
             var location = method.Locations.FirstOrDefault();
+            var topLevelCollection = CreateCollectionMappingModel(method, sourceType, targetType, method.Parameters[0].Name, null, compilation, diagnostics, ImmutableArray.CreateBuilder<MappingModel>(), new HashSet<string>(StringComparer.Ordinal), options, helperName: null);
+            if (topLevelCollection != null)
+            {
+                return topLevelCollection;
+            }
+
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
             var preconditions = ImmutableArray.CreateBuilder<PreconditionModel>();
             var helpers = ImmutableArray.CreateBuilder<MappingModel>();
@@ -286,23 +295,30 @@ namespace Mammoth.LiteMapper.Generator
 
                 if (conversion.PotentiallyNull && TargetIsNonNullable(targetMember))
                 {
-                    if (options.NullableMismatch == NullableMismatchPolicyError)
+                    if (IsCollectionType(GetMemberType(targetMember), compilation) && options.NullCollections == NullCollectionStrategyEmpty)
                     {
-                        diagnostics.Add(Diagnostic.Create(Diagnostics.NullableToNonNullable, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
-                        continue;
+                        conversion = new ConversionModel(conversion.Expression, conversion.SourceMember, potentiallyNull: false, conversion.MemberPath, conversion.NullCheckExpression);
                     }
-
-                    if (conversion.NullCheckExpression != null)
+                    else
                     {
-                        preconditions.Add(new PreconditionModel(conversion.NullCheckExpression, "Source member path '" + conversion.MemberPath + "' was null."));
-                    }
+                        if (options.NullableMismatch == NullableMismatchPolicyError)
+                        {
+                            diagnostics.Add(Diagnostic.Create(IsCollectionType(GetMemberType(targetMember), compilation) ? Diagnostics.InvalidNullCollectionMapping : Diagnostics.NullableToNonNullable, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
+                            continue;
+                        }
 
-                    conversion = new ConversionModel(
-                        conversion.Expression + " ?? throw new global::System.InvalidOperationException(\"Source member '" + conversion.MemberPath + "' was null.\")",
-                        conversion.SourceMember,
-                        potentiallyNull: false,
-                        conversion.MemberPath,
-                        nullCheckExpression: null);
+                        if (conversion.NullCheckExpression != null)
+                        {
+                            preconditions.Add(new PreconditionModel(conversion.NullCheckExpression, "Source member path '" + conversion.MemberPath + "' was null."));
+                        }
+
+                        conversion = new ConversionModel(
+                            conversion.Expression + " ?? throw new global::System.InvalidOperationException(\"Source member '" + conversion.MemberPath + "' was null.\")",
+                            conversion.SourceMember,
+                            potentiallyNull: false,
+                            conversion.MemberPath,
+                            nullCheckExpression: null);
+                    }
                 }
 
                 if (conversion.SourceMember != null)
@@ -321,7 +337,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null);
+            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null);
         }
 
         private static ImmutableArray<ExplicitMemberConfiguration> ParseExplicitConfigurations(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, ISymbol[] sourceMembers, ICollection<Diagnostic> diagnostics)
@@ -441,15 +457,21 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            if (compilation.ClassifyConversion(sourceType, targetType).IsImplicit)
-            {
-                return new ConversionModel(expression, sourceMember, sourceMember != null && SourceMayBeNull(sourceMember), sourceMember == null ? string.Empty : sourceMember.Name, nullCheckExpression: null);
-            }
-
             var visibleMapping = ResolveVisibleMapping(mappingMethod.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location);
             if (visibleMapping != null)
             {
                 return visibleMapping;
+            }
+
+            var collection = ResolveCollectionMapping(mappingMethod, sourceType, targetType, expression, sourceMember, targetMember, compilation, diagnostics, helpers, helperNames, options);
+            if (collection != null)
+            {
+                return collection;
+            }
+
+            if (compilation.ClassifyConversion(sourceType, targetType).IsImplicit)
+            {
+                return new ConversionModel(expression, sourceMember, sourceMember != null && SourceMayBeNull(sourceMember), sourceMember == null ? string.Empty : sourceMember.Name, nullCheckExpression: null);
             }
 
             var nested = ResolveNestedMapping(mappingMethod, sourceType, targetType, expression, sourceMember, targetMember, compilation, diagnostics, helpers, helperNames, options);
@@ -526,7 +548,295 @@ namespace Mammoth.LiteMapper.Generator
                 return new ConversionModel(expression + " == null ? null : " + helperName + "(" + expression + ")", sourceMember, potentiallyNull: false, targetMember.Name, nullCheckExpression: null);
             }
 
+            if (potentiallyNull && options.NullCollections == NullCollectionStrategyEmpty)
+            {
+                potentiallyNull = false;
+            }
+
             return new ConversionModel(helperName + "(" + expression + ")", sourceMember, potentiallyNull, targetMember.Name, nullCheckExpression: null);
+        }
+
+        private static ConversionModel? ResolveCollectionMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options)
+        {
+            var sourceShape = GetCollectionShape(sourceType, compilation);
+            var targetShape = GetCollectionShape(targetType, compilation);
+            if (sourceShape == null && targetShape == null)
+            {
+                return null;
+            }
+
+            var location = targetMember.Locations.FirstOrDefault() ?? mappingMethod.Locations.FirstOrDefault();
+            if (sourceShape == null || targetShape == null)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.UnsupportedCollectionShape, location));
+                return null;
+            }
+
+            if (sourceShape.IsRectangularArray || targetShape.IsRectangularArray)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.RectangularArrayNotSupported, location));
+                return null;
+            }
+
+            if (sourceShape.Unsupported || targetShape.Unsupported || targetShape.Custom)
+            {
+                diagnostics.Add(Diagnostic.Create(sourceShape.Custom || targetShape.Custom ? Diagnostics.CustomCollectionNotSupported : Diagnostics.UnsupportedCollectionShape, location));
+                return null;
+            }
+
+            var helperName = (sourceShape.IsDictionary || targetShape.IsDictionary ? "MapDictionary_" : "MapCollection_") +
+                ShapeName(sourceType) + "_To_" + ShapeName(targetType);
+            if (helperNames.Add(helperName))
+            {
+                var helper = CreateCollectionMappingModel(mappingMethod, sourceType, targetType, mappingMethod.Parameters[0].Name, targetMember, compilation, diagnostics, helpers, helperNames, options, helperName);
+                if (helper == null)
+                {
+                    return null;
+                }
+
+                helpers.Add(helper);
+            }
+
+            var potentiallyNull = sourceMember != null && SourceMayBeNull(sourceMember);
+            return new ConversionModel(helperName + "(" + expression + ")", sourceMember, potentiallyNull, targetMember.Name, nullCheckExpression: null);
+        }
+
+        private static MappingModel? CreateCollectionMappingModel(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string parameterName, ISymbol? targetMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder outerHelpers, HashSet<string> outerHelperNames, EffectiveMappingOptions options, string? helperName)
+        {
+            var location = targetMember == null ? method.Locations.FirstOrDefault() : targetMember.Locations.FirstOrDefault() ?? method.Locations.FirstOrDefault();
+            var sourceShape = GetCollectionShape(sourceType, compilation);
+            var targetShape = GetCollectionShape(targetType, compilation);
+            if (sourceShape == null || targetShape == null)
+            {
+                return null;
+            }
+
+            if (sourceShape.IsRectangularArray || targetShape.IsRectangularArray)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.RectangularArrayNotSupported, location));
+                return null;
+            }
+
+            if (sourceShape.Unsupported || targetShape.Unsupported || targetShape.Custom)
+            {
+                diagnostics.Add(Diagnostic.Create(sourceShape.Custom || targetShape.Custom ? Diagnostics.CustomCollectionNotSupported : Diagnostics.UnsupportedCollectionShape, location));
+                return null;
+            }
+
+            var helpers = ImmutableArray.CreateBuilder<MappingModel>();
+            var helperNames = outerHelperNames;
+            var body = RenderCollectionBody(method, sourceShape, targetShape, sourceType, targetType, compilation, diagnostics, helpers, helperNames, options, location);
+            if (body == null)
+            {
+                return null;
+            }
+
+            var sourceNullable = helperName == null && IsMaybeNull(method.Parameters[0]);
+            var returnNullable = helperName == null && IsMaybeNull(method.ReturnType);
+            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, helpers.ToImmutable(), helperName, helperName == null ? null : sourceType, helperName == null ? null : targetType, body);
+        }
+
+        private static string? RenderCollectionBody(IMethodSymbol method, CollectionShape sourceShape, CollectionShape targetShape, ITypeSymbol sourceType, ITypeSymbol targetType, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options, Location? location)
+        {
+            if (sourceShape.IsDictionary != targetShape.IsDictionary)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.UnsupportedCollectionShape, location));
+                return null;
+            }
+
+            var builder = new StringBuilder();
+            var nullTarget = RenderEmptyCollection(targetShape, targetType);
+            builder.AppendLine("        if (source == null)");
+            builder.AppendLine("        {");
+            if (options.NullCollections == NullCollectionStrategyPreserve && IsMaybeNull(targetType))
+            {
+                builder.AppendLine("            return null;");
+            }
+            else if (options.NullCollections == NullCollectionStrategyEmpty)
+            {
+                builder.Append("            return ");
+                builder.Append(nullTarget);
+                builder.AppendLine(";");
+            }
+            else
+            {
+                builder.AppendLine("            throw new global::System.ArgumentNullException(nameof(source));");
+            }
+
+            builder.AppendLine("        }");
+
+            if (targetShape.IsDictionary)
+            {
+                var keyConversion = ResolveElementExpression(method, sourceShape.KeyType!, targetShape.KeyType!, "item.Key", null, compilation, diagnostics, helpers, helperNames, options, location);
+                var valueConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, "item.Value", null, compilation, diagnostics, helpers, helperNames, options, location);
+                if (keyConversion == null || valueConversion == null)
+                {
+                    return null;
+                }
+
+                builder.Append("        var target = new ");
+                builder.Append(ConcreteCollectionType(targetShape, targetType));
+                builder.Append("(");
+                builder.Append(SourceCountExpression(sourceType, sourceShape) ?? "0");
+                if (CanPreserveComparer(sourceShape, targetShape, sourceType, targetType))
+                {
+                    builder.Append(", ");
+                    builder.Append("source.Comparer");
+                }
+
+                builder.AppendLine(");");
+                builder.AppendLine("        foreach (var item in source)");
+                builder.AppendLine("        {");
+                builder.Append("            target.Add(");
+                builder.Append(keyConversion);
+                builder.Append(", ");
+                builder.Append(valueConversion);
+                builder.AppendLine(");");
+                builder.AppendLine("        }");
+                builder.AppendLine("        return target;");
+                return builder.ToString();
+            }
+
+            if (targetShape.Kind == CollectionKind.Array)
+            {
+                var countExpression = SourceCountExpression(sourceType, sourceShape);
+                if (countExpression == null)
+                {
+                    builder.Append("        var target = new global::System.Collections.Generic.List<");
+                    builder.Append(targetShape.ElementType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?'));
+                    builder.AppendLine(">();");
+                }
+                else
+                {
+                    builder.Append("        var target = new ");
+                    builder.Append(targetShape.ElementType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?'));
+                    builder.Append("[");
+                    builder.Append(countExpression);
+                    builder.AppendLine("];");
+                    builder.AppendLine("        var index = 0;");
+                }
+            }
+            else
+            {
+                builder.Append("        var target = new ");
+                builder.Append(ConcreteCollectionType(targetShape, targetType));
+                var countExpression = SourceCountExpression(sourceType, sourceShape);
+                var preserveComparer = CanPreserveComparer(sourceShape, targetShape, sourceType, targetType);
+                builder.Append('(');
+                if (countExpression != null && !(preserveComparer && targetShape.Kind == CollectionKind.Set))
+                {
+                    builder.Append(countExpression);
+                }
+
+                if (preserveComparer)
+                {
+                    if (countExpression != null && targetShape.Kind == CollectionKind.Dictionary)
+                    {
+                        builder.Append(", ");
+                    }
+
+                    builder.Append("source.Comparer");
+                }
+
+                builder.AppendLine(");");
+            }
+
+            var elementConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, "item", null, compilation, diagnostics, helpers, helperNames, options, location);
+            if (elementConversion == null)
+            {
+                return null;
+            }
+
+            builder.AppendLine("        foreach (var item in source)");
+            builder.AppendLine("        {");
+            if (targetShape.Kind == CollectionKind.Array)
+            {
+                if (SourceCountExpression(sourceType, sourceShape) == null)
+                {
+                    builder.Append("            target.Add(");
+                    builder.Append(elementConversion);
+                    builder.AppendLine(");");
+                }
+                else
+                {
+                    builder.Append("            target[index] = ");
+                    builder.Append(elementConversion);
+                    builder.AppendLine(";");
+                    builder.AppendLine("            index++;");
+                }
+            }
+            else
+            {
+                builder.Append("            target.Add(");
+                builder.Append(elementConversion);
+                builder.AppendLine(");");
+            }
+
+            builder.AppendLine("        }");
+            builder.Append("        return ");
+            builder.Append(targetShape.Kind == CollectionKind.Array && SourceCountExpression(sourceType, sourceShape) == null ? "target.ToArray()" : "target");
+            builder.AppendLine(";");
+            return builder.ToString();
+        }
+
+        private static string? ResolveElementExpression(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options, Location? location)
+        {
+            if (compilation.ClassifyConversion(sourceType, targetType).IsImplicit)
+            {
+                return expression;
+            }
+
+            var visible = ResolveVisibleMapping(method.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, "item", location);
+            if (visible != null)
+            {
+                return visible.Expression;
+            }
+
+            if (sourceType is INamedTypeSymbol namedSource && targetType is INamedTypeSymbol namedTarget && IsStructuralObjectType(namedSource) && IsStructuralObjectType(namedTarget))
+            {
+                var helperName = "MapNested_" + SanitizeIdentifier(namedSource.Name) + "_To_" + SanitizeIdentifier(namedTarget.Name);
+                if (helperNames.Add(helperName))
+                {
+                    var helper = CreateNestedMappingModel(method, namedSource, namedTarget, helperName, compilation, diagnostics, options);
+                    if (helper == null)
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.StructuralNestedMappingFailed, location, namedSource.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), namedTarget.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                        return null;
+                    }
+
+                    helpers.Add(helper);
+                }
+
+                return helperName + "(" + expression + ")";
+            }
+
+            var nestedSourceShape = GetCollectionShape(sourceType, compilation);
+            var nestedTargetShape = GetCollectionShape(targetType, compilation);
+            if (nestedSourceShape != null || nestedTargetShape != null)
+            {
+                if (nestedSourceShape == null || nestedTargetShape == null)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.UnsupportedCollectionShape, location));
+                    return null;
+                }
+
+                var helperName = (nestedSourceShape.IsDictionary || nestedTargetShape.IsDictionary ? "MapDictionary_" : "MapCollection_") + ShapeName(sourceType) + "_To_" + ShapeName(targetType);
+                if (helperNames.Add(helperName))
+                {
+                    var helper = CreateCollectionMappingModel(method, sourceType, targetType, method.Parameters[0].Name, null, compilation, diagnostics, helpers, helperNames, options, helperName);
+                    if (helper == null)
+                    {
+                        return null;
+                    }
+
+                    helpers.Add(helper);
+                }
+
+                return helperName + "(" + expression + ")";
+            }
+
+            diagnostics.Add(Diagnostic.Create(Diagnostics.ConversionNotFound, location, sourceType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+            return null;
         }
 
         private static MappingModel? CreateNestedMappingModel(IMethodSymbol rootMethod, INamedTypeSymbol sourceType, INamedTypeSymbol targetType, string helperName, Compilation compilation, ICollection<Diagnostic> diagnostics, EffectiveMappingOptions options)
@@ -577,7 +887,7 @@ namespace Mammoth.LiteMapper.Generator
                 assignments.Add(new AssignmentModel(targetMember.Name, conversion.Expression));
             }
 
-            return new MappingModel(rootMethod, sourceNullable: false, returnNullable: false, options.NullableMismatch, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), helperName, sourceType, targetType);
+            return new MappingModel(rootMethod, sourceNullable: false, returnNullable: false, options.NullableMismatch, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), helperName, sourceType, targetType, customBody: null);
         }
 
         private static string SanitizeIdentifier(string value)
@@ -596,6 +906,148 @@ namespace Mammoth.LiteMapper.Generator
             return type.SpecialType == SpecialType.None &&
                 type.TypeKind != TypeKind.Enum &&
                 (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct);
+        }
+
+        private static CollectionShape? GetCollectionShape(ITypeSymbol type, Compilation? compilation)
+        {
+            if (type.SpecialType == SpecialType.System_String)
+            {
+                return null;
+            }
+
+            if (type is IArrayTypeSymbol array)
+            {
+                return array.Rank == 1
+                    ? new CollectionShape(CollectionKind.Array, array.ElementType, null, isDictionary: false, isRectangularArray: false, unsupported: false, custom: false)
+                    : new CollectionShape(CollectionKind.Array, array.ElementType, null, isDictionary: false, isRectangularArray: true, unsupported: true, custom: false);
+            }
+
+            if (!(type is INamedTypeSymbol named))
+            {
+                return null;
+            }
+
+            var display = named.ConstructedFrom.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+            if (display == "System.Collections.Generic.Queue<T>" || display == "System.Collections.Generic.Stack<T>" || display.StartsWith("System.Collections.Immutable.", StringComparison.Ordinal) || display == "System.Collections.Generic.IAsyncEnumerable<T>")
+            {
+                return new CollectionShape(CollectionKind.Unsupported, named.TypeArguments.Length == 0 ? type : named.TypeArguments[0], null, false, false, true, false);
+            }
+
+            if (display == "System.Collections.Generic.Dictionary<TKey, TValue>" || display == "System.Collections.Generic.IDictionary<TKey, TValue>" || display == "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>")
+            {
+                return new CollectionShape(CollectionKind.Dictionary, named.TypeArguments[1], named.TypeArguments[0], isDictionary: true, isRectangularArray: false, unsupported: false, custom: false);
+            }
+
+            if (display == "System.Collections.Generic.List<T>" || display == "System.Collections.Generic.IList<T>" || display == "System.Collections.Generic.ICollection<T>" || display == "System.Collections.Generic.IEnumerable<T>" || display == "System.Collections.Generic.IReadOnlyCollection<T>" || display == "System.Collections.Generic.IReadOnlyList<T>")
+            {
+                return new CollectionShape(CollectionKind.List, named.TypeArguments[0], null, isDictionary: false, isRectangularArray: false, unsupported: false, custom: false);
+            }
+
+            if (display == "System.Collections.Generic.HashSet<T>" || display == "System.Collections.Generic.ISet<T>" || display == "System.Collections.Generic.IReadOnlySet<T>")
+            {
+                return new CollectionShape(CollectionKind.Set, named.TypeArguments[0], null, isDictionary: false, isRectangularArray: false, unsupported: false, custom: false);
+            }
+
+            var enumerable = named.AllInterfaces.FirstOrDefault(i => i.ConstructedFrom.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == "System.Collections.Generic.IEnumerable<T>");
+            if (enumerable != null)
+            {
+                return new CollectionShape(CollectionKind.List, enumerable.TypeArguments[0], null, false, false, unsupported: false, custom: true);
+            }
+
+            return null;
+        }
+
+        private static bool IsCollectionType(ITypeSymbol type, Compilation? compilation)
+        {
+            return GetCollectionShape(type, compilation) != null;
+        }
+
+        private static string ConcreteCollectionType(CollectionShape shape, ITypeSymbol targetType)
+        {
+            var element = shape.ElementType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?');
+            if (shape.IsDictionary)
+            {
+                var key = shape.KeyType!.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?');
+                return "global::System.Collections.Generic.Dictionary<" + key + ", " + element + ">";
+            }
+
+            if (shape.Kind == CollectionKind.Set)
+            {
+                return "global::System.Collections.Generic.HashSet<" + element + ">";
+            }
+
+            return "global::System.Collections.Generic.List<" + element + ">";
+        }
+
+        private static string RenderEmptyCollection(CollectionShape shape, ITypeSymbol targetType)
+        {
+            if (shape.Kind == CollectionKind.Array)
+            {
+                return "global::System.Array.Empty<" + shape.ElementType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?') + ">()";
+            }
+
+            return "new " + ConcreteCollectionType(shape, targetType) + "()";
+        }
+
+        private static bool CanPreserveComparer(CollectionShape sourceShape, CollectionShape targetShape, ITypeSymbol sourceType, ITypeSymbol targetType)
+        {
+            if (sourceShape.Kind != targetShape.Kind || sourceShape.Kind != CollectionKind.Set && sourceShape.Kind != CollectionKind.Dictionary)
+            {
+                return false;
+            }
+
+            if (!SymbolEqualityComparer.Default.Equals(sourceShape.ElementType, targetShape.ElementType))
+            {
+                return false;
+            }
+
+            if (sourceShape.IsDictionary && !SymbolEqualityComparer.Default.Equals(sourceShape.KeyType, targetShape.KeyType))
+            {
+                return false;
+            }
+
+            return sourceType is INamedTypeSymbol sourceNamed &&
+                (sourceNamed.ConstructedFrom.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == "System.Collections.Generic.HashSet<T>" ||
+                 sourceNamed.ConstructedFrom.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == "System.Collections.Generic.Dictionary<TKey, TValue>");
+        }
+
+        private static string? SourceCountExpression(ITypeSymbol sourceType, CollectionShape sourceShape)
+        {
+            if (sourceShape.Custom)
+            {
+                return null;
+            }
+
+            if (sourceType is IArrayTypeSymbol)
+            {
+                return "source.Length";
+            }
+
+            if (sourceType is INamedTypeSymbol named)
+            {
+                var display = named.ConstructedFrom.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+                if (display != "System.Collections.Generic.IEnumerable<T>")
+                {
+                    return "source.Count";
+                }
+            }
+
+            return null;
+        }
+
+        private static string ShapeName(ITypeSymbol type)
+        {
+            if (type is IArrayTypeSymbol array)
+            {
+                return ShapeName(array.ElementType) + "_Array";
+            }
+
+            if (type is INamedTypeSymbol named && named.TypeArguments.Length != 0)
+            {
+                return SanitizeIdentifier(named.Name) + "_" + string.Join("_", named.TypeArguments.Select(ShapeName));
+            }
+
+            return SanitizeIdentifier(type.Name);
         }
 
         private static ConversionModel? ResolveNamedConverter(IMethodSymbol mappingMethod, INamedTypeSymbol? converterType, INamedTypeSymbol[] externalTypes, string name, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, Location? location)
@@ -816,7 +1268,32 @@ namespace Mammoth.LiteMapper.Generator
                 ReadEnumOption(mapping, "NameMatching") ?? ReadEnumOption(mapper, "NameMatching") ?? ReadEnumOption(assemblyDefaults, "NameMatching") ?? "ExactThenIgnoreCase",
                 ReadEnumOption(mapping, "UnmappedTargetMembers") ?? ReadEnumOption(mapper, "UnmappedTargetMembers") ?? ReadEnumOption(assemblyDefaults, "UnmappedTargetMembers") ?? UnmappedMemberPolicyWarning,
                 ReadEnumOption(mapping, "UnmappedSourceMembers") ?? ReadEnumOption(mapper, "UnmappedSourceMembers") ?? ReadEnumOption(assemblyDefaults, "UnmappedSourceMembers") ?? UnmappedMemberPolicyIgnore,
-                ReadEnumOption(mapping, "NullableMismatch") ?? ReadEnumOption(mapper, "NullableMismatch") ?? ReadEnumOption(assemblyDefaults, "NullableMismatch") ?? NullableMismatchPolicyError);
+                ReadEnumOption(mapping, "NullableMismatch") ?? ReadEnumOption(mapper, "NullableMismatch") ?? ReadEnumOption(assemblyDefaults, "NullableMismatch") ?? NullableMismatchPolicyError,
+                ReadNullCollectionOption(mapping) ?? ReadNullCollectionOption(mapper) ?? ReadNullCollectionOption(assemblyDefaults) ?? NullCollectionStrategyError);
+        }
+
+        private static string? ReadNullCollectionOption(AttributeData? attribute)
+        {
+            if (attribute == null)
+            {
+                return null;
+            }
+
+            foreach (var pair in attribute.NamedArguments)
+            {
+                if (pair.Key == "NullCollections" && pair.Value.Value is int raw && raw != 0)
+                {
+                    return raw == 2 ? NullCollectionStrategyPreserve : raw == 3 ? NullCollectionStrategyEmpty : NullCollectionStrategyError;
+                }
+
+                if (pair.Key == "NullCollections" && pair.Value.Value != null)
+                {
+                    var value = pair.Value.Value.ToString();
+                    return value == "2" ? NullCollectionStrategyPreserve : value == "3" ? NullCollectionStrategyEmpty : NullCollectionStrategyError;
+                }
+            }
+
+            return null;
         }
 
         private static string? ReadEnumOption(AttributeData? attribute, string name)
@@ -1325,11 +1802,11 @@ namespace Mammoth.LiteMapper.Generator
                 builder.Append("partial ");
             }
 
-            builder.Append((mapping.HelperTargetType ?? method.ReturnType).ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+            builder.Append(DisplayType(mapping.HelperTargetType ?? method.ReturnType));
             builder.Append(' ');
             builder.Append(mapping.HelperName ?? method.Name);
             builder.Append('(');
-            builder.Append((mapping.HelperSourceType ?? parameter.Type).ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+            builder.Append(DisplayType(mapping.HelperSourceType ?? parameter.Type));
             builder.Append(' ');
             builder.Append(parameter.Name);
             builder.AppendLine(")");
@@ -1378,8 +1855,15 @@ namespace Mammoth.LiteMapper.Generator
                 builder.AppendLine("        }");
             }
 
+            if (mapping.CustomBody != null)
+            {
+                builder.Append(mapping.CustomBody);
+                builder.AppendLine("    }");
+                return;
+            }
+
             builder.Append("        var target = new ");
-            builder.Append((mapping.HelperTargetType ?? method.ReturnType).ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?'));
+            builder.Append(DisplayType(mapping.HelperTargetType ?? method.ReturnType).TrimEnd('?'));
             builder.Append('(');
             if (mapping.Construction != null)
             {
@@ -1451,6 +1935,11 @@ namespace Mammoth.LiteMapper.Generator
             }
         }
 
+        private static string DisplayType(ITypeSymbol type)
+        {
+            return IsCollectionType(type, null) ? type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) : type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        }
+
         private static void AppendNamespaceStart(StringBuilder builder, INamedTypeSymbol symbol)
         {
             if (!symbol.ContainingNamespace.IsGlobalNamespace)
@@ -1508,7 +1997,7 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class MappingModel
         {
-            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments, ImmutableArray<MappingModel> helpers, string? helperName, ITypeSymbol? helperSourceType, ITypeSymbol? helperTargetType)
+            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments, ImmutableArray<MappingModel> helpers, string? helperName, ITypeSymbol? helperSourceType, ITypeSymbol? helperTargetType, string? customBody)
             {
                 Method = method;
                 SourceNullable = sourceNullable;
@@ -1521,6 +2010,7 @@ namespace Mammoth.LiteMapper.Generator
                 HelperName = helperName;
                 HelperSourceType = helperSourceType;
                 HelperTargetType = helperTargetType;
+                CustomBody = customBody;
             }
 
             public IMethodSymbol Method { get; }
@@ -1544,6 +2034,8 @@ namespace Mammoth.LiteMapper.Generator
             public ITypeSymbol? HelperSourceType { get; }
 
             public ITypeSymbol? HelperTargetType { get; }
+
+            public string? CustomBody { get; }
         }
 
         private sealed class ConstructionModel
@@ -1669,12 +2161,13 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class EffectiveMappingOptions
         {
-            public EffectiveMappingOptions(string nameMatching, string unmappedTargetMembers, string unmappedSourceMembers, string nullableMismatch)
+            public EffectiveMappingOptions(string nameMatching, string unmappedTargetMembers, string unmappedSourceMembers, string nullableMismatch, string nullCollections)
             {
                 NameMatching = nameMatching;
                 UnmappedTargetMembers = unmappedTargetMembers;
                 UnmappedSourceMembers = unmappedSourceMembers;
                 NullableMismatch = nullableMismatch;
+                NullCollections = nullCollections;
             }
 
             public string NameMatching { get; }
@@ -1684,6 +2177,45 @@ namespace Mammoth.LiteMapper.Generator
             public string UnmappedSourceMembers { get; }
 
             public string NullableMismatch { get; }
+
+            public string NullCollections { get; }
+        }
+
+        private enum CollectionKind
+        {
+            Unsupported,
+            Array,
+            List,
+            Set,
+            Dictionary
+        }
+
+        private sealed class CollectionShape
+        {
+            public CollectionShape(CollectionKind kind, ITypeSymbol elementType, ITypeSymbol? keyType, bool isDictionary, bool isRectangularArray, bool unsupported, bool custom)
+            {
+                Kind = kind;
+                ElementType = elementType;
+                KeyType = keyType;
+                IsDictionary = isDictionary;
+                IsRectangularArray = isRectangularArray;
+                Unsupported = unsupported;
+                Custom = custom;
+            }
+
+            public CollectionKind Kind { get; }
+
+            public ITypeSymbol ElementType { get; }
+
+            public ITypeSymbol? KeyType { get; }
+
+            public bool IsDictionary { get; }
+
+            public bool IsRectangularArray { get; }
+
+            public bool Unsupported { get; }
+
+            public bool Custom { get; }
         }
 
         private sealed class MatchResult

@@ -194,6 +194,26 @@
 - Specification references: 22.20.
 - Consequences: Public API analyzer baselines are loaded consistently on Windows and Linux.
 
+### DEC-0021
+
+- Date: 2026-06-17
+- Milestone: 9
+- Status: Accepted
+- Context: Milestone 9 collection mappings require generated loops and private collection helpers while exact helper organization is not public API.
+- Decision: Represent collection mappings as mapping models with deterministic custom loop bodies, reusing the existing helper rendering and nested helper graph instead of adding a separate public or runtime collection mapper abstraction.
+- Specification references: 3.2, 15.2, 19.7, 24.4.
+- Consequences: Generated collection helpers remain private implementation details; no undocumented public API or runtime registry is introduced.
+
+### DEC-0022
+
+- Date: 2026-06-17
+- Milestone: 9
+- Status: Accepted
+- Context: Section 15.6 recommends capacity preallocation only when count is cheaply available and section 15.5 forbids counting arbitrary enumerables.
+- Decision: Use direct `Count` or `Length` only for arrays and known count-bearing collection shapes; custom enumerable sources are enumerated once into a temporary list when an array target requires a final length.
+- Specification references: 15.5, 15.6, 28.5.
+- Consequences: `IEnumerable<T>` sources do not receive speculative `Count()` calls; array targets from non-count sources allocate a temporary `List<T>` before `ToArray()`.
+
 ## Pending specification questions
 
 ### PENDING-0001

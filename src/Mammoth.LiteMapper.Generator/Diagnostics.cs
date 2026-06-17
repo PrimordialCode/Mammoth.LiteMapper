@@ -37,6 +37,11 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor AmbiguousMapping = Error("LITEMAPPER3001", "AmbiguousMapping", "Mapping resolution for '{0}' is ambiguous");
         public static readonly DiagnosticDescriptor StructuralNestedMappingFailed = Error("LITEMAPPER3004", "StructuralNestedMappingFailed", "Structural nested mapping from '{0}' to '{1}' cannot be generated");
         public static readonly DiagnosticDescriptor AbstractDestinationNotSupported = Error("LITEMAPPER3005", "AbstractDestinationNotSupported", "Destination type '{0}' is abstract or an interface");
+        public static readonly DiagnosticDescriptor InvalidNullCollectionMapping = Error("LITEMAPPER2002", "InvalidNullCollectionMapping", "Null collection strategy cannot satisfy target nullability");
+        public static readonly DiagnosticDescriptor UnsupportedCollectionShape = Error("LITEMAPPER4001", "UnsupportedCollectionShape", "Collection shape is outside 1.0 support");
+        public static readonly DiagnosticDescriptor RectangularArrayNotSupported = Error("LITEMAPPER4002", "RectangularArrayNotSupported", "Mapping uses a multidimensional rectangular array");
+        public static readonly DiagnosticDescriptor CollectionTargetCannotBeConstructed = Error("LITEMAPPER4003", "CollectionTargetCannotBeConstructed", "No legal concrete destination collection can be created");
+        public static readonly DiagnosticDescriptor CustomCollectionNotSupported = Error("LITEMAPPER4006", "CustomCollectionNotSupported", "Custom collection convention would be required");
         public static readonly DiagnosticDescriptor UnmappedSourceMember = Info("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor UnmappedSourceMemberWarning = Warning("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor InternalGeneratorFailure = Error("LITEMAPPER9001", "InternalGeneratorFailure", "Unexpected failure while processing mapper '{0}'");
