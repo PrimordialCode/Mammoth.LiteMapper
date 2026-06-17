@@ -19,11 +19,30 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor ExternalMapperMustBeStatic = Error("LITEMAPPER0011", "ExternalMapperMustBeStatic", "Registered mapper type '{0}' must be static");
         public static readonly DiagnosticDescriptor UnsupportedLanguageVersion = Error("LITEMAPPER0012", "UnsupportedLanguageVersion", "Language version '{0}' is older than C# 9");
         public static readonly DiagnosticDescriptor DuplicateConfiguration = Error("LITEMAPPER0013", "DuplicateConfiguration", "Configuration '{0}' is declared more than once");
+        public static readonly DiagnosticDescriptor UnmappedTargetMember = Warning("LITEMAPPER1001", "UnmappedTargetMember", "Target member '{0}' is not mapped");
+        public static readonly DiagnosticDescriptor UnmappedTargetMemberError = Error("LITEMAPPER1001", "UnmappedTargetMember", "Target member '{0}' is not mapped");
+        public static readonly DiagnosticDescriptor AmbiguousMemberMatch = Error("LITEMAPPER1004", "AmbiguousMemberMatch", "Multiple source members match target member '{0}'");
+        public static readonly DiagnosticDescriptor HiddenMemberSelected = Warning("LITEMAPPER1005", "HiddenMemberSelected", "Hidden member '{0}' was selected");
+        public static readonly DiagnosticDescriptor ConstructorNotFound = Error("LITEMAPPER1010", "ConstructorNotFound", "Target type '{0}' does not have an accessible parameterless constructor");
+        public static readonly DiagnosticDescriptor NullableToNonNullable = Error("LITEMAPPER2001", "NullableToNonNullable", "Potential null value cannot be mapped to non-null target '{0}'");
+        public static readonly DiagnosticDescriptor ConversionNotFound = Error("LITEMAPPER2004", "ConversionNotFound", "No conversion exists from '{0}' to '{1}'");
+        public static readonly DiagnosticDescriptor UnmappedSourceMember = Info("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
+        public static readonly DiagnosticDescriptor UnmappedSourceMemberWarning = Warning("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor InternalGeneratorFailure = Error("LITEMAPPER9001", "InternalGeneratorFailure", "Unexpected failure while processing mapper '{0}'");
 
         private static DiagnosticDescriptor Error(string id, string title, string message)
         {
             return new DiagnosticDescriptor(id, title, message, Category, DiagnosticSeverity.Error, isEnabledByDefault: true, customTags: WellKnownDiagnosticTags.NotConfigurable);
+        }
+
+        private static DiagnosticDescriptor Warning(string id, string title, string message)
+        {
+            return new DiagnosticDescriptor(id, title, message, Category, DiagnosticSeverity.Warning, isEnabledByDefault: true);
+        }
+
+        private static DiagnosticDescriptor Info(string id, string title, string message)
+        {
+            return new DiagnosticDescriptor(id, title, message, Category, DiagnosticSeverity.Info, isEnabledByDefault: true);
         }
     }
 }

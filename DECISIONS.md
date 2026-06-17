@@ -124,6 +124,16 @@
 - Specification references: 4.1, 22.7.
 - Consequences: The generator remains `netstandard2.0`, can use Roslyn 4.8.0 APIs, and Milestone 3 can satisfy tracked incremental generator validation without the previous 4.0.1 blocker.
 
+### DEC-0014
+
+- Date: 2026-06-17
+- Milestone: 4
+- Status: Accepted
+- Context: Milestone 4 introduces configurable unmapped-member diagnostics while the shared diagnostic catalogue uses stable IDs and default severities.
+- Decision: Represent policy-specific unmapped-member severities with paired internal `DiagnosticDescriptor` instances that share the same stable diagnostic ID and message but differ by default severity.
+- Specification references: 6.2, 9.1, 20.1, 20.2.
+- Consequences: Generated output is suppressed when an effective policy is `Error`; future diagnostics work should verify editorconfig severity override behavior for configurable diagnostics.
+
 ## Pending specification questions
 
 ### PENDING-0001

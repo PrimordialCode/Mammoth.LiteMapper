@@ -68,7 +68,11 @@
 - Focused validation: flat mapping generator/runtime tests.
 - Full validation: full solution tests and snapshot review.
 - Completion criteria: flat mappings generate deterministic direct code with no runtime reflection.
-- Risks: nullable analysis and member hiding.
+- Status: Completed on 2026-06-17 with flat new-object mapping generation, direct public member assignment, effective name matching and unmapped-member policies, inherited-member discovery, hidden-member diagnostics, root/member nullable diagnostics, identity/implicit conversion validation, runtime invocation tests, and a checked-in generated-source snapshot.
+- Deviations: constructor support is limited to accessible parameterless target construction for this milestone; richer constructor, record, `init`, `required`, and value-type construction remains in Milestone 5 as specified.
+- Remaining tasks: none for Milestone 4.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore`; `dotnet restore Mammoth.LiteMapper.sln`; `dotnet build Mammoth.LiteMapper.sln --no-restore`; `dotnet test Mammoth.LiteMapper.sln --no-build`.
+- Risks: configurable diagnostic severity is represented with paired internal descriptors for the same stable diagnostic IDs; future diagnostics work should keep editorconfig severity override behavior under review.
 - Out of scope: constructors beyond trivial construction, nested objects, collections.
 
 ## Milestone 5: constructors, records, init, required, and value types

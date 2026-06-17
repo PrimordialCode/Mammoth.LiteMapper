@@ -19,6 +19,11 @@ namespace Mammoth.LiteMapper.Generator
         private const string LiteMapperDefaultsAttributeName = "Mammoth.LiteMapper.LiteMapperDefaultsAttribute";
         private const string MappingOptionsAttributeName = "Mammoth.LiteMapper.MappingOptionsAttribute";
         private const string UseMapperAttributeName = "Mammoth.LiteMapper.UseMapperAttribute";
+        private const string NameMatchingExact = "Exact";
+        private const string NameMatchingIgnoreCase = "IgnoreCase";
+        private const string UnmappedMemberPolicyIgnore = "Ignore";
+        private const string UnmappedMemberPolicyWarning = "Warning";
+        private const string UnmappedMemberPolicyError = "Error";
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
@@ -93,12 +98,17 @@ namespace Mammoth.LiteMapper.Generator
             var diagnostics = new List<Diagnostic>();
             ValidateMapper(symbol, typeSyntax, diagnostics);
 
-            foreach (var member in symbol.GetMembers().OfType<IMethodSymbol>().Where(static m => m.PartialDefinitionPart == null && IsPartialDeclaration(m)))
+            var mappings = ImmutableArray.CreateBuilder<MappingModel>();
+            foreach (var member in symbol.GetMembers().OfType<IMethodSymbol>().Where(static m => m.PartialDefinitionPart == null && IsPartialDeclaration(m)).OrderBy(static m => m.Name, StringComparer.Ordinal))
             {
                 ValidateMappingMethod(member, diagnostics);
+                if (IsFlatMappingCandidate(member))
+                {
+                    mappings.Add(CreateMappingModel(member, context.SemanticModel.Compilation, diagnostics));
+                }
             }
 
-            var source = RenderDeclaration(symbol);
+            var source = RenderDeclaration(symbol, mappings.ToImmutable());
             return new MapperModel(symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), typeSyntax.Identifier.GetLocation(), CreateHintName(symbol), source, diagnostics.ToImmutableArray());
         }
 
@@ -162,6 +172,222 @@ namespace Mammoth.LiteMapper.Generator
                     diagnostics.Add(Diagnostic.Create(Diagnostics.MapperMustBePartial, declaration.Identifier.GetLocation(), containingType.Name));
                 }
             }
+        }
+
+        private static bool IsFlatMappingCandidate(IMethodSymbol method)
+        {
+            return !method.IsAsync &&
+                !IsTaskLike(method.ReturnType) &&
+                !method.IsGenericMethod &&
+                method.Parameters.Length == 1 &&
+                !method.ReturnsVoid &&
+                method.Parameters[0].RefKind == RefKind.None &&
+                (!method.ContainingType.IsStatic || method.IsStatic);
+        }
+
+        private static MappingModel CreateMappingModel(IMethodSymbol method, Compilation compilation, List<Diagnostic> diagnostics)
+        {
+            var sourceType = method.Parameters[0].Type;
+            var targetType = method.ReturnType;
+            var sourceNullable = IsMaybeNull(method.Parameters[0]);
+            var returnNullable = IsMaybeNull(method.ReturnType);
+            var options = EffectiveOptions(method);
+            var location = method.Locations.FirstOrDefault();
+            var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
+            var usedSources = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+
+            if (sourceNullable && !returnNullable)
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.NullableToNonNullable, location, method.Parameters[0].Name));
+            }
+
+            if (!(targetType is INamedTypeSymbol namedTarget) || !HasAccessibleParameterlessConstructor(namedTarget))
+            {
+                diagnostics.Add(Diagnostic.Create(Diagnostics.ConstructorNotFound, location, targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+            }
+
+            var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
+            foreach (var targetMember in GetTargetMembers(targetType, diagnostics))
+            {
+                var match = MatchSource(targetMember, sourceMembers, options.NameMatching);
+                if (match.Ambiguous)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousMemberMatch, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
+                    continue;
+                }
+
+                if (match.Member == null)
+                {
+                    ReportUnmappedTarget(targetMember, options.UnmappedTargetMembers, diagnostics);
+                    continue;
+                }
+
+                if (SourceMayBeNull(match.Member) && TargetIsNonNullable(targetMember))
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.NullableToNonNullable, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
+                    continue;
+                }
+
+                if (!compilation.ClassifyConversion(GetMemberType(match.Member), GetMemberType(targetMember)).IsImplicit)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.ConversionNotFound, targetMember.Locations.FirstOrDefault() ?? location, GetMemberType(match.Member).ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), GetMemberType(targetMember).ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                    continue;
+                }
+
+                usedSources.Add(match.Member);
+                assignments.Add(new AssignmentModel(targetMember.Name, match.Member.Name));
+            }
+
+            if (options.UnmappedSourceMembers != UnmappedMemberPolicyIgnore)
+            {
+                foreach (var sourceMember in sourceMembers.Where(m => !usedSources.Contains(m)).OrderBy(static m => m.Name, StringComparer.Ordinal))
+                {
+                    ReportUnmappedSource(sourceMember, options.UnmappedSourceMembers, diagnostics);
+                }
+            }
+
+            return new MappingModel(method, sourceNullable, returnNullable, assignments.ToImmutable());
+        }
+
+        private static EffectiveMappingOptions EffectiveOptions(IMethodSymbol method)
+        {
+            var mapper = method.ContainingType.GetAttributes().FirstOrDefault(static a => IsAttribute(a, LiteMapperAttributeName));
+            var mapping = method.GetAttributes().FirstOrDefault(static a => IsAttribute(a, MappingOptionsAttributeName));
+            return new EffectiveMappingOptions(
+                ReadEnumOption(mapping, "NameMatching") ?? ReadEnumOption(mapper, "NameMatching") ?? "ExactThenIgnoreCase",
+                ReadEnumOption(mapping, "UnmappedTargetMembers") ?? ReadEnumOption(mapper, "UnmappedTargetMembers") ?? UnmappedMemberPolicyWarning,
+                ReadEnumOption(mapping, "UnmappedSourceMembers") ?? ReadEnumOption(mapper, "UnmappedSourceMembers") ?? UnmappedMemberPolicyIgnore);
+        }
+
+        private static string? ReadEnumOption(AttributeData? attribute, string name)
+        {
+            if (attribute == null)
+            {
+                return null;
+            }
+
+            foreach (var pair in attribute.NamedArguments)
+            {
+                if (pair.Key == name && pair.Value.Value != null && pair.Value.Value is int raw && raw != 0)
+                {
+                    if (name == "NameMatching")
+                    {
+                        return raw == 1 ? NameMatchingExact : raw == 3 ? NameMatchingIgnoreCase : "ExactThenIgnoreCase";
+                    }
+
+                    return raw == 1 ? UnmappedMemberPolicyIgnore : raw == 3 ? UnmappedMemberPolicyWarning : raw == 4 ? UnmappedMemberPolicyError : null;
+                }
+            }
+
+            return null;
+        }
+
+        private static IEnumerable<ISymbol> GetSourceMembers(ITypeSymbol type, ICollection<Diagnostic> diagnostics)
+        {
+            return GetVisibleMembers(type, diagnostics, static m => m is IFieldSymbol field && !field.IsConst || m is IPropertySymbol property && property.Parameters.Length == 0 && property.GetMethod != null && property.GetMethod.DeclaredAccessibility == Accessibility.Public);
+        }
+
+        private static IEnumerable<ISymbol> GetTargetMembers(ITypeSymbol type, ICollection<Diagnostic> diagnostics)
+        {
+            return GetVisibleMembers(type, diagnostics, static m => m is IFieldSymbol field && !field.IsReadOnly && !field.IsConst || m is IPropertySymbol property && property.Parameters.Length == 0 && property.SetMethod != null && property.SetMethod.DeclaredAccessibility == Accessibility.Public);
+        }
+
+        private static IEnumerable<ISymbol> GetVisibleMembers(ITypeSymbol type, ICollection<Diagnostic> diagnostics, Func<ISymbol, bool> predicate)
+        {
+            var selected = new Dictionary<string, ISymbol>(StringComparer.Ordinal);
+            for (var current = type as INamedTypeSymbol; current != null; current = current.BaseType)
+            {
+                foreach (var member in current.GetMembers()
+                    .Where(static m => !m.IsStatic && m.DeclaredAccessibility == Accessibility.Public)
+                    .Where(predicate)
+                    .OrderBy(static m => m is IPropertySymbol ? 0 : 1)
+                    .ThenBy(static m => m.Name, StringComparer.Ordinal))
+                {
+                    if (selected.ContainsKey(member.Name))
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.HiddenMemberSelected, selected[member.Name].Locations.FirstOrDefault(), selected[member.Name].Name));
+                        continue;
+                    }
+
+                    selected.Add(member.Name, member);
+                }
+            }
+
+            return selected.Values
+                .OrderBy(static m => m.Name, StringComparer.Ordinal);
+        }
+
+        private static MatchResult MatchSource(ISymbol targetMember, ISymbol[] sourceMembers, string nameMatching)
+        {
+            var exact = sourceMembers.Where(s => s.Name == targetMember.Name).ToArray();
+            if (nameMatching == NameMatchingExact || exact.Length == 1)
+            {
+                return new MatchResult(exact.Length == 1 ? exact[0] : null, exact.Length > 1);
+            }
+
+            var insensitive = sourceMembers.Where(s => string.Equals(s.Name, targetMember.Name, StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (nameMatching == NameMatchingIgnoreCase || exact.Length == 0)
+            {
+                return new MatchResult(insensitive.Length == 1 ? insensitive[0] : null, insensitive.Length > 1);
+            }
+
+            return new MatchResult(null, exact.Length > 1);
+        }
+
+        private static bool HasAccessibleParameterlessConstructor(INamedTypeSymbol targetType)
+        {
+            return targetType.Constructors.Any(static c => c.Parameters.Length == 0 && c.DeclaredAccessibility == Accessibility.Public);
+        }
+
+        private static bool IsMaybeNull(IParameterSymbol parameter)
+        {
+            return IsMaybeNull(parameter.Type);
+        }
+
+        private static bool IsMaybeNull(ITypeSymbol type)
+        {
+            return !type.IsValueType && type.NullableAnnotation == NullableAnnotation.Annotated;
+        }
+
+        private static bool SourceMayBeNull(ISymbol symbol)
+        {
+            return IsMaybeNull(GetMemberType(symbol));
+        }
+
+        private static bool TargetIsNonNullable(ISymbol symbol)
+        {
+            var type = GetMemberType(symbol);
+            return !type.IsValueType && type.NullableAnnotation == NullableAnnotation.NotAnnotated;
+        }
+
+        private static ITypeSymbol GetMemberType(ISymbol symbol)
+        {
+            if (symbol is IPropertySymbol property)
+            {
+                return property.Type;
+            }
+
+            return ((IFieldSymbol)symbol).Type;
+        }
+
+        private static void ReportUnmappedTarget(ISymbol member, string policy, ICollection<Diagnostic> diagnostics)
+        {
+            if (policy == UnmappedMemberPolicyIgnore)
+            {
+                return;
+            }
+
+            diagnostics.Add(Diagnostic.Create(policy == UnmappedMemberPolicyError ? Diagnostics.UnmappedTargetMemberError : Diagnostics.UnmappedTargetMember, member.Locations.FirstOrDefault(), member.Name));
+        }
+
+        private static void ReportUnmappedSource(ISymbol member, string policy, ICollection<Diagnostic> diagnostics)
+        {
+            if (policy == UnmappedMemberPolicyIgnore)
+            {
+                return;
+            }
+
+            diagnostics.Add(Diagnostic.Create(policy == UnmappedMemberPolicyWarning ? Diagnostics.UnmappedSourceMemberWarning : Diagnostics.UnmappedSourceMember, member.Locations.FirstOrDefault(), member.Name));
         }
 
         private static void ValidateMappingMethod(IMethodSymbol method, List<Diagnostic> diagnostics)
@@ -299,7 +525,7 @@ namespace Mammoth.LiteMapper.Generator
                 attribute.AttributeClass.ToDisplayString() == metadataName;
         }
 
-        private static string RenderDeclaration(INamedTypeSymbol symbol)
+        private static string RenderDeclaration(INamedTypeSymbol symbol, ImmutableArray<MappingModel> mappings)
         {
             var builder = new StringBuilder();
             builder.AppendLine("// <auto-generated/>");
@@ -313,10 +539,13 @@ namespace Mammoth.LiteMapper.Generator
                 builder.AppendLine("{");
             }
 
-            builder.Append("partial ");
-            builder.Append(symbol.IsStatic ? "static class " : "class ");
+            builder.Append(symbol.IsStatic ? "static partial class " : "partial class ");
             builder.AppendLine(symbol.Name);
             builder.AppendLine("{");
+            foreach (var mapping in mappings.OrderBy(static m => m.Method.Name, StringComparer.Ordinal))
+            {
+                AppendMapping(builder, mapping);
+            }
             builder.AppendLine("}");
 
             foreach (var _ in ContainingTypes(symbol))
@@ -326,6 +555,91 @@ namespace Mammoth.LiteMapper.Generator
 
             AppendNamespaceEnd(builder, symbol);
             return builder.ToString();
+        }
+
+        private static void AppendMapping(StringBuilder builder, MappingModel mapping)
+        {
+            var method = mapping.Method;
+            var parameter = method.Parameters[0];
+            builder.Append("    ");
+            builder.Append(ToAccessibility(method.DeclaredAccessibility));
+            builder.Append(' ');
+            if (method.IsStatic)
+            {
+                builder.Append("static ");
+            }
+
+            builder.Append("partial ");
+            builder.Append(method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+            builder.Append(' ');
+            builder.Append(method.Name);
+            builder.Append('(');
+            builder.Append(parameter.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+            builder.Append(' ');
+            builder.Append(parameter.Name);
+            builder.AppendLine(")");
+            builder.AppendLine("    {");
+
+            if (mapping.SourceNullable)
+            {
+                builder.Append("        if (");
+                builder.Append(parameter.Name);
+                builder.AppendLine(" == null)");
+                builder.AppendLine("        {");
+                if (mapping.ReturnNullable)
+                {
+                    builder.AppendLine("            return null;");
+                }
+                else
+                {
+                    builder.Append("            throw new global::System.ArgumentNullException(nameof(");
+                    builder.Append(parameter.Name);
+                    builder.AppendLine("));");
+                }
+
+                builder.AppendLine("        }");
+            }
+            else if (!parameter.Type.IsValueType)
+            {
+                builder.Append("        if (");
+                builder.Append(parameter.Name);
+                builder.AppendLine(" == null)");
+                builder.AppendLine("        {");
+                builder.Append("            throw new global::System.ArgumentNullException(nameof(");
+                builder.Append(parameter.Name);
+                builder.AppendLine("));");
+                builder.AppendLine("        }");
+            }
+
+            builder.Append("        var target = new ");
+            builder.Append(method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat).TrimEnd('?'));
+            builder.AppendLine("();");
+            foreach (var assignment in mapping.Assignments)
+            {
+                builder.Append("        target.");
+                builder.Append(assignment.TargetName);
+                builder.Append(" = ");
+                builder.Append(parameter.Name);
+                builder.Append('.');
+                builder.Append(assignment.SourceName);
+                builder.AppendLine(";");
+            }
+
+            builder.AppendLine("        return target;");
+            builder.AppendLine("    }");
+        }
+
+        private static string ToAccessibility(Accessibility accessibility)
+        {
+            switch (accessibility)
+            {
+                case Accessibility.Public:
+                    return "public";
+                case Accessibility.Internal:
+                    return "internal";
+                default:
+                    return "private";
+            }
         }
 
         private static void AppendNamespaceStart(StringBuilder builder, INamedTypeSymbol symbol)
@@ -381,6 +695,67 @@ namespace Mammoth.LiteMapper.Generator
             public string Source { get; }
 
             public ImmutableArray<Diagnostic> Diagnostics { get; }
+        }
+
+        private sealed class MappingModel
+        {
+            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, ImmutableArray<AssignmentModel> assignments)
+            {
+                Method = method;
+                SourceNullable = sourceNullable;
+                ReturnNullable = returnNullable;
+                Assignments = assignments;
+            }
+
+            public IMethodSymbol Method { get; }
+
+            public bool SourceNullable { get; }
+
+            public bool ReturnNullable { get; }
+
+            public ImmutableArray<AssignmentModel> Assignments { get; }
+        }
+
+        private sealed class AssignmentModel
+        {
+            public AssignmentModel(string targetName, string sourceName)
+            {
+                TargetName = targetName;
+                SourceName = sourceName;
+            }
+
+            public string TargetName { get; }
+
+            public string SourceName { get; }
+        }
+
+        private sealed class EffectiveMappingOptions
+        {
+            public EffectiveMappingOptions(string nameMatching, string unmappedTargetMembers, string unmappedSourceMembers)
+            {
+                NameMatching = nameMatching;
+                UnmappedTargetMembers = unmappedTargetMembers;
+                UnmappedSourceMembers = unmappedSourceMembers;
+            }
+
+            public string NameMatching { get; }
+
+            public string UnmappedTargetMembers { get; }
+
+            public string UnmappedSourceMembers { get; }
+        }
+
+        private sealed class MatchResult
+        {
+            public MatchResult(ISymbol? member, bool ambiguous)
+            {
+                Member = member;
+                Ambiguous = ambiguous;
+            }
+
+            public ISymbol? Member { get; }
+
+            public bool Ambiguous { get; }
         }
     }
 }
