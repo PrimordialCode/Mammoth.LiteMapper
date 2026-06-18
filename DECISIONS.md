@@ -234,6 +234,26 @@
 - Specification references: 13, 19.7, 24.1, 28.4.
 - Consequences: Enum mapping remains deterministic generated source and private implementation detail; generated flags composite validation uses `System.Convert.ToUInt64` and ordinary bit operations rather than runtime reflection or dynamic dispatch.
 
+### DEC-0025
+
+- Date: 2026-06-18
+- Milestone: 12
+- Status: Accepted
+- Context: Section 17.6 allows either a private mapper-specific tracker helper or an internal shared runtime helper.
+- Decision: Emit a private mapper-specific cycle tracker and private reference-identity comparer only when a public mapping has a recursive helper component and effective `ReferenceHandling.ThrowOnCycle`.
+- Specification references: 17.2, 17.3, 17.5, 17.6, 28.6, 28.7.
+- Consequences: No public API or shared runtime helper is added; generated source remains deterministic and non-recursive mappings do not allocate tracker state.
+
+### DEC-0026
+
+- Date: 2026-06-18
+- Milestone: 12
+- Status: Accepted
+- Context: A self-recursive member conversion could select the public generated mapping method as a visible mapping, which would create a fresh public entry call for each descent.
+- Decision: Do not select the current generated partial method as its own nested visible mapping candidate; use the private structural helper path so recursive calls can share one tracker.
+- Specification references: 17.2, 28.6, 28.7.
+- Consequences: Other visible mapping methods remain eligible; self-recursive generated mappings use private helper plumbing for correct active-path tracking.
+
 ## Pending specification questions
 
 ### PENDING-0001

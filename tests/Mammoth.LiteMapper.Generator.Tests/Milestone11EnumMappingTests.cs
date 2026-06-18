@@ -10,7 +10,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Mammoth.LiteMapper.Generator.Tests
 {
     [TestClass]
-    public sealed class Milestone11EnumMappingTests
+    public class Milestone11EnumMappingTests
     {
         [TestMethod]
         public void ByNameEnumMappingGeneratesSwitchAndRejectsUnknownRuntimeValues()
@@ -217,36 +217,36 @@ public enum Target { Special = 5 }
             Assert.IsFalse(generated.Contains("source switch", StringComparison.Ordinal), generated);
         }
 
-        private static string SingleGeneratedSource(GeneratorDriverRunResult result)
+        protected static string SingleGeneratedSource(GeneratorDriverRunResult result)
         {
             Assert.AreEqual(1, result.GeneratedTrees.Length);
             return result.GeneratedTrees[0].GetText().ToString();
         }
 
-        private static void AssertNoRuntimeFeatures(string source)
+        protected static void AssertNoRuntimeFeatures(string source)
         {
             Assert.IsFalse(source.Contains("System.Reflection", StringComparison.Ordinal), source);
             Assert.IsFalse(source.Contains("dynamic", StringComparison.Ordinal), source);
             Assert.IsFalse(source.Contains("Assembly", StringComparison.Ordinal), source);
         }
 
-        private static string Normalize(string text)
+        protected static string Normalize(string text)
         {
             return text.Replace("\r\n", "\n").TrimEnd();
         }
 
-        private static void AssertDiagnostic(GeneratorDriverRunResult result, string id)
+        protected static void AssertDiagnostic(GeneratorDriverRunResult result, string id)
         {
             Assert.IsTrue(result.Diagnostics.Any(d => d.Id == id), "Expected " + id + " but found " + string.Join(", ", result.Diagnostics.Select(d => d.Id)));
         }
 
-        private static void AssertNoLiteMapperDiagnostics(GeneratorDriverRunResult result)
+        protected static void AssertNoLiteMapperDiagnostics(GeneratorDriverRunResult result)
         {
             var diagnostics = result.Diagnostics.Where(static d => d.Id.StartsWith("LITEMAPPER", StringComparison.Ordinal)).ToArray();
             Assert.AreEqual(0, diagnostics.Length, string.Join(Environment.NewLine, diagnostics.Select(static d => d.ToString())));
         }
 
-        private static GeneratorRun RunGenerator(string source)
+        protected static GeneratorRun RunGenerator(string source)
         {
             var compilation = CreateCompilation(source);
             GeneratorDriver driver = CSharpGeneratorDriver.Create(
@@ -259,7 +259,7 @@ public enum Target { Special = 5 }
             return new GeneratorRun(driver.GetRunResult(), updatedCompilation);
         }
 
-        private static Compilation CreateCompilation(string source)
+        protected static Compilation CreateCompilation(string source)
         {
             var references = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!.ToString()!
                 .Split(Path.PathSeparator)
@@ -277,7 +277,7 @@ public enum Target { Special = 5 }
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
         }
 
-        private static Assembly Emit(Compilation compilation)
+        protected static Assembly Emit(Compilation compilation)
         {
             using var stream = new MemoryStream();
             var result = compilation.Emit(stream);
@@ -286,7 +286,7 @@ public enum Target { Special = 5 }
             return Assembly.Load(stream.ToArray());
         }
 
-        private sealed class GeneratorRun
+        protected sealed class GeneratorRun
         {
             public GeneratorRun(GeneratorDriverRunResult runResult, Compilation compilation)
             {

@@ -42,6 +42,8 @@ namespace Mammoth.LiteMapper.Generator
         private const string UnmatchedEnumValuePolicyError = "Error";
         private const string UnmatchedEnumValuePolicyThrow = "Throw";
         private const string UnmatchedEnumValuePolicyByValue = "ByValue";
+        private const string ReferenceHandlingNone = "None";
+        private const string ReferenceHandlingThrowOnCycle = "ThrowOnCycle";
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
@@ -130,7 +132,22 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            var source = RenderDeclaration(symbol, mappings.ToImmutable());
+            var completedMappings = mappings.ToImmutable();
+            foreach (var mapping in completedMappings)
+            {
+                var recursiveNames = FindRecursiveHelperNames(mapping);
+                if (recursiveNames.Count != 0 && mapping.ReferenceHandling == ReferenceHandlingNone)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.RecursiveMappingWithoutCycleDetection, mapping.Method.Locations.FirstOrDefault(), mapping.Method.Name));
+                }
+                else if (recursiveNames.Count != 0 && mapping.ReferenceHandling == ReferenceHandlingThrowOnCycle &&
+                    FlattenHelpers(mapping).Any(h => h.HelperName != null && recursiveNames.Contains(h.HelperName) && h.HelperSourceType != null && h.HelperSourceType.IsValueType))
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.CyclePathCannotBeTracked, mapping.Method.Locations.FirstOrDefault(), mapping.Method.Name));
+                }
+            }
+
+            var source = RenderDeclaration(symbol, completedMappings);
             return new MapperModel(symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), typeSyntax.Identifier.GetLocation(), CreateHintName(symbol), source, diagnostics.ToImmutableArray());
         }
 
@@ -240,7 +257,7 @@ namespace Mammoth.LiteMapper.Generator
             var topLevelConversion = ResolveTopLevelConversion(method, sourceType, targetType, compilation, externalTypes, diagnostics, options);
             if (topLevelConversion != null)
             {
-                return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, ImmutableArray<MappingModel>.Empty, null, null, null, "        return " + topLevelConversion.Expression + ";\n");
+                return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, ImmutableArray<MappingModel>.Empty, null, null, null, "        return " + topLevelConversion.Expression + ";\n");
             }
 
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
@@ -369,7 +386,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null);
+            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null);
         }
 
         private static MappingModel CreateUpdateMappingModel(IMethodSymbol method, Compilation compilation, List<Diagnostic> diagnostics)
@@ -512,7 +529,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            return new MappingModel(method, sourceNullable, returnNullable: !method.ReturnsVoid && IsMaybeNull(method.ReturnType), options.NullableMismatch, construction: null, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null, isUpdate: true, destinationParameter: destination, destinationNullable: destinationNullable);
+            return new MappingModel(method, sourceNullable, returnNullable: !method.ReturnsVoid && IsMaybeNull(method.ReturnType), options.NullableMismatch, options.ReferenceHandling, construction: null, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null, isUpdate: true, destinationParameter: destination, destinationNullable: destinationNullable);
         }
 
         private static ImmutableArray<ExplicitMemberConfiguration> ParseExplicitConfigurations(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, ISymbol[] sourceMembers, ICollection<Diagnostic> diagnostics)
@@ -632,7 +649,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            var visibleMapping = ResolveVisibleMapping(mappingMethod.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location);
+            var visibleMapping = ResolveVisibleMapping(mappingMethod, mappingMethod.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location);
             if (visibleMapping != null)
             {
                 return visibleMapping;
@@ -955,10 +972,10 @@ namespace Mammoth.LiteMapper.Generator
             }
         }
 
-        private static ConversionModel? ResolveVisibleMapping(INamedTypeSymbol mapperType, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, string targetName, Location? location)
+        private static ConversionModel? ResolveVisibleMapping(IMethodSymbol currentMethod, INamedTypeSymbol mapperType, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, string targetName, Location? location)
         {
             var candidates = mapperType.GetMembers().OfType<IMethodSymbol>()
-                .Where(m => !m.IsImplicitlyDeclared && !HasAttribute(m, MappingConverterAttributeName) && IsUsableConverter(m, mapperType, sourceType, targetType, compilation))
+                .Where(m => !SymbolEqualityComparer.Default.Equals(m, currentMethod) && !m.IsImplicitlyDeclared && !HasAttribute(m, MappingConverterAttributeName) && IsUsableConverter(m, mapperType, sourceType, targetType, compilation))
                 .OrderBy(static m => m.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), StringComparer.Ordinal)
                 .ToArray();
             if (candidates.Length == 0)
@@ -1003,7 +1020,7 @@ namespace Mammoth.LiteMapper.Generator
             var helperName = "MapNested_" + SanitizeIdentifier(namedSource.Name) + "_To_" + SanitizeIdentifier(namedTarget.Name);
             if (helperNames.Add(helperName))
             {
-                var helper = CreateNestedMappingModel(mappingMethod, namedSource, namedTarget, helperName, compilation, diagnostics, options);
+                var helper = CreateNestedMappingModel(mappingMethod, namedSource, namedTarget, helperName, compilation, diagnostics, helpers, helperNames, options);
                 if (helper == null)
                 {
                     diagnostics.Add(Diagnostic.Create(Diagnostics.StructuralNestedMappingFailed, location, namedSource.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), namedTarget.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
@@ -1104,7 +1121,7 @@ namespace Mammoth.LiteMapper.Generator
 
             var sourceNullable = helperName == null && IsMaybeNull(method.Parameters[0]);
             var returnNullable = helperName == null && IsMaybeNull(method.ReturnType);
-            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, helpers.ToImmutable(), helperName, helperName == null ? null : sourceType, helperName == null ? null : targetType, body);
+            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, helpers.ToImmutable(), helperName, helperName == null ? null : sourceType, helperName == null ? null : targetType, body);
         }
 
         private static string? RenderCollectionBody(IMethodSymbol method, CollectionShape sourceShape, CollectionShape targetShape, ITypeSymbol sourceType, ITypeSymbol targetType, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options, Location? location)
@@ -1257,7 +1274,7 @@ namespace Mammoth.LiteMapper.Generator
                 return expression;
             }
 
-            var visible = ResolveVisibleMapping(method.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, "item", location);
+            var visible = ResolveVisibleMapping(method, method.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, "item", location);
             if (visible != null)
             {
                 return visible.Expression;
@@ -1268,7 +1285,7 @@ namespace Mammoth.LiteMapper.Generator
                 var helperName = "MapNested_" + SanitizeIdentifier(namedSource.Name) + "_To_" + SanitizeIdentifier(namedTarget.Name);
                 if (helperNames.Add(helperName))
                 {
-                    var helper = CreateNestedMappingModel(method, namedSource, namedTarget, helperName, compilation, diagnostics, options);
+                    var helper = CreateNestedMappingModel(method, namedSource, namedTarget, helperName, compilation, diagnostics, helpers, helperNames, options);
                     if (helper == null)
                     {
                         diagnostics.Add(Diagnostic.Create(Diagnostics.StructuralNestedMappingFailed, location, namedSource.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), namedTarget.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
@@ -1310,7 +1327,7 @@ namespace Mammoth.LiteMapper.Generator
             return null;
         }
 
-        private static MappingModel? CreateNestedMappingModel(IMethodSymbol rootMethod, INamedTypeSymbol sourceType, INamedTypeSymbol targetType, string helperName, Compilation compilation, ICollection<Diagnostic> diagnostics, EffectiveMappingOptions options)
+        private static MappingModel? CreateNestedMappingModel(IMethodSymbol rootMethod, INamedTypeSymbol sourceType, INamedTypeSymbol targetType, string helperName, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder sharedHelpers, HashSet<string> sharedHelperNames, EffectiveMappingOptions options)
         {
             var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
             var construction = SelectConstruction(targetType, rootMethod.ContainingType, sourceMembers, options.NameMatching, compilation, rootMethod.Locations.FirstOrDefault(), diagnostics);
@@ -1321,8 +1338,8 @@ namespace Mammoth.LiteMapper.Generator
 
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
             var preconditions = ImmutableArray.CreateBuilder<PreconditionModel>();
-            var helpers = ImmutableArray.CreateBuilder<MappingModel>();
-            var helperNames = new HashSet<string>(StringComparer.Ordinal);
+            var helpers = sharedHelpers;
+            var helperNames = sharedHelperNames;
             var externalTypes = GetRegisteredMapperTypes(rootMethod.ContainingType, compilation).ToArray();
 
             foreach (var targetMember in GetTargetMembers(targetType, diagnostics, includeConstructorOnly: true))
@@ -1358,7 +1375,7 @@ namespace Mammoth.LiteMapper.Generator
                 assignments.Add(new AssignmentModel(targetMember.Name, conversion.Expression));
             }
 
-            return new MappingModel(rootMethod, sourceNullable: false, returnNullable: false, options.NullableMismatch, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), helperName, sourceType, targetType, customBody: null);
+            return new MappingModel(rootMethod, sourceNullable: false, returnNullable: false, options.NullableMismatch, options.ReferenceHandling, construction, preconditions.ToImmutable(), assignments.ToImmutable(), ImmutableArray<MappingModel>.Empty, helperName, sourceType, targetType, customBody: null);
         }
 
         private static string SanitizeIdentifier(string value)
@@ -1757,7 +1774,8 @@ namespace Mammoth.LiteMapper.Generator
                 ReadOptionState(mapping, "IgnoreNullSourceMembers") ?? ReadBoolOption(mapper, "IgnoreNullSourceMembers"),
                 ReadEnumOption(mapping, "EnumMapping") ?? ReadEnumOption(mapper, "EnumMapping") ?? EnumMappingStrategyByName,
                 ReadEnumOption(mapping, "EnumNumericConversion") ?? ReadEnumOption(mapper, "EnumNumericConversion") ?? EnumNumericConversionChecked,
-                ReadEnumOption(mapping, "UnmatchedEnumValues") ?? ReadEnumOption(mapper, "UnmatchedEnumValues") ?? UnmatchedEnumValuePolicyError);
+                ReadEnumOption(mapping, "UnmatchedEnumValues") ?? ReadEnumOption(mapper, "UnmatchedEnumValues") ?? UnmatchedEnumValuePolicyError,
+                ReadEnumOption(mapping, "ReferenceHandling") ?? ReadEnumOption(mapper, "ReferenceHandling") ?? ReferenceHandlingNone);
         }
 
         private static bool ReadBoolOption(AttributeData? attribute, string name)
@@ -1841,6 +1859,11 @@ namespace Mammoth.LiteMapper.Generator
                     if (name == "UnmatchedEnumValues")
                     {
                         return raw == 2 ? UnmatchedEnumValuePolicyThrow : raw == 3 ? UnmatchedEnumValuePolicyByValue : UnmatchedEnumValuePolicyError;
+                    }
+
+                    if (name == "ReferenceHandling")
+                    {
+                        return raw == 2 ? ReferenceHandlingThrowOnCycle : ReferenceHandlingNone;
                     }
 
                     return raw == 1 ? UnmappedMemberPolicyIgnore : raw == 3 ? UnmappedMemberPolicyWarning : raw == 4 ? UnmappedMemberPolicyError : null;
@@ -2347,13 +2370,20 @@ namespace Mammoth.LiteMapper.Generator
             builder.Append(symbol.IsStatic ? "static partial class " : "partial class ");
             builder.AppendLine(symbol.Name);
             builder.AppendLine("{");
+            var needsCycleTracker = false;
             foreach (var mapping in mappings.OrderBy(static m => m.Method.Name, StringComparer.Ordinal))
             {
-                AppendMapping(builder, mapping);
+                var recursiveHelperNames = mapping.ReferenceHandling == ReferenceHandlingThrowOnCycle ? FindRecursiveHelperNames(mapping) : new HashSet<string>(StringComparer.Ordinal);
+                needsCycleTracker = needsCycleTracker || recursiveHelperNames.Count != 0;
+                AppendMapping(builder, mapping, recursiveHelperNames);
                 foreach (var helper in FlattenHelpers(mapping).OrderBy(static h => h.HelperName, StringComparer.Ordinal))
                 {
-                    AppendMapping(builder, helper);
+                    AppendMapping(builder, helper, recursiveHelperNames);
                 }
+            }
+            if (needsCycleTracker)
+            {
+                AppendCycleTracker(builder);
             }
             builder.AppendLine("}");
 
@@ -2366,11 +2396,13 @@ namespace Mammoth.LiteMapper.Generator
             return builder.ToString();
         }
 
-        private static void AppendMapping(StringBuilder builder, MappingModel mapping)
+        private static void AppendMapping(StringBuilder builder, MappingModel mapping, HashSet<string> recursiveHelperNames)
         {
             var method = mapping.Method;
             var parameter = method.Parameters[0];
             var destination = mapping.DestinationParameter;
+            var trackedHelper = mapping.HelperName != null && recursiveHelperNames.Contains(mapping.HelperName);
+            var trackedPublicEntry = mapping.HelperName == null && mapping.ReferenceHandling == ReferenceHandlingThrowOnCycle && recursiveHelperNames.Count != 0;
             builder.Append("    ");
             builder.Append(mapping.HelperName == null ? ToAccessibility(method.DeclaredAccessibility) : "private");
             builder.Append(' ');
@@ -2402,6 +2434,10 @@ namespace Mammoth.LiteMapper.Generator
                 builder.Append(DisplayType(destination.Type));
                 builder.Append(' ');
                 builder.Append(destination.Name);
+            }
+            else if (trackedHelper)
+            {
+                builder.Append(", __LiteMapperCycleTracker __tracker, string __memberPath");
             }
 
             builder.AppendLine(")");
@@ -2450,9 +2486,33 @@ namespace Mammoth.LiteMapper.Generator
                 builder.AppendLine("        }");
             }
 
+            if (trackedPublicEntry)
+            {
+                builder.AppendLine("        var __tracker = new __LiteMapperCycleTracker();");
+                if (!parameter.Type.IsValueType)
+                {
+                    builder.AppendLine("        __tracker.Enter(source, typeof(" + DisplayType(parameter.Type).TrimEnd('?') + "), typeof(" + DisplayType(method.ReturnType).TrimEnd('?') + "), \"" + method.Name + "\", string.Empty);");
+                }
+            }
+
+            if (trackedHelper && mapping.HelperSourceType != null && !mapping.HelperSourceType.IsValueType)
+            {
+                builder.AppendLine("        __tracker.Enter(source, typeof(" + DisplayType(mapping.HelperSourceType).TrimEnd('?') + "), typeof(" + DisplayType(mapping.HelperTargetType!).TrimEnd('?') + "), \"" + method.Name + "\", __memberPath);");
+                builder.AppendLine("        try");
+                builder.AppendLine("        {");
+            }
+
             if (mapping.CustomBody != null)
             {
-                builder.Append(mapping.CustomBody);
+                builder.Append(RewriteTrackedCalls(mapping.CustomBody, recursiveHelperNames, "__memberPath"));
+                if (trackedHelper && mapping.HelperSourceType != null && !mapping.HelperSourceType.IsValueType)
+                {
+                    builder.AppendLine("        }");
+                    builder.AppendLine("        finally");
+                    builder.AppendLine("        {");
+                    builder.AppendLine("            __tracker.Exit(source);");
+                    builder.AppendLine("        }");
+                }
                 builder.AppendLine("    }");
                 return;
             }
@@ -2502,7 +2562,7 @@ namespace Mammoth.LiteMapper.Generator
                     builder.Append('.');
                     builder.Append(assignment.TargetName);
                     builder.Append(" = ");
-                    builder.Append(assignment.Expression);
+                    builder.Append(RewriteTrackedCalls(assignment.Expression, recursiveHelperNames, PathExpression(mapping, assignment.TargetName)));
                     builder.AppendLine(";");
                     if (assignment.Guard != null)
                     {
@@ -2558,7 +2618,7 @@ namespace Mammoth.LiteMapper.Generator
                     builder.Append("            ");
                     builder.Append(assignment.TargetName);
                     builder.Append(" = ");
-                    builder.Append(assignment.Expression);
+                    builder.Append(RewriteTrackedCalls(assignment.Expression, recursiveHelperNames, PathExpression(mapping, assignment.TargetName)));
                     builder.AppendLine(i == mapping.Assignments.Length - 1 ? string.Empty : ",");
                 }
 
@@ -2566,6 +2626,14 @@ namespace Mammoth.LiteMapper.Generator
             }
 
             builder.AppendLine("        return target;");
+            if (trackedHelper && mapping.HelperSourceType != null && !mapping.HelperSourceType.IsValueType)
+            {
+                builder.AppendLine("        }");
+                builder.AppendLine("        finally");
+                builder.AppendLine("        {");
+                builder.AppendLine("            __tracker.Exit(source);");
+                builder.AppendLine("        }");
+            }
             builder.AppendLine("    }");
         }
 
@@ -2579,6 +2647,144 @@ namespace Mammoth.LiteMapper.Generator
                     yield return nested;
                 }
             }
+        }
+
+        private static HashSet<string> FindRecursiveHelperNames(MappingModel mapping)
+        {
+            var helpers = FlattenHelpers(mapping).Where(static h => h.HelperName != null).ToArray();
+            var names = helpers.Select(static h => h.HelperName!).ToArray();
+            var edges = helpers.ToDictionary(static h => h.HelperName!, h => CalledHelpers(h, names), StringComparer.Ordinal);
+            var recursive = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var name in names)
+            {
+                if (CanReach(name, name, edges, new HashSet<string>(StringComparer.Ordinal)))
+                {
+                    recursive.Add(name);
+                }
+            }
+
+            return recursive;
+        }
+
+        private static HashSet<string> CalledHelpers(MappingModel mapping, string[] helperNames)
+        {
+            var text = new StringBuilder();
+            if (mapping.CustomBody != null)
+            {
+                text.Append(mapping.CustomBody);
+            }
+
+            foreach (var assignment in mapping.Assignments)
+            {
+                text.Append(assignment.Expression);
+            }
+
+            var value = text.ToString();
+            return new HashSet<string>(helperNames.Where(name => value.IndexOf(name + "(", StringComparison.Ordinal) >= 0), StringComparer.Ordinal);
+        }
+
+        private static bool CanReach(string current, string target, Dictionary<string, HashSet<string>> edges, HashSet<string> visited)
+        {
+            if (!edges.TryGetValue(current, out var next))
+            {
+                return false;
+            }
+
+            foreach (var item in next)
+            {
+                if (item == target)
+                {
+                    return true;
+                }
+
+                if (visited.Add(item) && CanReach(item, target, edges, visited))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string PathExpression(MappingModel mapping, string memberName)
+        {
+            return mapping.HelperName == null ? "\"" + memberName + "\"" : "__memberPath + \"." + memberName + "\"";
+        }
+
+        private static string RewriteTrackedCalls(string expression, HashSet<string> recursiveHelperNames, string pathExpression)
+        {
+            foreach (var helperName in recursiveHelperNames.OrderByDescending(static n => n.Length))
+            {
+                expression = RewriteTrackedCall(expression, helperName, pathExpression);
+            }
+
+            return expression;
+        }
+
+        private static string RewriteTrackedCall(string expression, string helperName, string pathExpression)
+        {
+            var search = helperName + "(";
+            var index = expression.IndexOf(search, StringComparison.Ordinal);
+            while (index >= 0)
+            {
+                var argumentStart = index + search.Length;
+                var depth = 1;
+                var position = argumentStart;
+                while (position < expression.Length && depth != 0)
+                {
+                    if (expression[position] == '(')
+                    {
+                        depth++;
+                    }
+                    else if (expression[position] == ')')
+                    {
+                        depth--;
+                    }
+
+                    position++;
+                }
+
+                if (depth == 0)
+                {
+                    expression = expression.Insert(position - 1, ", __tracker, " + pathExpression);
+                    index = expression.IndexOf(search, position + pathExpression.Length, StringComparison.Ordinal);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return expression;
+        }
+
+        private static void AppendCycleTracker(StringBuilder builder)
+        {
+            builder.AppendLine();
+            builder.AppendLine("    private sealed class __LiteMapperCycleTracker");
+            builder.AppendLine("    {");
+            builder.AppendLine("        private readonly global::System.Collections.Generic.HashSet<object> _active = new global::System.Collections.Generic.HashSet<object>(__ReferenceIdentityComparer.Instance);");
+            builder.AppendLine();
+            builder.AppendLine("        public void Enter(object source, global::System.Type sourceType, global::System.Type destinationType, string mappingMethod, string memberPath)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            if (!_active.Add(source))");
+            builder.AppendLine("            {");
+            builder.AppendLine("                throw new global::Mammoth.LiteMapper.LiteMapperCycleException(sourceType, destinationType, mappingMethod, memberPath);");
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+            builder.AppendLine();
+            builder.AppendLine("        public void Exit(object source)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            _active.Remove(source);");
+            builder.AppendLine("        }");
+            builder.AppendLine("    }");
+            builder.AppendLine();
+            builder.AppendLine("    private sealed class __ReferenceIdentityComparer : global::System.Collections.Generic.IEqualityComparer<object>");
+            builder.AppendLine("    {");
+            builder.AppendLine("        public static readonly __ReferenceIdentityComparer Instance = new __ReferenceIdentityComparer();");
+            builder.AppendLine("        public new bool Equals(object? x, object? y) => object.ReferenceEquals(x, y);");
+            builder.AppendLine("        public int GetHashCode(object obj) => global::System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);");
+            builder.AppendLine("    }");
         }
 
         private static string ToAccessibility(Accessibility accessibility)
@@ -2656,12 +2862,13 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class MappingModel
         {
-            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments, ImmutableArray<MappingModel> helpers, string? helperName, ITypeSymbol? helperSourceType, ITypeSymbol? helperTargetType, string? customBody, bool isUpdate = false, IParameterSymbol? destinationParameter = null, bool destinationNullable = false)
+            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, string referenceHandling, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments, ImmutableArray<MappingModel> helpers, string? helperName, ITypeSymbol? helperSourceType, ITypeSymbol? helperTargetType, string? customBody, bool isUpdate = false, IParameterSymbol? destinationParameter = null, bool destinationNullable = false)
             {
                 Method = method;
                 SourceNullable = sourceNullable;
                 ReturnNullable = returnNullable;
                 NullableMismatch = nullableMismatch;
+                ReferenceHandling = referenceHandling;
                 Construction = construction;
                 Preconditions = preconditions;
                 Assignments = assignments;
@@ -2682,6 +2889,8 @@ namespace Mammoth.LiteMapper.Generator
             public bool ReturnNullable { get; }
 
             public string NullableMismatch { get; }
+
+            public string ReferenceHandling { get; }
 
             public ConstructionModel? Construction { get; }
 
@@ -2832,7 +3041,7 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class EffectiveMappingOptions
         {
-            public EffectiveMappingOptions(string nameMatching, string unmappedTargetMembers, string unmappedSourceMembers, string nullableMismatch, string nullCollections, bool ignoreNullSourceMembers, string enumMapping, string enumNumericConversion, string unmatchedEnumValues)
+            public EffectiveMappingOptions(string nameMatching, string unmappedTargetMembers, string unmappedSourceMembers, string nullableMismatch, string nullCollections, bool ignoreNullSourceMembers, string enumMapping, string enumNumericConversion, string unmatchedEnumValues, string referenceHandling)
             {
                 NameMatching = nameMatching;
                 UnmappedTargetMembers = unmappedTargetMembers;
@@ -2843,6 +3052,7 @@ namespace Mammoth.LiteMapper.Generator
                 EnumMapping = enumMapping;
                 EnumNumericConversion = enumNumericConversion;
                 UnmatchedEnumValues = unmatchedEnumValues;
+                ReferenceHandling = referenceHandling;
             }
 
             public string NameMatching { get; }
@@ -2862,6 +3072,8 @@ namespace Mammoth.LiteMapper.Generator
             public string EnumNumericConversion { get; }
 
             public string UnmatchedEnumValues { get; }
+
+            public string ReferenceHandling { get; }
         }
 
         private sealed class EnumMemberModel

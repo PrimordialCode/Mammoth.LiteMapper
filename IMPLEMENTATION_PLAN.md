@@ -220,7 +220,11 @@
 - Focused validation: cycle tests.
 - Full validation: full solution tests and allocation-sensitive checks where practical.
 - Completion criteria: one tracker per recursive public call only when required.
-- Risks: accurate path reporting without retaining object graphs.
+- Status: Completed on 2026-06-18 with recursive helper graph analysis, recursive helper reuse during model construction, `ReferenceHandling.None` informational diagnostics, `ThrowOnCycle` tracker plumbing, reference-identity active-path detection, collection-recursion forwarding, shared-reference behavior, concurrent-call coverage, and acyclic graph no-tracker coverage.
+- Deviations: implemented the tracker as a private generated mapper-specific helper rather than an internal shared runtime helper; this avoids new runtime package surface and keeps the public API unchanged.
+- Remaining tasks: none for Milestone 12 new-object recursive graph behavior.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore --filter Milestone12RecursiveCycleTests` initially crashed the test host with a stack overflow from recursive helper expansion, then passed with 13 tests after implementation; `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore` passed with 61 tests; `dotnet restore Mammoth.LiteMapper.sln` passed; `dotnet build Mammoth.LiteMapper.sln --no-restore` passed with 0 warnings; `dotnet test Mammoth.LiteMapper.sln --no-build` passed with 73 total tests; `git diff --check` passed.
+- Risks: generated tracker helper uses private generated support code; broader trimming/AOT and package-consumer validation remain later milestones.
 - Out of scope: target-specific optimization.
 
 ## Milestone 13: capability-based emitted optimization

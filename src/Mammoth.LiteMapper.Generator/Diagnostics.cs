@@ -48,6 +48,9 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor InitOnlyMemberCannotBeUpdated = Error("LITEMAPPER5004", "InitOnlyMemberCannotBeUpdated", "Update attempts to assign an init-only member");
         public static readonly DiagnosticDescriptor NestedUpdateMappingRequired = Error("LITEMAPPER5005", "NestedUpdateMappingRequired", "Get-only/existing nested mutation lacks explicit update mapping");
         public static readonly DiagnosticDescriptor IgnoreNullOnlyValidForUpdate = Warning("LITEMAPPER5006", "IgnoreNullOnlyValidForUpdate", "Patch null-skipping was configured on a new-object mapping");
+        public static readonly DiagnosticDescriptor RecursiveMappingWithoutCycleDetection = Info("LITEMAPPER6001", "RecursiveMappingWithoutCycleDetection", "Recursive type graph uses ReferenceHandling.None");
+        public static readonly DiagnosticDescriptor InvalidReferenceHandling = Error("LITEMAPPER6002", "InvalidReferenceHandling", "Reference handling is unsupported for mapping '{0}'");
+        public static readonly DiagnosticDescriptor CyclePathCannotBeTracked = Error("LITEMAPPER6003", "CyclePathCannotBeTracked", "Required recursive path cannot use reference identity");
         public static readonly DiagnosticDescriptor EnumMemberNotMapped = Error("LITEMAPPER7001", "EnumMemberNotMapped", "Source enum member '{0}' has no target mapping");
         public static readonly DiagnosticDescriptor EnumAliasConflict = Error("LITEMAPPER7002", "EnumAliasConflict", "Enum aliases for value '{0}' map inconsistently");
         public static readonly DiagnosticDescriptor EnumZeroMemberNotMapped = Error("LITEMAPPER7003", "EnumZeroMemberNotMapped", "Source enum zero member '{0}' has no target mapping");
