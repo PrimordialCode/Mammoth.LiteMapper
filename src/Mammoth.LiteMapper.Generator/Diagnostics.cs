@@ -42,6 +42,12 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor RectangularArrayNotSupported = Error("LITEMAPPER4002", "RectangularArrayNotSupported", "Mapping uses a multidimensional rectangular array");
         public static readonly DiagnosticDescriptor CollectionTargetCannotBeConstructed = Error("LITEMAPPER4003", "CollectionTargetCannotBeConstructed", "No legal concrete destination collection can be created");
         public static readonly DiagnosticDescriptor CustomCollectionNotSupported = Error("LITEMAPPER4006", "CustomCollectionNotSupported", "Custom collection convention would be required");
+        public static readonly DiagnosticDescriptor InvalidUpdateSignature = Error("LITEMAPPER5001", "InvalidUpdateSignature", "Existing-target method has an unsupported signature");
+        public static readonly DiagnosticDescriptor NullableVoidDestinationNotSupported = Error("LITEMAPPER5002", "NullableVoidDestinationNotSupported", "Nullable destination cannot be replaced through a void method");
+        public static readonly DiagnosticDescriptor StructUpdateRequiresRef = Error("LITEMAPPER5003", "StructUpdateRequiresRef", "Value-type destination is passed by value");
+        public static readonly DiagnosticDescriptor InitOnlyMemberCannotBeUpdated = Error("LITEMAPPER5004", "InitOnlyMemberCannotBeUpdated", "Update attempts to assign an init-only member");
+        public static readonly DiagnosticDescriptor NestedUpdateMappingRequired = Error("LITEMAPPER5005", "NestedUpdateMappingRequired", "Get-only/existing nested mutation lacks explicit update mapping");
+        public static readonly DiagnosticDescriptor IgnoreNullOnlyValidForUpdate = Warning("LITEMAPPER5006", "IgnoreNullOnlyValidForUpdate", "Patch null-skipping was configured on a new-object mapping");
         public static readonly DiagnosticDescriptor UnmappedSourceMember = Info("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor UnmappedSourceMemberWarning = Warning("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor InternalGeneratorFailure = Error("LITEMAPPER9001", "InternalGeneratorFailure", "Unexpected failure while processing mapper '{0}'");

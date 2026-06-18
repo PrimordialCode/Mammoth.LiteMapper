@@ -214,6 +214,16 @@
 - Specification references: 15.5, 15.6, 28.5.
 - Consequences: `IEnumerable<T>` sources do not receive speculative `Count()` calls; array targets from non-count sources allocate a temporary `List<T>` before `ToArray()`.
 
+### DEC-0023
+
+- Date: 2026-06-18
+- Milestone: 10
+- Status: Accepted
+- Context: Existing-target mappings need direct mutation behavior without adding runtime mapper abstractions or public APIs.
+- Decision: Reuse the existing member matching, conversion, helper, and deterministic rendering model for update methods, then render direct destination assignments with optional patch guards instead of introducing a separate runtime update pipeline.
+- Specification references: 3.2, 16.1, 16.3, 19.7, 24.4.
+- Consequences: Update generated source remains private/direct and shares helper generation with new-object mappings; exact update local formatting is not public API.
+
 ## Pending specification questions
 
 ### PENDING-0001

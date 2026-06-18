@@ -182,7 +182,11 @@
 - Focused validation: update tests.
 - Full validation: full solution tests.
 - Completion criteria: update semantics match section 16 and do not perform partial collection updates.
-- Risks: distinguishing replace vs mutate.
+- Status: Completed on 2026-06-18 with existing-target method classification, void and destination-returning reference updates, `ref` struct updates, null destination checks, nullable destination-returning construction, writable nested and collection replacement, `IgnoreNullSourceMembers` patch guards, update-specific diagnostics, runtime behavior coverage, and a checked-in generated-source snapshot.
+- Deviations: update rendering reuses the existing assignment/conversion model and emits direct assignment statements into the destination instead of introducing a separate runtime update abstraction.
+- Remaining tasks: none for Milestone 10.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore --filter Milestone10ExistingTargetMappingTests` initially failed for expected missing update behavior, then passed with 4 tests after implementation and snapshot assertion; `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore` passed with 41 tests; `dotnet restore Mammoth.LiteMapper.sln` passed; `dotnet build Mammoth.LiteMapper.sln --no-restore` passed with 0 warnings; `dotnet test Mammoth.LiteMapper.sln --no-build` passed with 53 total tests; `git diff --check` passed.
+- Risks: explicit get-only nested mutation through handwritten update methods is currently represented by the specified rejection path; recursive nested update and cycle tracking remain deferred to Milestone 12.
 - Out of scope: enum mapping.
 
 ## Milestone 11: enum mapping
