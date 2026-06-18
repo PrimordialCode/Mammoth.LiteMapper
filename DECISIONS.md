@@ -304,6 +304,16 @@
 - Specification references: 23.1, 23.4, 26.
 - Consequences: Milestone 15 validates benchmark wiring without fragile throughput thresholds on a shared/local runner; benchmark result output records runtime, SDK, CPU, OS, library versions, and job configuration.
 
+### DEC-0032
+
+- Date: 2026-06-18
+- Milestone: 16
+- Status: Accepted
+- Context: Section 26 requires usage documentation to be assembled from compiling sample projects and not become a parallel specification.
+- Decision: Maintain `docs/USAGE.md` as a checked-in source-backed guide that directly references the compiling Basic, Collections, and ASP.NET Core sample source files, and validate the guide with a packaging test that runs those samples and checks documented snippets, diagnostics, deferred features, and absent runtime-dispatch API claims.
+- Specification references: 26, 29, 30.
+- Consequences: Documentation remains reviewable in source control while CI guards against documenting APIs not represented by compiling samples.
+
 ## Pending specification questions
 
 ### PENDING-0001
