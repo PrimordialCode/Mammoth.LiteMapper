@@ -280,9 +280,9 @@
 - Milestone: 14
 - Status: Accepted
 - Context: Package-consumer publish validation exercises the supported install shape, while project-reference sample publishing propagates trimming/AOT publish properties into netstandard library projects and fails before reaching LiteMapper-generated code.
-- Decision: Use local-feed package-consumer tests as the authoritative trimming and Native AOT validation path. Keep the Basic source-tree sample as a runtime sample with a direct analyzer project reference for normal build/run validation.
+- Decision: Use local-feed package-consumer tests as the authoritative trimming and Native AOT validation path. Cover static mapping, instance mapping, nested collections, and cycle detection in that package consumer. Keep the Basic source-tree sample as a runtime sample with a direct analyzer project reference for normal build/run validation.
 - Specification references: 22.18, 22.19, 24.1.
-- Consequences: Trimmed package-consumer publish and run are validated locally. Native AOT publish is implemented as a test but remains environment-prerequisite dependent on this machine.
+- Consequences: Trimmed package-consumer publish and run are validated locally. Native AOT publish and run are validated in Linux with clang/zlib prerequisites; CI sets `LITEMAPPER_REQUIRE_NATIVE_AOT=1` so missing Native AOT prerequisites fail instead of producing an inconclusive local result.
 
 ### DEC-0030
 

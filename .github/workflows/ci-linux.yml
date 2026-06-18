@@ -12,12 +12,16 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
+      - name: Install Native AOT prerequisites
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
       - name: Restore
         run: dotnet restore Mammoth.LiteMapper.sln
       - name: Build
         run: dotnet build Mammoth.LiteMapper.sln --no-restore
       - name: Test
         run: dotnet test Mammoth.LiteMapper.sln --no-build
+        env:
+          LITEMAPPER_REQUIRE_NATIVE_AOT: '1'
       - name: Validate solution paths
         shell: pwsh
         run: |

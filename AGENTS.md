@@ -168,4 +168,5 @@ Milestone 14 packaging validation uses:
 * `dotnet apicompat package artifacts\packages\Mammoth.LiteMapper.1.0.0.nupkg --run-api-compat`
 
 Native AOT publish validation requires the platform linker prerequisites for
-the current OS.
+the current OS. Set `LITEMAPPER_REQUIRE_NATIVE_AOT=1` in CI to fail validation
+instead of reporting an inconclusive prerequisite result.

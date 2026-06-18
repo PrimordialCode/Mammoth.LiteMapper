@@ -126,32 +126,67 @@ if (attribute.NameMatching != NameMatching.Unspecified)
         {
             var directory = CreateProject(feed, "Consumer", targetFramework, "Mammoth.LiteMapper");
             File.WriteAllText(Path.Combine(directory, "Program.cs"), @"
+using System.Collections.Generic;
 using Mammoth.LiteMapper;
 
-var target = Mapper.ToTarget(new Source { Name = ""Ada"", Scores = new[] { 1, 2, 3 }, Child = new ChildSource { Value = 42 } });
-if (target.Name != ""Ada"" || target.Scores.Length != 3 || target.Child.Value != 42)
+var target = StaticMapper.ToTarget(new Source
 {
-    throw new System.InvalidOperationException(""Mapping failed."");
+    Name = ""Ada"",
+    Scores = new[] { 1, 2, 3 },
+    Children = new[] { new ChildSource { Value = 41 }, new ChildSource { Value = 42 } }
+});
+if (target.Name != ""Ada"" || target.Scores.Length != 3 || target.Children.Count != 2 || target.Children[1].Value != 42)
+{
+    throw new System.InvalidOperationException(""Static mapping failed."");
+}
+
+var instanceTarget = new InstanceMapper().ToTarget(new InstanceSource { Id = 7 });
+if (instanceTarget.Id != 7)
+{
+    throw new System.InvalidOperationException(""Instance mapping failed."");
+}
+
+var node = new NodeSource();
+node.Next = node;
+try
+{
+    CycleMapper.ToTarget(node);
+    throw new System.InvalidOperationException(""Cycle detection failed."");
+}
+catch (LiteMapperCycleException)
+{
 }
 
 [LiteMapper]
-public static partial class Mapper
+public static partial class StaticMapper
 {
     public static partial Target ToTarget(Source source);
+}
+
+[LiteMapper]
+public sealed partial class InstanceMapper
+{
+    public partial InstanceTarget ToTarget(InstanceSource source);
+}
+
+[LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)]
+public static partial class CycleMapper
+{
+    public static partial NodeTarget ToTarget(NodeSource source);
 }
 
 public sealed class Source
 {
     public string? Name { get; set; }
     public int[] Scores { get; set; } = new int[0];
-    public ChildSource Child { get; set; } = new ChildSource();
+    public ChildSource[] Children { get; set; } = new ChildSource[0];
 }
 
 public sealed class Target
 {
     public string? Name { get; set; }
     public int[] Scores { get; set; } = new int[0];
-    public ChildTarget Child { get; set; } = new ChildTarget();
+    public List<ChildTarget> Children { get; set; } = new List<ChildTarget>();
 }
 
 public sealed class ChildSource
@@ -162,6 +197,26 @@ public sealed class ChildSource
 public sealed class ChildTarget
 {
     public int Value { get; set; }
+}
+
+public sealed class InstanceSource
+{
+    public int Id { get; set; }
+}
+
+public sealed class InstanceTarget
+{
+    public int Id { get; set; }
+}
+
+public sealed class NodeSource
+{
+    public NodeSource? Next { get; set; }
+}
+
+public sealed class NodeTarget
+{
+    public NodeTarget? Next { get; set; }
 }
 ");
             return directory;
@@ -246,10 +301,22 @@ public sealed class ChildTarget
             if (result.Output.Contains("Platform linker not found", StringComparison.OrdinalIgnoreCase) ||
                 result.Error.Contains("Platform linker not found", StringComparison.OrdinalIgnoreCase))
             {
+                if (RequiresNativeAot())
+                {
+                    Assert.Fail("Native AOT publish prerequisite missing while Native AOT validation is required." + Environment.NewLine + result.Output + Environment.NewLine + result.Error);
+                }
+
                 Assert.Inconclusive("Native AOT publish prerequisite missing: platform linker not found.");
             }
 
             Assert.Fail("dotnet " + arguments + Environment.NewLine + result.Output + Environment.NewLine + result.Error);
+        }
+
+        private static bool RequiresNativeAot()
+        {
+            var value = Environment.GetEnvironmentVariable("LITEMAPPER_REQUIRE_NATIVE_AOT");
+            return string.Equals(value, "1", StringComparison.Ordinal) ||
+                string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void RunProcess(string fileName, string arguments, string workingDirectory)
