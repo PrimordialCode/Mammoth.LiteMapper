@@ -169,4 +169,5 @@ Milestone 14 packaging validation uses:
 
 Native AOT publish validation requires the platform linker prerequisites for
 the current OS. Set `LITEMAPPER_REQUIRE_NATIVE_AOT=1` in CI to fail validation
-instead of reporting an inconclusive prerequisite result.
+instead of reporting an inconclusive prerequisite result. Windows CI must run
+the AOT validation from an MSVC developer environment.

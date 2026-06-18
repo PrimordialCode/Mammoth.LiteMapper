@@ -17,7 +17,18 @@ jobs:
       - name: Build
         run: dotnet build Mammoth.LiteMapper.sln --no-restore
       - name: Test
-        run: dotnet test Mammoth.LiteMapper.sln --no-build
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installPath) {
+            throw "Visual Studio C++ toolchain was not found."
+          }
+
+          $vsDevCmd = Join-Path $installPath "Common7\Tools\VsDevCmd.bat"
+          cmd /s /c "call `"$vsDevCmd`" -arch=x64 -host_arch=x64 && dotnet test Mammoth.LiteMapper.sln --no-build"
+        env:
+          LITEMAPPER_REQUIRE_NATIVE_AOT: '1'
       - name: Validate solution paths
         shell: pwsh
         run: |
