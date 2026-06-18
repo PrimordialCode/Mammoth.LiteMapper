@@ -224,6 +224,16 @@
 - Specification references: 3.2, 16.1, 16.3, 19.7, 24.4.
 - Consequences: Update generated source remains private/direct and shares helper generation with new-object mappings; exact update local formatting is not public API.
 
+### DEC-0024
+
+- Date: 2026-06-18
+- Milestone: 11
+- Status: Accepted
+- Context: Enum mappings need direct generated behavior without adding runtime mapper abstractions, registries, or reflection.
+- Decision: Integrate enum handling into the existing conversion resolver and emit direct switch expressions or checked/unchecked casts. For `[Flags]` by-name runtime composites, emit direct bit-test reconstruction over mapped atomic flags.
+- Specification references: 13, 19.7, 24.1, 28.4.
+- Consequences: Enum mapping remains deterministic generated source and private implementation detail; generated flags composite validation uses `System.Convert.ToUInt64` and ordinary bit operations rather than runtime reflection or dynamic dispatch.
+
 ## Pending specification questions
 
 ### PENDING-0001

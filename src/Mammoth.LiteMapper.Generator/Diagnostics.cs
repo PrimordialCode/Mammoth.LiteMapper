@@ -48,6 +48,11 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor InitOnlyMemberCannotBeUpdated = Error("LITEMAPPER5004", "InitOnlyMemberCannotBeUpdated", "Update attempts to assign an init-only member");
         public static readonly DiagnosticDescriptor NestedUpdateMappingRequired = Error("LITEMAPPER5005", "NestedUpdateMappingRequired", "Get-only/existing nested mutation lacks explicit update mapping");
         public static readonly DiagnosticDescriptor IgnoreNullOnlyValidForUpdate = Warning("LITEMAPPER5006", "IgnoreNullOnlyValidForUpdate", "Patch null-skipping was configured on a new-object mapping");
+        public static readonly DiagnosticDescriptor EnumMemberNotMapped = Error("LITEMAPPER7001", "EnumMemberNotMapped", "Source enum member '{0}' has no target mapping");
+        public static readonly DiagnosticDescriptor EnumAliasConflict = Error("LITEMAPPER7002", "EnumAliasConflict", "Enum aliases for value '{0}' map inconsistently");
+        public static readonly DiagnosticDescriptor EnumZeroMemberNotMapped = Error("LITEMAPPER7003", "EnumZeroMemberNotMapped", "Source enum zero member '{0}' has no target mapping");
+        public static readonly DiagnosticDescriptor EnumFlagNotMapped = Error("LITEMAPPER7004", "EnumFlagNotMapped", "Source enum flag '{0}' has no target mapping");
+        public static readonly DiagnosticDescriptor EnumValueOverflow = Error("LITEMAPPER7005", "EnumValueOverflow", "Enum value '{0}' cannot fit destination underlying type");
         public static readonly DiagnosticDescriptor UnmappedSourceMember = Info("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor UnmappedSourceMemberWarning = Warning("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor InternalGeneratorFailure = Error("LITEMAPPER9001", "InternalGeneratorFailure", "Unexpected failure while processing mapper '{0}'");

@@ -201,7 +201,11 @@
 - Focused validation: enum tests.
 - Full validation: full solution tests.
 - Completion criteria: enum behavior and throws match section 13.
-- Risks: alias and flags decomposition edge cases.
+- Status: Completed on 2026-06-18 with by-name enum switch generation, checked/unchecked by-value conversion, `UnmatchedEnumValues` policy handling, source/target alias validation, zero-member validation, flags atomic validation, runtime flags composite reconstruction, runtime unknown-value throws, custom converter precedence, enum diagnostics, and a checked-in generated-source snapshot.
+- Deviations: enum rendering is integrated into the existing conversion resolver and top-level direct-conversion path rather than a separate planner type.
+- Remaining tasks: none for Milestone 11.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore --filter Milestone11EnumMappingTests` initially failed for expected missing enum behavior, then passed with 7 tests after implementation and snapshot assertion; `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore` passed with 48 tests; `dotnet restore Mammoth.LiteMapper.sln` passed; `dotnet build Mammoth.LiteMapper.sln --no-restore` passed with 0 warnings; `dotnet test Mammoth.LiteMapper.sln --no-build` passed with 60 total tests; `git diff --check` passed.
+- Risks: broader TFM/language matrix remains a later capability/portability milestone; flags reconstruction currently uses generated direct bit tests and `System.Convert.ToUInt64` for runtime composite validation.
 - Out of scope: recursive cycle detection.
 
 ## Milestone 12: recursive type analysis and ThrowOnCycle

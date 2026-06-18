@@ -35,6 +35,13 @@ namespace Mammoth.LiteMapper.Generator
         private const string NullCollectionStrategyError = "Error";
         private const string NullCollectionStrategyPreserve = "Preserve";
         private const string NullCollectionStrategyEmpty = "Empty";
+        private const string EnumMappingStrategyByName = "ByName";
+        private const string EnumMappingStrategyByValue = "ByValue";
+        private const string EnumNumericConversionChecked = "Checked";
+        private const string EnumNumericConversionUnchecked = "Unchecked";
+        private const string UnmatchedEnumValuePolicyError = "Error";
+        private const string UnmatchedEnumValuePolicyThrow = "Throw";
+        private const string UnmatchedEnumValuePolicyByValue = "ByValue";
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
@@ -229,6 +236,13 @@ namespace Mammoth.LiteMapper.Generator
                 return topLevelCollection;
             }
 
+            var externalTypes = GetRegisteredMapperTypes(method.ContainingType, compilation).ToArray();
+            var topLevelConversion = ResolveTopLevelConversion(method, sourceType, targetType, compilation, externalTypes, diagnostics, options);
+            if (topLevelConversion != null)
+            {
+                return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, ImmutableArray<MappingModel>.Empty, null, null, null, "        return " + topLevelConversion.Expression + ";\n");
+            }
+
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
             var preconditions = ImmutableArray.CreateBuilder<PreconditionModel>();
             var helpers = ImmutableArray.CreateBuilder<MappingModel>();
@@ -239,7 +253,6 @@ namespace Mammoth.LiteMapper.Generator
             var ignoredTargets = ParseMemberNames(method, IgnoreTargetAttributeName, targetType, diagnostics);
             var ignoredSources = ParseMemberNames(method, IgnoreSourceAttributeName, sourceType, diagnostics);
             var targetDefaults = ParseMemberNames(method, UseTargetDefaultAttributeName, targetType, diagnostics);
-            var externalTypes = GetRegisteredMapperTypes(method.ContainingType, compilation).ToArray();
 
             if (sourceNullable && !returnNullable && options.NullableMismatch == NullableMismatchPolicyError)
             {
@@ -625,6 +638,12 @@ namespace Mammoth.LiteMapper.Generator
                 return visibleMapping;
             }
 
+            var enumMapping = ResolveEnumMapping(sourceType, targetType, expression, sourceMember, targetMember.Name, diagnostics, location, options);
+            if (enumMapping != null)
+            {
+                return enumMapping;
+            }
+
             var collection = ResolveCollectionMapping(mappingMethod, sourceType, targetType, expression, sourceMember, targetMember, compilation, diagnostics, helpers, helperNames, options);
             if (collection != null)
             {
@@ -644,6 +663,296 @@ namespace Mammoth.LiteMapper.Generator
 
             diagnostics.Add(Diagnostic.Create(Diagnostics.ConversionNotFound, location, sourceType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), targetType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
             return null;
+        }
+
+        private static ConversionModel? ResolveTopLevelConversion(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, Compilation compilation, INamedTypeSymbol[] externalTypes, ICollection<Diagnostic> diagnostics, EffectiveMappingOptions options)
+        {
+            var location = mappingMethod.Locations.FirstOrDefault();
+            var expression = mappingMethod.Parameters[0].Name;
+            var localMarked = ResolveConverterSet(mappingMethod.ContainingType, static m => HasAttribute(m, MappingConverterAttributeName), sourceType, targetType, expression, null, compilation, diagnostics, mappingMethod.Name, location);
+            if (localMarked != null)
+            {
+                return localMarked;
+            }
+
+            foreach (var externalType in externalTypes)
+            {
+                var externalConverter = ResolveConverterSet(externalType, static m => HasAttribute(m, MappingConverterAttributeName), sourceType, targetType, expression, null, compilation, diagnostics, mappingMethod.Name, location, qualifyWithType: true);
+                if (externalConverter != null)
+                {
+                    return externalConverter;
+                }
+            }
+
+            foreach (var externalType in externalTypes)
+            {
+                var externalMapping = ResolveConverterSet(externalType, static m => !HasAttribute(m, MappingConverterAttributeName), sourceType, targetType, expression, null, compilation, diagnostics, mappingMethod.Name, location, qualifyWithType: true);
+                if (externalMapping != null)
+                {
+                    return externalMapping;
+                }
+            }
+
+            if (compilation.ClassifyConversion(sourceType, targetType).IsImplicit)
+            {
+                return new ConversionModel(expression, null, potentiallyNull: false, mappingMethod.Name, nullCheckExpression: null);
+            }
+
+            return ResolveEnumMapping(sourceType, targetType, expression, null, mappingMethod.Name, diagnostics, location, options);
+        }
+
+        private static ConversionModel? ResolveEnumMapping(ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, string targetName, ICollection<Diagnostic> diagnostics, Location? location, EffectiveMappingOptions options)
+        {
+            if (!(sourceType is INamedTypeSymbol sourceEnum) || !(targetType is INamedTypeSymbol targetEnum) ||
+                sourceEnum.TypeKind != TypeKind.Enum || targetEnum.TypeKind != TypeKind.Enum)
+            {
+                return null;
+            }
+
+            if (options.EnumMapping == EnumMappingStrategyByValue)
+            {
+                ReportEnumValueOverflow(sourceEnum, targetEnum, diagnostics, location);
+                return new ConversionModel(EnumUnderlyingConversion(expression, sourceEnum, targetEnum, options), sourceMember, potentiallyNull: false, targetName, nullCheckExpression: null);
+            }
+
+            var members = GetEnumMembers(sourceEnum);
+            var targetByName = GetEnumMembers(targetEnum).GroupBy(static m => m.SourceName, StringComparer.Ordinal).ToDictionary(static g => g.Key, static g => g.First(), StringComparer.Ordinal);
+            var mapped = new Dictionary<ulong, EnumMemberModel>();
+            var hasError = false;
+            foreach (var member in members.OrderBy(static m => m.SourceName, StringComparer.Ordinal))
+            {
+                if (!targetByName.TryGetValue(member.SourceName, out var target))
+                {
+                    var aliasedTarget = members
+                        .Where(m => m.Value == member.Value && m.SourceName != member.SourceName)
+                        .Select(m => targetByName.TryGetValue(m.SourceName, out var aliasTarget) ? aliasTarget : null)
+                        .FirstOrDefault(static m => m != null);
+                    if (aliasedTarget != null)
+                    {
+                        if (mapped.TryGetValue(member.Value, out var existingAlias) && existingAlias.TargetValue != aliasedTarget.Value)
+                        {
+                            diagnostics.Add(Diagnostic.Create(Diagnostics.EnumAliasConflict, location, member.Value.ToString(CultureInfo.InvariantCulture)));
+                            hasError = true;
+                        }
+                        else
+                        {
+                            mapped[member.Value] = new EnumMemberModel(member.SourceName, member.Value, aliasedTarget.SourceName, aliasedTarget.Value);
+                        }
+
+                        continue;
+                    }
+
+                    if (member.Value == 0)
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.EnumZeroMemberNotMapped, location, member.SourceName));
+                    }
+                    else if (IsFlags(sourceEnum) && IsPowerOfTwo(member.Value))
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.EnumFlagNotMapped, location, member.SourceName));
+                    }
+                    else if (options.UnmatchedEnumValues == UnmatchedEnumValuePolicyError)
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.EnumMemberNotMapped, location, member.SourceName));
+                    }
+
+                    if (options.UnmatchedEnumValues == UnmatchedEnumValuePolicyByValue && EnumValueFits(member.Value, sourceEnum, targetEnum))
+                    {
+                        mapped[member.Value] = new EnumMemberModel(member.SourceName, member.Value, EnumUnderlyingConversion(DisplayType(sourceEnum) + "." + member.SourceName, sourceEnum, targetEnum, options), member.Value, targetIsExpression: true);
+                    }
+                    else if (options.UnmatchedEnumValues == UnmatchedEnumValuePolicyByValue)
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.EnumValueOverflow, location, member.SourceName));
+                        hasError = true;
+                    }
+                    else if (options.UnmatchedEnumValues == UnmatchedEnumValuePolicyError || member.Value == 0 || IsFlags(sourceEnum) && IsPowerOfTwo(member.Value))
+                    {
+                        hasError = true;
+                    }
+
+                    continue;
+                }
+
+                if (mapped.TryGetValue(member.Value, out var existing) && existing.TargetValue != target.Value)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.EnumAliasConflict, location, member.Value.ToString(CultureInfo.InvariantCulture)));
+                    hasError = true;
+                    continue;
+                }
+
+                mapped[member.Value] = new EnumMemberModel(member.SourceName, member.Value, target.SourceName, target.Value);
+            }
+
+            if (hasError)
+            {
+                return null;
+            }
+
+            var arms = mapped.Values
+                .GroupBy(static m => m.Value)
+                .Select(static g => g.OrderBy(static m => m.SourceName, StringComparer.Ordinal).First())
+                .OrderBy(static m => m.Value)
+                .Select(m => DisplayType(sourceEnum) + "." + m.SourceName + " => " + (m.TargetIsExpression ? m.TargetName : DisplayType(targetEnum) + "." + m.TargetName));
+            if (IsFlags(sourceEnum))
+            {
+                var flagsArm = CreateFlagsCompositeArm(sourceEnum, targetEnum, expression, mapped.Values);
+                if (flagsArm != null)
+                {
+                    arms = arms.Concat(new[] { flagsArm });
+                }
+            }
+
+            arms = arms.Concat(new[] { "_ => throw new global::System.ArgumentOutOfRangeException(nameof(" + expression + "), " + expression + ", \"Unmapped enum value.\")" });
+            return new ConversionModel(expression + " switch\n            {\n                " + string.Join(",\n                ", arms) + "\n            }", sourceMember, potentiallyNull: false, targetName, nullCheckExpression: null);
+        }
+
+        private static string? CreateFlagsCompositeArm(INamedTypeSymbol sourceEnum, INamedTypeSymbol targetEnum, string expression, IEnumerable<EnumMemberModel> mappedMembers)
+        {
+            var atomics = mappedMembers
+                .Where(static m => IsPowerOfTwo(m.Value) && !m.TargetIsExpression)
+                .GroupBy(static m => m.Value)
+                .Select(static g => g.First())
+                .OrderBy(static m => m.Value)
+                .ToArray();
+            if (atomics.Length == 0)
+            {
+                return null;
+            }
+
+            var mask = atomics.Aggregate(0UL, static (current, item) => current | item.Value);
+            var terms = atomics.Select(m => "((global::System.Convert.ToUInt64(enumValue) & " + m.Value.ToString(CultureInfo.InvariantCulture) + "UL) != 0 ? " + DisplayType(targetEnum) + "." + m.TargetName + " : (" + DisplayType(targetEnum) + ")0)");
+            return "var enumValue when (global::System.Convert.ToUInt64(enumValue) & ~" + mask.ToString(CultureInfo.InvariantCulture) + "UL) == 0UL => " + string.Join(" | ", terms);
+        }
+
+        private static string EnumUnderlyingConversion(string expression, INamedTypeSymbol sourceEnum, INamedTypeSymbol targetEnum, EffectiveMappingOptions options)
+        {
+            var inner = "(" + DisplayType(targetEnum) + ")" + expression;
+            return options.EnumNumericConversion == EnumNumericConversionUnchecked ? "unchecked(" + inner + ")" : "checked(" + inner + ")";
+        }
+
+        private static void ReportEnumValueOverflow(INamedTypeSymbol sourceEnum, INamedTypeSymbol targetEnum, ICollection<Diagnostic> diagnostics, Location? location)
+        {
+            foreach (var member in GetEnumMembers(sourceEnum))
+            {
+                if (!EnumValueFits(member.Value, sourceEnum, targetEnum))
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.EnumValueOverflow, location, member.SourceName));
+                }
+            }
+        }
+
+        private static bool EnumValueFits(ulong value, INamedTypeSymbol sourceEnum, INamedTypeSymbol targetEnum)
+        {
+            var signedSource = IsSignedIntegral(sourceEnum.EnumUnderlyingType!);
+            var signedTarget = IsSignedIntegral(targetEnum.EnumUnderlyingType!);
+            if (signedSource)
+            {
+                var signed = unchecked((long)value);
+                return signedTarget
+                    ? signed >= MinSigned(targetEnum.EnumUnderlyingType!) && signed <= MaxSigned(targetEnum.EnumUnderlyingType!)
+                    : signed >= 0 && (ulong)signed <= MaxUnsigned(targetEnum.EnumUnderlyingType!);
+            }
+
+            return signedTarget
+                ? value <= (ulong)MaxSigned(targetEnum.EnumUnderlyingType!)
+                : value <= MaxUnsigned(targetEnum.EnumUnderlyingType!);
+        }
+
+        private static bool IsSignedIntegral(ITypeSymbol type)
+        {
+            return type.SpecialType == SpecialType.System_SByte ||
+                type.SpecialType == SpecialType.System_Int16 ||
+                type.SpecialType == SpecialType.System_Int32 ||
+                type.SpecialType == SpecialType.System_Int64;
+        }
+
+        private static long MinSigned(ITypeSymbol type)
+        {
+            switch (type.SpecialType)
+            {
+                case SpecialType.System_SByte:
+                    return sbyte.MinValue;
+                case SpecialType.System_Int16:
+                    return short.MinValue;
+                case SpecialType.System_Int32:
+                    return int.MinValue;
+                default:
+                    return long.MinValue;
+            }
+        }
+
+        private static long MaxSigned(ITypeSymbol type)
+        {
+            switch (type.SpecialType)
+            {
+                case SpecialType.System_SByte:
+                    return sbyte.MaxValue;
+                case SpecialType.System_Int16:
+                    return short.MaxValue;
+                case SpecialType.System_Int32:
+                    return int.MaxValue;
+                default:
+                    return long.MaxValue;
+            }
+        }
+
+        private static ulong MaxUnsigned(ITypeSymbol type)
+        {
+            switch (type.SpecialType)
+            {
+                case SpecialType.System_Byte:
+                    return byte.MaxValue;
+                case SpecialType.System_UInt16:
+                    return ushort.MaxValue;
+                case SpecialType.System_UInt32:
+                    return uint.MaxValue;
+                default:
+                    return ulong.MaxValue;
+            }
+        }
+
+        private static bool IsFlags(INamedTypeSymbol enumType)
+        {
+            return enumType.GetAttributes().Any(static a => a.AttributeClass != null && a.AttributeClass.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == "System.FlagsAttribute");
+        }
+
+        private static bool IsPowerOfTwo(ulong value)
+        {
+            return value != 0 && (value & (value - 1)) == 0;
+        }
+
+        private static EnumMemberModel[] GetEnumMembers(INamedTypeSymbol enumType)
+        {
+            return enumType.GetMembers()
+                .OfType<IFieldSymbol>()
+                .Where(static f => f.HasConstantValue)
+                .Select(static f => new EnumMemberModel(f.Name, ConvertEnumConstant(f.ConstantValue), f.Name, ConvertEnumConstant(f.ConstantValue)))
+                .OrderBy(static f => f.SourceName, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        private static ulong ConvertEnumConstant(object? value)
+        {
+            switch (value)
+            {
+                case sbyte v:
+                    return unchecked((ulong)v);
+                case short v:
+                    return unchecked((ulong)v);
+                case int v:
+                    return unchecked((ulong)v);
+                case long v:
+                    return unchecked((ulong)v);
+                case byte v:
+                    return v;
+                case ushort v:
+                    return v;
+                case uint v:
+                    return v;
+                case ulong v:
+                    return v;
+                default:
+                    return 0;
+            }
         }
 
         private static ConversionModel? ResolveVisibleMapping(INamedTypeSymbol mapperType, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, string targetName, Location? location)
@@ -1445,7 +1754,10 @@ namespace Mammoth.LiteMapper.Generator
                 ReadEnumOption(mapping, "UnmappedSourceMembers") ?? ReadEnumOption(mapper, "UnmappedSourceMembers") ?? ReadEnumOption(assemblyDefaults, "UnmappedSourceMembers") ?? UnmappedMemberPolicyIgnore,
                 ReadEnumOption(mapping, "NullableMismatch") ?? ReadEnumOption(mapper, "NullableMismatch") ?? ReadEnumOption(assemblyDefaults, "NullableMismatch") ?? NullableMismatchPolicyError,
                 ReadNullCollectionOption(mapping) ?? ReadNullCollectionOption(mapper) ?? ReadNullCollectionOption(assemblyDefaults) ?? NullCollectionStrategyError,
-                ReadOptionState(mapping, "IgnoreNullSourceMembers") ?? ReadBoolOption(mapper, "IgnoreNullSourceMembers"));
+                ReadOptionState(mapping, "IgnoreNullSourceMembers") ?? ReadBoolOption(mapper, "IgnoreNullSourceMembers"),
+                ReadEnumOption(mapping, "EnumMapping") ?? ReadEnumOption(mapper, "EnumMapping") ?? EnumMappingStrategyByName,
+                ReadEnumOption(mapping, "EnumNumericConversion") ?? ReadEnumOption(mapper, "EnumNumericConversion") ?? EnumNumericConversionChecked,
+                ReadEnumOption(mapping, "UnmatchedEnumValues") ?? ReadEnumOption(mapper, "UnmatchedEnumValues") ?? UnmatchedEnumValuePolicyError);
         }
 
         private static bool ReadBoolOption(AttributeData? attribute, string name)
@@ -1504,7 +1816,7 @@ namespace Mammoth.LiteMapper.Generator
 
             foreach (var pair in attribute.NamedArguments)
             {
-                if (pair.Key == name && pair.Value.Value != null && pair.Value.Value is int raw && raw != 0)
+                if (pair.Key == name && TryReadNonZeroInt32(pair.Value.Value, out var raw))
                 {
                     if (name == "NameMatching")
                     {
@@ -1516,11 +1828,38 @@ namespace Mammoth.LiteMapper.Generator
                         return raw == 2 ? NullableMismatchPolicyThrow : NullableMismatchPolicyError;
                     }
 
+                    if (name == "EnumMapping")
+                    {
+                        return raw == 2 ? EnumMappingStrategyByValue : EnumMappingStrategyByName;
+                    }
+
+                    if (name == "EnumNumericConversion")
+                    {
+                        return raw == 2 ? EnumNumericConversionUnchecked : EnumNumericConversionChecked;
+                    }
+
+                    if (name == "UnmatchedEnumValues")
+                    {
+                        return raw == 2 ? UnmatchedEnumValuePolicyThrow : raw == 3 ? UnmatchedEnumValuePolicyByValue : UnmatchedEnumValuePolicyError;
+                    }
+
                     return raw == 1 ? UnmappedMemberPolicyIgnore : raw == 3 ? UnmappedMemberPolicyWarning : raw == 4 ? UnmappedMemberPolicyError : null;
                 }
             }
 
             return null;
+        }
+
+        private static bool TryReadNonZeroInt32(object? value, out int raw)
+        {
+            if (value is IConvertible convertible)
+            {
+                raw = convertible.ToInt32(CultureInfo.InvariantCulture);
+                return raw != 0;
+            }
+
+            raw = 0;
+            return false;
         }
 
         private static IEnumerable<ISymbol> GetSourceMembers(ITypeSymbol type, ICollection<Diagnostic> diagnostics)
@@ -2493,7 +2832,7 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class EffectiveMappingOptions
         {
-            public EffectiveMappingOptions(string nameMatching, string unmappedTargetMembers, string unmappedSourceMembers, string nullableMismatch, string nullCollections, bool ignoreNullSourceMembers)
+            public EffectiveMappingOptions(string nameMatching, string unmappedTargetMembers, string unmappedSourceMembers, string nullableMismatch, string nullCollections, bool ignoreNullSourceMembers, string enumMapping, string enumNumericConversion, string unmatchedEnumValues)
             {
                 NameMatching = nameMatching;
                 UnmappedTargetMembers = unmappedTargetMembers;
@@ -2501,6 +2840,9 @@ namespace Mammoth.LiteMapper.Generator
                 NullableMismatch = nullableMismatch;
                 NullCollections = nullCollections;
                 IgnoreNullSourceMembers = ignoreNullSourceMembers;
+                EnumMapping = enumMapping;
+                EnumNumericConversion = enumNumericConversion;
+                UnmatchedEnumValues = unmatchedEnumValues;
             }
 
             public string NameMatching { get; }
@@ -2514,6 +2856,34 @@ namespace Mammoth.LiteMapper.Generator
             public string NullCollections { get; }
 
             public bool IgnoreNullSourceMembers { get; }
+
+            public string EnumMapping { get; }
+
+            public string EnumNumericConversion { get; }
+
+            public string UnmatchedEnumValues { get; }
+        }
+
+        private sealed class EnumMemberModel
+        {
+            public EnumMemberModel(string sourceName, ulong value, string targetName, ulong targetValue, bool targetIsExpression = false)
+            {
+                SourceName = sourceName;
+                Value = value;
+                TargetName = targetName;
+                TargetValue = targetValue;
+                TargetIsExpression = targetIsExpression;
+            }
+
+            public string SourceName { get; }
+
+            public ulong Value { get; }
+
+            public string TargetName { get; }
+
+            public ulong TargetValue { get; }
+
+            public bool TargetIsExpression { get; }
         }
 
         private enum CollectionKind
