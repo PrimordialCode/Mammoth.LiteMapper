@@ -6,6 +6,16 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="AutoMapper" />
+    <PackageReference Include="Mapster" />
+    <PackageReference Include="Riok.Mapperly"
+                      PrivateAssets="all"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\Mammoth.LiteMapper\Mammoth.LiteMapper.csproj" />
+    <ProjectReference Include="..\..\src\Mammoth.LiteMapper.Generator\Mammoth.LiteMapper.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
   </ItemGroup>
 </Project>

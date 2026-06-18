@@ -294,6 +294,16 @@
 - Specification references: 24.6.
 - Consequences: Tests validate deterministic LiteMapper package payload without failing on NuGet's generated package metadata identifier.
 
+### DEC-0031
+
+- Date: 2026-06-18
+- Milestone: 15
+- Status: Accepted
+- Context: Section 23 requires benchmark comparisons against pinned manual, LiteMapper, Mapperly, Mapster, and AutoMapper implementations; section 26 requires samples to compile and remain the future source for usage documentation.
+- Decision: Keep samples as source-tree project-reference executables for development validation, and pin benchmark package versions centrally: BenchmarkDotNet 0.15.8, AutoMapper 16.1.1, Mapster 7.4.0, and Riok.Mapperly 4.3.1. Use a BenchmarkDotNet dry run as smoke validation and reserve controlled benchmark interpretation for release benchmarking.
+- Specification references: 23.1, 23.4, 26.
+- Consequences: Milestone 15 validates benchmark wiring without fragile throughput thresholds on a shared/local runner; benchmark result output records runtime, SDK, CPU, OS, library versions, and job configuration.
+
 ## Pending specification questions
 
 ### PENDING-0001

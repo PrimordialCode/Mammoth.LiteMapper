@@ -171,3 +171,11 @@ Native AOT publish validation requires the platform linker prerequisites for
 the current OS. Set `LITEMAPPER_REQUIRE_NATIVE_AOT=1` in CI to fail validation
 instead of reporting an inconclusive prerequisite result. Windows CI must run
 the AOT validation from an MSVC developer environment.
+
+Milestone 15 sample and benchmark validation uses:
+
+* `dotnet test tests\Mammoth.LiteMapper.Packaging.Tests\Mammoth.LiteMapper.Packaging.Tests.csproj --no-restore --filter Milestone15SamplesAndBenchmarksTests`
+* `dotnet run --project samples\Mammoth.LiteMapper.Samples.Basic\Mammoth.LiteMapper.Samples.Basic.csproj --no-restore`
+* `dotnet run --project samples\Mammoth.LiteMapper.Samples.Collections\Mammoth.LiteMapper.Samples.Collections.csproj --no-restore`
+* `dotnet run --project samples\Mammoth.LiteMapper.Samples.AspNetCore\Mammoth.LiteMapper.Samples.AspNetCore.csproj --no-restore -- --smoke`
+* `dotnet run --project benchmarks\Mammoth.LiteMapper.Benchmarks\Mammoth.LiteMapper.Benchmarks.csproj -c Release --no-restore -- --filter *FlatObjectBenchmarks* --job Dry --warmupCount 1 --iterationCount 1`
