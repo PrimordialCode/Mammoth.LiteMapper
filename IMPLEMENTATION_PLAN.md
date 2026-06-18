@@ -239,6 +239,10 @@
 - Focused validation: capability matrix tests.
 - Full validation: full solution tests across available SDK/TFM matrix.
 - Completion criteria: generated code is compatible with effective language and available symbols.
+- Status: Completed on 2026-06-18 with analyzer-option consumption, language-version participation in source-output invalidation, symbol-gated `Array.Empty<T>()` emission, C# 9 generated-source compatibility coverage, debug/comment option coverage, and focused generated-source inspection.
+- Deviations: local validation used the installed SDK and available reference assemblies; broader release TFM/language/Roslyn matrix remains deferred to later CI/release validation.
+- Remaining tasks: none for Milestone 13.
+- Validation commands: `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore --filter Milestone13CapabilityBasedEmissionTests` initially failed for expected ignored analyzer options, then passed with 4 tests after implementation; `dotnet test tests\Mammoth.LiteMapper.Generator.Tests\Mammoth.LiteMapper.Generator.Tests.csproj --no-restore` passed with 65 tests; `dotnet restore Mammoth.LiteMapper.sln`; `dotnet build Mammoth.LiteMapper.sln --no-restore`; `dotnet test Mammoth.LiteMapper.sln --no-build`; `git diff --check`.
 - Risks: local SDK availability may not cover release matrix.
 - Out of scope: packaging/AOT release validation.
 

@@ -254,6 +254,16 @@
 - Specification references: 17.2, 28.6, 28.7.
 - Consequences: Other visible mapping methods remain eligible; self-recursive generated mappings use private helper plumbing for correct active-path tracking.
 
+### DEC-0027
+
+- Date: 2026-06-18
+- Milestone: 13
+- Status: Accepted
+- Context: Section 21.3 defines development analyzer options and section 3.5 requires framework API capability detection by symbols and exact signatures.
+- Decision: Consume the documented analyzer options as global build properties, make them part of source-output invalidation, and gate optimized empty-array emission on finding `System.Array.Empty<T>()` by Roslyn symbol signature.
+- Specification references: 3.5, 19.4, 19.9, 21.3, 21.4.
+- Consequences: Option comments/debug metadata do not alter mapping semantics, internal generator failures can be rethrown for development when explicitly enabled, and generated empty-array code falls back to `new T[0]` if the API is not present.
+
 ## Pending specification questions
 
 ### PENDING-0001
