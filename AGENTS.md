@@ -154,3 +154,18 @@ A milestone is not complete merely because the solution compiles.
 When SPECIFICATION.md is ambiguous, contradictory, or incomplete, stop all
 implementation, record the issue in DECISIONS.md with section references, and
 request an explicit decision. Do not infer or invent normative behavior.
+
+## Verified validation commands
+
+Milestone 14 packaging validation uses:
+
+* `dotnet test tests\Mammoth.LiteMapper.Packaging.Tests\Mammoth.LiteMapper.Packaging.Tests.csproj --no-restore --filter Milestone14PackagingAndAotTests`
+* `dotnet pack src\Mammoth.LiteMapper.Abstractions\Mammoth.LiteMapper.Abstractions.csproj -c Release -o artifacts\packages`
+* `dotnet pack src\Mammoth.LiteMapper.Generator\Mammoth.LiteMapper.Generator.csproj -c Release -o artifacts\packages`
+* `dotnet pack src\Mammoth.LiteMapper\Mammoth.LiteMapper.csproj -c Release -o artifacts\packages`
+* `dotnet tool restore`
+* `dotnet apicompat package artifacts\packages\Mammoth.LiteMapper.Abstractions.1.0.0.nupkg --run-api-compat`
+* `dotnet apicompat package artifacts\packages\Mammoth.LiteMapper.1.0.0.nupkg --run-api-compat`
+
+Native AOT publish validation requires the platform linker prerequisites for
+the current OS.

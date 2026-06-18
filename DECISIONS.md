@@ -264,6 +264,36 @@
 - Specification references: 3.5, 19.4, 19.9, 21.3, 21.4.
 - Consequences: Option comments/debug metadata do not alter mapping semantics, internal generator failures can be rethrown for development when explicitly enabled, and generated empty-array code falls back to `new T[0]` if the API is not present.
 
+### DEC-0028
+
+- Date: 2026-06-18
+- Milestone: 14
+- Status: Accepted
+- Context: The primary package must be the normal one-package installation route and must make the generator available as an analyzer without making the generator or Roslyn assemblies runtime dependencies.
+- Decision: Pack `Mammoth.LiteMapper.Generator.dll` explicitly under `analyzers/dotnet/cs` in both `Mammoth.LiteMapper` and `Mammoth.LiteMapper.Generator`; keep the source-tree project reference to the generator as an analyzer with `ReferenceOutputAssembly="false"` and `PrivateAssets="all"`.
+- Specification references: 4.1, 22.19, 24.1.
+- Consequences: Package consumers get generated implementations from one `Mammoth.LiteMapper` package reference; generator and Roslyn assemblies are absent from consumer runtime output.
+
+### DEC-0029
+
+- Date: 2026-06-18
+- Milestone: 14
+- Status: Accepted
+- Context: Package-consumer publish validation exercises the supported install shape, while project-reference sample publishing propagates trimming/AOT publish properties into netstandard library projects and fails before reaching LiteMapper-generated code.
+- Decision: Use local-feed package-consumer tests as the authoritative trimming and Native AOT validation path. Keep the Basic source-tree sample as a runtime sample with a direct analyzer project reference for normal build/run validation.
+- Specification references: 22.18, 22.19, 24.1.
+- Consequences: Trimmed package-consumer publish and run are validated locally. Native AOT publish is implemented as a test but remains environment-prerequisite dependent on this machine.
+
+### DEC-0030
+
+- Date: 2026-06-18
+- Milestone: 14
+- Status: Accepted
+- Context: NuGet package archives include generated metadata entries whose names vary between packs, while LiteMapper's owned package payload must remain deterministic.
+- Decision: Deterministic package tests compare owned package payload entries under `lib/`, `analyzers/`, and `.nuspec` content shape instead of NuGet-generated metadata filenames.
+- Specification references: 24.6.
+- Consequences: Tests validate deterministic LiteMapper package payload without failing on NuGet's generated package metadata identifier.
+
 ## Pending specification questions
 
 ### PENDING-0001

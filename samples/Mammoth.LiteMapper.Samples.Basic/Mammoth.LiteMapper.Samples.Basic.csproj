@@ -5,6 +5,12 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Mammoth.LiteMapper\Mammoth.LiteMapper.csproj" />
+    <ProjectReference Include="..\..\src\Mammoth.LiteMapper\Mammoth.LiteMapper.csproj"
+                      GlobalPropertiesToRemove="PublishTrimmed;PublishAot" />
+    <ProjectReference Include="..\..\src\Mammoth.LiteMapper.Generator\Mammoth.LiteMapper.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all"
+                      GlobalPropertiesToRemove="PublishTrimmed;PublishAot" />
   </ItemGroup>
 </Project>

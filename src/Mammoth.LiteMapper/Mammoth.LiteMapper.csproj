@@ -10,5 +10,9 @@
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false"
                       PrivateAssets="all" />
+    <None Include="..\Mammoth.LiteMapper.Generator\bin\$(Configuration)\netstandard2.0\Mammoth.LiteMapper.Generator.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
   </ItemGroup>
 </Project>
