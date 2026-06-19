@@ -491,7 +491,6 @@ The following are not LiteMapper 1.0 usage features:
 - Automatic flattening or naming-strategy plugins.
 - Custom collections, immutable collections, queues, stacks, and rectangular multidimensional arrays.
 - Async mapping.
-- Code fixes.
 - Runtime logging, telemetry, or network behavior.
 
 Deferred features are either absent from the public API or diagnosed when requested through generated mapping declarations.

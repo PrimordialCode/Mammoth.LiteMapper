@@ -28,7 +28,7 @@ LiteMapper is a convention-first, compile-time object mapping library for C#.
 
 A consumer declares partial mapping methods. A Roslyn incremental source generator emits direct C# implementations using constructors, assignments, loops, casts, and ordinary method calls.
 
-LiteMapper 1.0 is intentionally focused. It is not a runtime mapping container and it is not intended to reproduce the entire AutoMapper feature surface.
+LiteMapper 1.0 is intentionally focused. It is not a runtime mapping container.
 
 ### 2.1 Naming and identifiers
 
@@ -95,13 +95,10 @@ LiteMapper 1.0 MUST NOT provide:
 - pointer or function-pointer structural mapping;
 - `dynamic` mapping;
 - a code-fix provider;
-- AutoMapper migration tooling;
 - runtime logging hooks;
 - telemetry.
 
 Unsupported features MUST produce a documented diagnostic when they are presented as generated partial mappings. Handwritten methods remain ordinary C# and MAY implement behavior outside LiteMapper's generated feature set.
-
-AutoMapper migration tooling is not planned as part of LiteMapper's product roadmap. It MUST NOT be listed as a deferred LiteMapper feature.
 
 ---
 

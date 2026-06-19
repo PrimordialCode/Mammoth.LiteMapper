@@ -136,6 +136,14 @@ When present, read these files before starting work:
 
 Keep these files current as required by the specification.
 
+## Usage guide synchronization
+
+`docs/USAGE.md` MUST remain synchronized with `SPECIFICATION.md`, compiling samples, tests, and other project documents.
+
+Whenever library usage, public API behavior, diagnostics, package layout, supported platforms, samples, or documented validation changes, update `docs/USAGE.md` in the same change so it stays accurate.
+
+`docs/USAGE.md` MUST reflect actual supported usage only. Do not document speculative behavior, deferred features, or APIs not defined by `SPECIFICATION.md` and represented by compiling samples or tests.
+
 ## Updating this file
 
 You may add verified repository-specific operational guidance, including exact build, test, packaging, formatting, and benchmark commands.
