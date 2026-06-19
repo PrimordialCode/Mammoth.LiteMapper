@@ -1,0 +1,242 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/**
+      - release/**
+      - hotfix/**
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Pack and publish when the ref is main, release/*, or hotfix/*.
+        required: true
+        type: boolean
+        default: false
+      dry_run:
+        description: Pack and verify, but do not push to NuGet (dry run).
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: 10.0.x
+  SOLUTION: Mammoth.LiteMapper.sln
+  PACKAGE_OUTPUT: artifacts/packages
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Build.props', '**/Directory.Packages.props', 'dotnet-tools.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Install Native AOT prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Restore dotnet tools
+        run: dotnet tool restore
+
+      - name: Determine version
+        id: gitversion
+        shell: pwsh
+        run: |
+          $version = dotnet gitversion /output json | ConvertFrom-Json
+          "semver=$($version.SemVer)" >> $env:GITHUB_OUTPUT
+          "assembly_semver=$($version.AssemblySemVer)" >> $env:GITHUB_OUTPUT
+          "assembly_file_semver=$($version.AssemblySemFileVer)" >> $env:GITHUB_OUTPUT
+          "informational_version=$($version.InformationalVersion)" >> $env:GITHUB_OUTPUT
+          "GitVersion SemVer: $($version.SemVer)"
+          "GitVersion InformationalVersion: $($version.InformationalVersion)"
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }} --verbosity minimal
+
+      - name: Build
+        shell: pwsh
+        run: |
+          dotnet build ${{ env.SOLUTION }} -c Release --no-restore `
+            -p:ContinuousIntegrationBuild=True `
+            -p:Version=${{ steps.gitversion.outputs.semver }} `
+            -p:AssemblyVersion=${{ steps.gitversion.outputs.assembly_semver }} `
+            -p:FileVersion=${{ steps.gitversion.outputs.assembly_file_semver }} `
+            -p:InformationalVersion=${{ steps.gitversion.outputs.informational_version }}
+
+      - name: Test (linux)
+        if: runner.os == 'Linux'
+        run: dotnet test ${{ env.SOLUTION }} -c Release --no-build
+        env:
+          LITEMAPPER_REQUIRE_NATIVE_AOT: '1'
+
+      - name: Test (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installPath) {
+            throw "Visual Studio C++ toolchain was not found."
+          }
+
+          $vsDevCmd = Join-Path $installPath "Common7\Tools\VsDevCmd.bat"
+          cmd /s /c "call `"$vsDevCmd`" -arch=x64 -host_arch=x64 && dotnet test ${{ env.SOLUTION }} -c Release --no-build"
+        env:
+          LITEMAPPER_REQUIRE_NATIVE_AOT: '1'
+
+      - name: Validate solution paths
+        shell: pwsh
+        run: |
+          dotnet sln Mammoth.LiteMapper.sln list
+          dotnet sln Mammoth.LiteMapper.slnx list
+
+  publish:
+    name: Pack & Publish
+    needs: build-and-test
+    runs-on: windows-latest
+    if: >
+      github.event_name != 'pull_request' &&
+      (
+        (
+          github.event_name != 'workflow_dispatch' &&
+          (
+            github.ref == 'refs/heads/main' ||
+            startsWith(github.ref, 'refs/heads/release/') ||
+            startsWith(github.ref, 'refs/heads/hotfix/')
+          )
+        ) ||
+        (
+          github.event_name == 'workflow_dispatch' &&
+          inputs.publish == true &&
+          (
+            inputs.dry_run == true ||
+            github.ref == 'refs/heads/main' ||
+            startsWith(github.ref, 'refs/heads/release/') ||
+            startsWith(github.ref, 'refs/heads/hotfix/')
+          )
+        )
+      )
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dotnet tools
+        run: dotnet tool restore
+
+      - name: Determine version
+        id: gitversion
+        shell: pwsh
+        run: |
+          $version = dotnet gitversion /output json | ConvertFrom-Json
+          $semver = $version.SemVer
+          if ([string]::IsNullOrWhiteSpace($semver)) {
+            throw 'GitVersion did not return a SemVer value.'
+          }
+
+          "semver=$semver" >> $env:GITHUB_OUTPUT
+          "assembly_semver=$($version.AssemblySemVer)" >> $env:GITHUB_OUTPUT
+          "assembly_file_semver=$($version.AssemblySemFileVer)" >> $env:GITHUB_OUTPUT
+          "informational_version=$($version.InformationalVersion)" >> $env:GITHUB_OUTPUT
+          "GitVersion SemVer: $semver"
+          "GitVersion InformationalVersion: $($version.InformationalVersion)"
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }} --verbosity minimal
+
+      - name: Pack
+        shell: pwsh
+        run: |
+          $projects = @(
+            'src/Mammoth.LiteMapper.Abstractions/Mammoth.LiteMapper.Abstractions.csproj',
+            'src/Mammoth.LiteMapper.Generator/Mammoth.LiteMapper.Generator.csproj',
+            'src/Mammoth.LiteMapper/Mammoth.LiteMapper.csproj'
+          )
+
+          New-Item -ItemType Directory -Force -Path '${{ env.PACKAGE_OUTPUT }}' | Out-Null
+          foreach ($project in $projects) {
+            dotnet pack $project -c Release --no-restore -o '${{ env.PACKAGE_OUTPUT }}' `
+              /p:PackageVersion=${{ steps.gitversion.outputs.semver }} `
+              /p:Version=${{ steps.gitversion.outputs.semver }} `
+              /p:AssemblyVersion=${{ steps.gitversion.outputs.assembly_semver }} `
+              /p:FileVersion=${{ steps.gitversion.outputs.assembly_file_semver }} `
+              /p:InformationalVersion=${{ steps.gitversion.outputs.informational_version }} `
+              /p:ContinuousIntegrationBuild=true
+          }
+
+          $packages = Get-ChildItem -Path '${{ env.PACKAGE_OUTPUT }}' -Filter "Mammoth.LiteMapper*.${{ steps.gitversion.outputs.semver }}.nupkg" |
+            Where-Object { $_.Name -notlike '*.symbols.nupkg' }
+          if ($packages.Count -ne 3) {
+            throw "Expected 3 NuGet packages, found $($packages.Count)."
+          }
+          $symbolPackages = Get-ChildItem -Path '${{ env.PACKAGE_OUTPUT }}' -Filter "Mammoth.LiteMapper*.${{ steps.gitversion.outputs.semver }}.snupkg"
+          if ($symbolPackages.Count -ne 3) {
+            throw "Expected 3 symbol packages, found $($symbolPackages.Count)."
+          }
+
+      - name: Publish
+        if: github.event_name != 'workflow_dispatch' || inputs.dry_run == false
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
+            throw 'NUGET_API_KEY secret is required to publish.'
+          }
+
+          Get-ChildItem -Path '${{ env.PACKAGE_OUTPUT }}' -File -Recurse |
+            Where-Object { $_.Extension -in '.nupkg', '.snupkg' } |
+            ForEach-Object {
+              dotnet nuget push $_.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
+            }
+
+      - name: Dry run summary
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path '${{ env.PACKAGE_OUTPUT }}' -File -Recurse |
+            Where-Object { $_.Extension -in '.nupkg', '.snupkg' } |
+            ForEach-Object { "Dry run: would publish $($_.FullName)" }
