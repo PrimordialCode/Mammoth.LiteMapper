@@ -4,6 +4,12 @@ Mammoth.LiteMapper is a convention-first, compile-time object mapping library fo
 
 Consumers declare partial mapping methods on classes marked with `[LiteMapper]`. A Roslyn incremental source generator emits direct C# implementations using constructors, assignments, loops, casts, and ordinary method calls. LiteMapper is not a runtime mapping container and does not provide runtime mapper registration, assembly scanning, reflection fallback, or dynamic dispatch.
 
+## Compilation Status
+
+- main [![CI](https://github.com/PrimordialCode/Mammoth.LiteMapper/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PrimordialCode/Mammoth.LiteMapper/actions/workflows/ci.yml)
+- develop [![CI](https://github.com/PrimordialCode/Mammoth.LiteMapper/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/PrimordialCode/Mammoth.LiteMapper/actions/workflows/ci.yml)
+
+
 ## Quickstart
 
 Install the primary package:
@@ -34,5 +40,5 @@ See the compiling samples under `samples/` for static mappers, instance mappers,
 
 ## Documentation
 
-- `SPECIFICATION.md` is the sole authoritative product contract.
-- `docs/USAGE.md` is the usage guide and must stay synchronized with the specification, samples, tests, and other project documents.
+- [SPECIFICATION.md](SPECIFICATION.md) is the sole authoritative product contract.
+- [USAGE.md](docs/USAGE.md) is the usage guide and must stay synchronized with the specification, samples, tests, and other project documents.
