@@ -4,10 +4,6 @@ static partial class Mapper
 {
     public static partial CustomerDto ToDto(Customer source)
     {
-        if (source == null)
-        {
-            throw new global::System.ArgumentNullException(nameof(source));
-        }
         var target = new CustomerDto()
         {
             Address = MapNested_Address_To_AddressDto(source.Address),
@@ -17,10 +13,6 @@ static partial class Mapper
     }
     private static AddressDto MapNested_Address_To_AddressDto(Address source)
     {
-        if (source == null)
-        {
-            throw new global::System.ArgumentNullException(nameof(source));
-        }
         var target = new AddressDto()
         {
             City = source.City

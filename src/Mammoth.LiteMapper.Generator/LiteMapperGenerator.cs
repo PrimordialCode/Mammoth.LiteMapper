@@ -292,7 +292,7 @@ namespace Mammoth.LiteMapper.Generator
             var topLevelConversion = ResolveTopLevelConversion(method, sourceType, targetType, compilation, externalTypes, diagnostics, options);
             if (topLevelConversion != null)
             {
-                return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, ImmutableArray<MappingModel>.Empty, null, null, null, "        return " + topLevelConversion.Expression + ";\n");
+                return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, options.GuardNonNullSource, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, ImmutableArray<MappingModel>.Empty, null, null, null, "        return " + topLevelConversion.Expression + ";\n");
             }
 
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
@@ -421,7 +421,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null);
+            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, options.GuardNonNullSource, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null);
         }
 
         private static MappingModel CreateUpdateMappingModel(IMethodSymbol method, Compilation compilation, List<Diagnostic> diagnostics)
@@ -564,7 +564,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            return new MappingModel(method, sourceNullable, returnNullable: !method.ReturnsVoid && IsMaybeNull(method.ReturnType), options.NullableMismatch, options.ReferenceHandling, construction: null, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null, isUpdate: true, destinationParameter: destination, destinationNullable: destinationNullable);
+            return new MappingModel(method, sourceNullable, returnNullable: !method.ReturnsVoid && IsMaybeNull(method.ReturnType), options.NullableMismatch, options.ReferenceHandling, options.GuardNonNullSource, construction: null, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null, isUpdate: true, destinationParameter: destination, destinationNullable: destinationNullable);
         }
 
         private static ImmutableArray<ExplicitMemberConfiguration> ParseExplicitConfigurations(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, ISymbol[] sourceMembers, ICollection<Diagnostic> diagnostics)
@@ -1156,7 +1156,7 @@ namespace Mammoth.LiteMapper.Generator
 
             var sourceNullable = helperName == null && IsMaybeNull(method.Parameters[0]);
             var returnNullable = helperName == null && IsMaybeNull(method.ReturnType);
-            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, helpers.ToImmutable(), helperName, helperName == null ? null : sourceType, helperName == null ? null : targetType, body);
+            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, helperName == null && options.GuardNonNullSource, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, helpers.ToImmutable(), helperName, helperName == null ? null : sourceType, helperName == null ? null : targetType, body);
         }
 
         private static string? RenderCollectionBody(IMethodSymbol method, CollectionShape sourceShape, CollectionShape targetShape, ITypeSymbol sourceType, ITypeSymbol targetType, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options, Location? location)
@@ -1410,7 +1410,7 @@ namespace Mammoth.LiteMapper.Generator
                 assignments.Add(new AssignmentModel(targetMember.Name, conversion.Expression));
             }
 
-            return new MappingModel(rootMethod, sourceNullable: false, returnNullable: false, options.NullableMismatch, options.ReferenceHandling, construction, preconditions.ToImmutable(), assignments.ToImmutable(), ImmutableArray<MappingModel>.Empty, helperName, sourceType, targetType, customBody: null);
+            return new MappingModel(rootMethod, sourceNullable: false, returnNullable: false, options.NullableMismatch, options.ReferenceHandling, guardNonNullSource: false, construction, preconditions.ToImmutable(), assignments.ToImmutable(), ImmutableArray<MappingModel>.Empty, helperName, sourceType, targetType, customBody: null);
         }
 
         private static string SanitizeIdentifier(string value)
@@ -1820,6 +1820,7 @@ namespace Mammoth.LiteMapper.Generator
                 ReadEnumOption(mapping, "UnmappedSourceMembers") ?? ReadEnumOption(mapper, "UnmappedSourceMembers") ?? ReadEnumOption(assemblyDefaults, "UnmappedSourceMembers") ?? UnmappedMemberPolicyIgnore,
                 ReadEnumOption(mapping, "NullableMismatch") ?? ReadEnumOption(mapper, "NullableMismatch") ?? ReadEnumOption(assemblyDefaults, "NullableMismatch") ?? NullableMismatchPolicyError,
                 ReadNullCollectionOption(mapping) ?? ReadNullCollectionOption(mapper) ?? ReadNullCollectionOption(assemblyDefaults) ?? NullCollectionStrategyError,
+                ReadOptionState(mapping, "GuardNonNullSource") ?? ReadBoolOption(mapper, "GuardNonNullSource"),
                 ReadOptionState(mapping, "IgnoreNullSourceMembers") ?? ReadBoolOption(mapper, "IgnoreNullSourceMembers"),
                 ReadEnumOption(mapping, "EnumMapping") ?? ReadEnumOption(mapper, "EnumMapping") ?? EnumMappingStrategyByName,
                 ReadEnumOption(mapping, "EnumNumericConversion") ?? ReadEnumOption(mapper, "EnumNumericConversion") ?? EnumNumericConversionChecked,
@@ -2469,7 +2470,7 @@ namespace Mammoth.LiteMapper.Generator
             builder.Append(' ');
             builder.Append(mapping.HelperName ?? method.Name);
             builder.Append('(');
-            builder.Append(DisplayType(mapping.HelperSourceType ?? parameter.Type));
+            builder.Append(mapping.HelperSourceType == null ? DisplayType(parameter.Type) : DisplayType(mapping.HelperSourceType).TrimEnd('?'));
             builder.Append(' ');
             builder.Append(parameter.Name);
             if (mapping.IsUpdate && destination != null)
@@ -2511,7 +2512,7 @@ namespace Mammoth.LiteMapper.Generator
 
                 builder.AppendLine("        }");
             }
-            else if (!parameter.Type.IsValueType)
+            else if (mapping.GuardNonNullSource && !parameter.Type.IsValueType)
             {
                 builder.Append("        if (");
                 builder.Append(parameter.Name);
@@ -2540,13 +2541,13 @@ namespace Mammoth.LiteMapper.Generator
                 builder.AppendLine("        var __tracker = new __LiteMapperCycleTracker();");
                 if (!parameter.Type.IsValueType)
                 {
-                    builder.AppendLine("        __tracker.Enter(source, typeof(" + DisplayType(parameter.Type).TrimEnd('?') + "), typeof(" + DisplayType(method.ReturnType).TrimEnd('?') + "), \"" + method.Name + "\", string.Empty);");
+                    builder.AppendLine("        __tracker.Enter(source!, typeof(" + DisplayType(parameter.Type).TrimEnd('?') + "), typeof(" + DisplayType(method.ReturnType).TrimEnd('?') + "), \"" + method.Name + "\", string.Empty);");
                 }
             }
 
             if (trackedHelper && mapping.HelperSourceType != null && !mapping.HelperSourceType.IsValueType)
             {
-                builder.AppendLine("        __tracker.Enter(source, typeof(" + DisplayType(mapping.HelperSourceType).TrimEnd('?') + "), typeof(" + DisplayType(mapping.HelperTargetType!).TrimEnd('?') + "), \"" + method.Name + "\", __memberPath);");
+                builder.AppendLine("        __tracker.Enter(source!, typeof(" + DisplayType(mapping.HelperSourceType).TrimEnd('?') + "), typeof(" + DisplayType(mapping.HelperTargetType!).TrimEnd('?') + "), \"" + method.Name + "\", __memberPath);");
                 builder.AppendLine("        try");
                 builder.AppendLine("        {");
             }
@@ -2559,7 +2560,7 @@ namespace Mammoth.LiteMapper.Generator
                     builder.AppendLine("        }");
                     builder.AppendLine("        finally");
                     builder.AppendLine("        {");
-                    builder.AppendLine("            __tracker.Exit(source);");
+                    builder.AppendLine("            __tracker.Exit(source!);");
                     builder.AppendLine("        }");
                 }
                 builder.AppendLine("    }");
@@ -2680,7 +2681,7 @@ namespace Mammoth.LiteMapper.Generator
                 builder.AppendLine("        }");
                 builder.AppendLine("        finally");
                 builder.AppendLine("        {");
-                builder.AppendLine("            __tracker.Exit(source);");
+                builder.AppendLine("            __tracker.Exit(source!);");
                 builder.AppendLine("        }");
             }
             builder.AppendLine("    }");
@@ -2966,13 +2967,14 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class MappingModel
         {
-            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, string referenceHandling, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments, ImmutableArray<MappingModel> helpers, string? helperName, ITypeSymbol? helperSourceType, ITypeSymbol? helperTargetType, string? customBody, bool isUpdate = false, IParameterSymbol? destinationParameter = null, bool destinationNullable = false)
+            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, string referenceHandling, bool guardNonNullSource, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments, ImmutableArray<MappingModel> helpers, string? helperName, ITypeSymbol? helperSourceType, ITypeSymbol? helperTargetType, string? customBody, bool isUpdate = false, IParameterSymbol? destinationParameter = null, bool destinationNullable = false)
             {
                 Method = method;
                 SourceNullable = sourceNullable;
                 ReturnNullable = returnNullable;
                 NullableMismatch = nullableMismatch;
                 ReferenceHandling = referenceHandling;
+                GuardNonNullSource = guardNonNullSource;
                 Construction = construction;
                 Preconditions = preconditions;
                 Assignments = assignments;
@@ -2995,6 +2997,8 @@ namespace Mammoth.LiteMapper.Generator
             public string NullableMismatch { get; }
 
             public string ReferenceHandling { get; }
+
+            public bool GuardNonNullSource { get; }
 
             public ConstructionModel? Construction { get; }
 
@@ -3145,13 +3149,14 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class EffectiveMappingOptions
         {
-            public EffectiveMappingOptions(string nameMatching, string unmappedTargetMembers, string unmappedSourceMembers, string nullableMismatch, string nullCollections, bool ignoreNullSourceMembers, string enumMapping, string enumNumericConversion, string unmatchedEnumValues, string referenceHandling)
+            public EffectiveMappingOptions(string nameMatching, string unmappedTargetMembers, string unmappedSourceMembers, string nullableMismatch, string nullCollections, bool guardNonNullSource, bool ignoreNullSourceMembers, string enumMapping, string enumNumericConversion, string unmatchedEnumValues, string referenceHandling)
             {
                 NameMatching = nameMatching;
                 UnmappedTargetMembers = unmappedTargetMembers;
                 UnmappedSourceMembers = unmappedSourceMembers;
                 NullableMismatch = nullableMismatch;
                 NullCollections = nullCollections;
+                GuardNonNullSource = guardNonNullSource;
                 IgnoreNullSourceMembers = ignoreNullSourceMembers;
                 EnumMapping = enumMapping;
                 EnumNumericConversion = enumNumericConversion;
@@ -3168,6 +3173,8 @@ namespace Mammoth.LiteMapper.Generator
             public string NullableMismatch { get; }
 
             public string NullCollections { get; }
+
+            public bool GuardNonNullSource { get; }
 
             public bool IgnoreNullSourceMembers { get; }
 

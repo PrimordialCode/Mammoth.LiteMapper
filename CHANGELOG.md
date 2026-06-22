@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 1.0.0
 
 Initial LiteMapper 1.0 implementation completed against `SPECIFICATION.md`.
 

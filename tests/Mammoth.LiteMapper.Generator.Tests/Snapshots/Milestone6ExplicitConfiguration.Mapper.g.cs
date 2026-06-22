@@ -4,10 +4,6 @@ static partial class Mapper
 {
     public static partial Target ToTarget(Source source)
     {
-        if (source == null)
-        {
-            throw new global::System.ArgumentNullException(nameof(source));
-        }
         var target = new Target()
         {
             Country = source.Address.Country.Code,
