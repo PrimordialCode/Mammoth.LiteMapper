@@ -27,6 +27,8 @@ namespace Mammoth.LiteMapper
 
         public ReferenceHandling ReferenceHandling { get; set; }
 
+        public bool GuardNonNullSource { get; set; }
+
         public bool IgnoreNullSourceMembers { get; set; }
     }
 
@@ -54,6 +56,8 @@ namespace Mammoth.LiteMapper
         public UnmatchedEnumValuePolicy UnmatchedEnumValues { get; set; }
 
         public ReferenceHandling ReferenceHandling { get; set; }
+
+        public OptionState GuardNonNullSource { get; set; }
 
         public OptionState IgnoreNullSourceMembers { get; set; }
     }

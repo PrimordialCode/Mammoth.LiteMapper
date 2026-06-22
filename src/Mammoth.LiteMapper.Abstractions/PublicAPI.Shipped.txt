@@ -22,6 +22,8 @@ Mammoth.LiteMapper.LiteMapperAttribute.EnumMapping.get -> Mammoth.LiteMapper.Enu
 Mammoth.LiteMapper.LiteMapperAttribute.EnumMapping.set -> void
 Mammoth.LiteMapper.LiteMapperAttribute.EnumNumericConversion.get -> Mammoth.LiteMapper.EnumNumericConversion
 Mammoth.LiteMapper.LiteMapperAttribute.EnumNumericConversion.set -> void
+Mammoth.LiteMapper.LiteMapperAttribute.GuardNonNullSource.get -> bool
+Mammoth.LiteMapper.LiteMapperAttribute.GuardNonNullSource.set -> void
 Mammoth.LiteMapper.LiteMapperAttribute.IgnoreNullSourceMembers.get -> bool
 Mammoth.LiteMapper.LiteMapperAttribute.IgnoreNullSourceMembers.set -> void
 Mammoth.LiteMapper.LiteMapperAttribute.LiteMapperAttribute() -> void
@@ -80,6 +82,8 @@ Mammoth.LiteMapper.MappingOptionsAttribute.EnumMapping.get -> Mammoth.LiteMapper
 Mammoth.LiteMapper.MappingOptionsAttribute.EnumMapping.set -> void
 Mammoth.LiteMapper.MappingOptionsAttribute.EnumNumericConversion.get -> Mammoth.LiteMapper.EnumNumericConversion
 Mammoth.LiteMapper.MappingOptionsAttribute.EnumNumericConversion.set -> void
+Mammoth.LiteMapper.MappingOptionsAttribute.GuardNonNullSource.get -> Mammoth.LiteMapper.OptionState
+Mammoth.LiteMapper.MappingOptionsAttribute.GuardNonNullSource.set -> void
 Mammoth.LiteMapper.MappingOptionsAttribute.IgnoreNullSourceMembers.get -> Mammoth.LiteMapper.OptionState
 Mammoth.LiteMapper.MappingOptionsAttribute.IgnoreNullSourceMembers.set -> void
 Mammoth.LiteMapper.MappingOptionsAttribute.MappingOptionsAttribute() -> void

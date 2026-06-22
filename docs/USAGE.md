@@ -87,12 +87,13 @@ public static partial class CustomerMapper
     [MappingOptions(
         UnmappedTargetMembers = UnmappedMemberPolicy.Error,
         AllowExplicitOperators = OptionState.Enabled,
+        GuardNonNullSource = OptionState.Enabled,
         IgnoreNullSourceMembers = OptionState.Disabled)]
     public static partial CustomerDto Map(Customer source);
 }
 ```
 
-Library defaults are exact name matching, unmapped members ignored, nullable mismatches reported as errors, null collections reported as errors except where nullable target collections can preserve null, implicit numeric conversion only, explicit operators disabled, enum mapping by name, unmatched enum values reported as errors, no cycle tracker, and patch null skipping disabled.
+Library defaults are exact name matching, unmapped members ignored, nullable mismatches reported as errors, null collections reported as errors except where nullable target collections can preserve null, implicit numeric conversion only, explicit operators disabled, enum mapping by name, unmatched enum values reported as errors, no cycle tracker, non-null root source guards disabled, and patch null skipping disabled.
 
 ## Member matching and unmapped members
 
@@ -297,7 +298,7 @@ public static partial class CustomerMapper
 
 `NullableMismatchPolicy.Error` reports compile-time diagnostics for nullable-to-non-null mappings. `NullableMismatchPolicy.Throw` emits runtime checks for supported paths. `NullCollectionStrategy.Empty` maps null collections to empty target collections; `Preserve` preserves null when legal; `Error` reports unsupported null collection flows.
 
-Root source null behavior follows the declared source and return nullability. A non-nullable source parameter rejects nullable input at compile time when visible to analysis, and generated runtime checks are emitted for configured throw behavior.
+Root source null behavior follows the declared source and return nullability. A non-nullable source parameter rejects nullable input at compile time when visible to analysis. By default, LiteMapper does not emit a runtime guard only because a root source parameter is non-nullable. Enable `GuardNonNullSource` on the mapper or mapping method to emit an `ArgumentNullException` guard for that root source parameter.
 
 ## Nested object mapping
 

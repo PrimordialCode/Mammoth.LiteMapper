@@ -314,6 +314,16 @@
 - Specification references: 26, 29, 30.
 - Consequences: Documentation remains reviewable in source control while CI guards against documenting APIs not represented by compiling samples.
 
+### DEC-0033
+
+- Date: 2026-06-22
+- Milestone: Post-1.0 specification update
+- Status: Accepted
+- Context: Non-null root source parameters previously always emitted a runtime `ArgumentNullException` guard. The project wants an opt-in guard so hot mapping paths can avoid the branch when callers already satisfy the declared non-null contract.
+- Decision: Add `GuardNonNullSource` as a mapper-level `bool` and method-level `OptionState`. The library default is disabled. When enabled, generated code rejects runtime null root source values with `ArgumentNullException`; when disabled, no root-source runtime null guard is emitted solely because the source parameter is non-null.
+- Specification references: 5.2, 5.3, 12.5, 22.11, 28.1.
+- Consequences: Public abstractions, API baselines, generator configuration resolution, nullability tests, generated-source snapshots, usage documentation, and package API compatibility validation must be updated before implementation can be considered synchronized with the specification.
+
 ## Pending specification questions
 
 ### PENDING-0001

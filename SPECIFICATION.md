@@ -411,6 +411,8 @@ public sealed class LiteMapperAttribute : Attribute
 
     public ReferenceHandling ReferenceHandling { get; set; }
 
+    public bool GuardNonNullSource { get; set; }
+
     public bool IgnoreNullSourceMembers { get; set; }
 }
 ```
@@ -449,6 +451,8 @@ public sealed class MappingOptionsAttribute : Attribute
     public UnmatchedEnumValuePolicy UnmatchedEnumValues { get; set; }
 
     public ReferenceHandling ReferenceHandling { get; set; }
+
+    public OptionState GuardNonNullSource { get; set; }
 
     public OptionState IgnoreNullSourceMembers { get; set; }
 }
@@ -1255,13 +1259,15 @@ Nullable reference type annotations that are oblivious because nullable context 
 
 ### 12.5 Root source null behavior
 
-For a non-null source parameter, generated code MUST reject a runtime null value using `ArgumentNullException`.
+For a non-null source parameter, generated code MUST NOT emit a runtime null guard by default.
+
+When the effective `GuardNonNullSource` option is enabled for a mapping method, generated code MUST reject a runtime null source value using `ArgumentNullException`.
 
 For a nullable source parameter and nullable return type, null source MUST return null.
 
 A nullable source parameter with a non-null return MUST follow effective nullable-mismatch policy.
 
-The emitted null check MAY use `ArgumentNullException.ThrowIfNull` only when that exact API exists in the consumer compilation; otherwise it MUST emit a portable explicit check.
+An emitted root-source null check MAY use `ArgumentNullException.ThrowIfNull` only when that exact API exists in the consumer compilation; otherwise it MUST emit a portable explicit check.
 
 ---
 
@@ -2075,6 +2081,7 @@ Tests MUST include:
 Tests MUST include:
 
 - null/non-null root source;
+- enabled and disabled `GuardNonNullSource` behavior;
 - nullable/non-null return;
 - nullable member to nullable target;
 - nullable member to non-null target under `Error` and `Throw`;

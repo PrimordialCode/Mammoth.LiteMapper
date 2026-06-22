@@ -4,10 +4,6 @@ static partial class Mapper
 {
     public static partial void Apply(Source source, Target target)
     {
-        if (source == null)
-        {
-            throw new global::System.ArgumentNullException(nameof(source));
-        }
         if (target == null)
         {
             throw new global::System.ArgumentNullException(nameof(target));
@@ -17,10 +13,6 @@ static partial class Mapper
     }
     public static partial Target ApplyReturn(Source source, Target target)
     {
-        if (source == null)
-        {
-            throw new global::System.ArgumentNullException(nameof(source));
-        }
         if (target == null)
         {
             throw new global::System.ArgumentNullException(nameof(target));

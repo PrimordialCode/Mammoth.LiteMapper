@@ -59,6 +59,72 @@ public sealed class Target
         }
 
         [TestMethod]
+        public void NonNullRootSourceGuardIsDisabledByDefault()
+        {
+            var result = RunGenerator(@"
+#nullable enable
+using Mammoth.LiteMapper;
+
+[LiteMapper]
+public static partial class Mapper
+{
+    public static partial Target ToTarget(Source source);
+}
+
+public sealed class Source { public string Name { get; set; } = string.Empty; }
+public sealed class Target { public string Name { get; set; } = string.Empty; }
+");
+
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var generated = SingleGeneratedSource(result.RunResult);
+            Assert.IsFalse(generated.Contains("ArgumentNullException(nameof(source))", StringComparison.Ordinal), generated);
+        }
+
+        [TestMethod]
+        public void GuardNonNullSourceCanBeEnabledAndOverriddenPerMethod()
+        {
+            var result = RunGenerator(@"
+#nullable enable
+using Mammoth.LiteMapper;
+
+[LiteMapper(GuardNonNullSource = true)]
+public static partial class Mapper
+{
+    public static partial Target Guarded(Source source);
+
+    [MappingOptions(GuardNonNullSource = OptionState.Disabled)]
+    public static partial Target Unguarded(Source source);
+}
+
+public sealed class Source { public string Name { get; set; } = string.Empty; }
+public sealed class Target { public string Name { get; set; } = string.Empty; }
+");
+
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var generated = SingleGeneratedSource(result.RunResult);
+
+            var guarded = SliceMethod(generated, "Guarded");
+            var unguarded = SliceMethod(generated, "Unguarded");
+
+            StringAssert.Contains(guarded, "throw new global::System.ArgumentNullException(nameof(source))");
+            Assert.IsFalse(unguarded.Contains("ArgumentNullException(nameof(source))", StringComparison.Ordinal), unguarded);
+
+            var assembly = Emit(result.Compilation);
+            var mapper = assembly.GetType("Mapper")!;
+            AssertThrowsTargetInvocation(() => mapper.GetMethod("Guarded")!.Invoke(null, new object?[] { null }));
+
+            try
+            {
+                mapper.GetMethod("Unguarded")!.Invoke(null, new object?[] { null });
+                Assert.Fail("Expected TargetInvocationException.");
+            }
+            catch (TargetInvocationException ex)
+            {
+                Assert.IsNotInstanceOfType(ex.InnerException, typeof(ArgumentNullException));
+            }
+        }
+
+        [TestMethod]
         public void NullableMismatchErrorOmitsInvalidImplementation()
         {
             var result = RunGenerator(@"
@@ -103,6 +169,14 @@ public sealed class Target { public string Name { get; set; } }
         {
             Assert.AreEqual(1, result.GeneratedTrees.Length);
             return result.GeneratedTrees[0].GetText().ToString();
+        }
+
+        private static string SliceMethod(string generated, string methodName)
+        {
+            var start = generated.IndexOf(" " + methodName + "(", StringComparison.Ordinal);
+            Assert.IsTrue(start >= 0, generated);
+            var next = generated.IndexOf("public static partial", start + methodName.Length, StringComparison.Ordinal);
+            return next < 0 ? generated.Substring(start) : generated.Substring(start, next - start);
         }
 
         private static void AssertNoRuntimeFeatures(string source)
