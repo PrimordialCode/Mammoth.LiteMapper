@@ -57,7 +57,10 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            ${{ env.DOTNET_VERSION }}
 
       - name: Cache NuGet packages
         uses: actions/cache@v5
@@ -126,9 +129,32 @@ jobs:
           dotnet sln Mammoth.LiteMapper.sln list
           dotnet sln Mammoth.LiteMapper.slnx list
 
+  roslyn-hosts:
+    name: Roslyn ${{ matrix.roslyn }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        roslyn: ['4.8.0', '4.14.0', '5.9.0']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Test generator with requested Roslyn host
+        run: dotnet test tests/Mammoth.LiteMapper.Generator.Tests/Mammoth.LiteMapper.Generator.Tests.csproj -c Release -p:RoslynTestVersion=${{ matrix.roslyn }} --logger trx
+
   publish:
     name: Pack & Publish
-    needs: build-and-test
+    needs: [build-and-test, roslyn-hosts]
     runs-on: windows-latest
     if: >
       github.event_name != 'pull_request' &&

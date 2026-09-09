@@ -2,6 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
+    <RoslynTestVersion Condition="'$(RoslynTestVersion)' == ''">4.8.0</RoslynTestVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Snapshots\**\*.g.cs" />
@@ -9,8 +10,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing" />
     <!-- Forces the compatible Workspaces dependency instead of NuGet choosing 3.8.0 -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" VersionOverride="$(RoslynTestVersion)" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="$(RoslynTestVersion)" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="MSTest.TestAdapter" />
     <PackageReference Include="MSTest.TestFramework" />
@@ -18,5 +19,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Mammoth.LiteMapper.Abstractions\Mammoth.LiteMapper.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Mammoth.LiteMapper.Generator\Mammoth.LiteMapper.Generator.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>RoslynTestVersion</_Parameter1>
+      <_Parameter2>$(RoslynTestVersion)</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 </Project>

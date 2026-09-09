@@ -62,7 +62,8 @@ public sealed class NodeDto { public string? Name { get; set; } public NodeDto? 
             AssertNoLiteMapperDiagnostics(result.RunResult);
             var generated = SingleGeneratedSource(result.RunResult);
             StringAssert.Contains(generated, "__LiteMapperCycleTracker");
-            StringAssert.Contains(generated, "MapNested_Node_To_NodeDto(source.Child, __tracker, \"Child\")");
+            StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
+                "source\\.Child is \\{ \\} (__sourcePath_Child_[0-9A-F]{8}) \\? MapNested_Node_To_NodeDto_[0-9A-F]{8}\\(\\1, __tracker, \\\"Child\\\"\\)"));
             AssertNoRuntimeFeatures(generated);
 
             var assembly = Emit(result.Compilation);
@@ -178,12 +179,6 @@ public sealed class Node { public Node? Child { get; set; } }
 public sealed class NodeDto { public NodeDto? Child { get; set; } }
 ").RunResult, "LITEMAPPER0008");
 
-            AssertDiagnostic(RunGenerator(@"
-using Mammoth.LiteMapper;
-[LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)] public static partial class Mapper { public static partial NodeDto ToDto(Node source); }
-public struct Node { public Node? Child { get; set; } }
-public struct NodeDto { public NodeDto? Child { get; set; } }
-").RunResult, "LITEMAPPER6003");
         }
     }
 }

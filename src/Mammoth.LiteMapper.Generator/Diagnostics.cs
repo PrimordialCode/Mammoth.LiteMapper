@@ -20,27 +20,43 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor UnsupportedLanguageVersion = Error("LITEMAPPER0012", "UnsupportedLanguageVersion", "Language version '{0}' is older than C# 9");
         public static readonly DiagnosticDescriptor DuplicateConfiguration = Error("LITEMAPPER0013", "DuplicateConfiguration", "Configuration '{0}' is declared more than once");
         public static readonly DiagnosticDescriptor UnmappedTargetMember = Warning("LITEMAPPER1001", "UnmappedTargetMember", "Target member '{0}' is not mapped");
-        public static readonly DiagnosticDescriptor UnmappedTargetMemberError = Error("LITEMAPPER1001", "UnmappedTargetMember", "Target member '{0}' is not mapped");
+        public static readonly DiagnosticDescriptor UnmappedTargetMemberInfo = Info("LITEMAPPER1001", "UnmappedTargetMember", "Target member '{0}' is not mapped");
+        public static readonly DiagnosticDescriptor UnmappedTargetMemberError = ConfigurableError("LITEMAPPER1001", "UnmappedTargetMember", "Target member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor AmbiguousMemberMatch = Error("LITEMAPPER1004", "AmbiguousMemberMatch", "Multiple source members match target member '{0}'");
         public static readonly DiagnosticDescriptor HiddenMemberSelected = Warning("LITEMAPPER1005", "HiddenMemberSelected", "Hidden member '{0}' was selected");
+        public static readonly DiagnosticDescriptor InvalidSourcePath = Error("LITEMAPPER1006", "InvalidSourcePath", "Source path segment '{0}' cannot be resolved");
+        public static readonly DiagnosticDescriptor TargetPathNotSupported = Error("LITEMAPPER1007", "TargetPathNotSupported", "Target '{0}' must name a direct member, not a dotted path");
+        public static readonly DiagnosticDescriptor DuplicateTargetMapping = Error("LITEMAPPER1008", "DuplicateTargetMapping", "Target member '{0}' is configured more than once");
+        public static readonly DiagnosticDescriptor TargetMemberNotWritable = Error("LITEMAPPER1009", "TargetMemberNotWritable", "Target member '{0}' cannot be assigned in this mapping mode");
         public static readonly DiagnosticDescriptor RequiredTargetMemberNotMapped = Error("LITEMAPPER1002", "RequiredTargetMemberNotMapped", "Required target member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor ConstructorNotFound = Error("LITEMAPPER1010", "ConstructorNotFound", "Target type '{0}' does not have a legal construction path");
         public static readonly DiagnosticDescriptor AmbiguousConstructor = Error("LITEMAPPER1011", "AmbiguousConstructor", "Target type '{0}' has ambiguous satisfiable constructors");
         public static readonly DiagnosticDescriptor MultipleMappingConstructors = Error("LITEMAPPER1012", "MultipleMappingConstructors", "Target type '{0}' has multiple mapping constructors");
         public static readonly DiagnosticDescriptor MappingConstructorNotSatisfiable = Error("LITEMAPPER1013", "MappingConstructorNotSatisfiable", "Mapping constructor for target type '{0}' cannot be satisfied");
+        public static readonly DiagnosticDescriptor TargetDefaultMissing = Error("LITEMAPPER1014", "TargetDefaultMissing", "Target member '{0}' has no requested mapping default");
+        public static readonly DiagnosticDescriptor InvalidIgnoredMember = Error("LITEMAPPER1015", "InvalidIgnoredMember", "Ignored member '{0}' is missing or invalid");
+        public static readonly DiagnosticDescriptor IndexerNotSupported = Error("LITEMAPPER1016", "IndexerNotSupported", "Indexer '{0}' cannot be selected for generated mapping");
         public static readonly DiagnosticDescriptor NullableToNonNullable = Error("LITEMAPPER2001", "NullableToNonNullable", "Potential null value cannot be mapped to non-null target '{0}'");
+        public static readonly DiagnosticDescriptor NullableElementMismatch = Error("LITEMAPPER2003", "NullableElementMismatch", "Potential null collection element cannot be mapped to non-null target '{0}'");
         public static readonly DiagnosticDescriptor ConversionNotFound = Error("LITEMAPPER2004", "ConversionNotFound", "No conversion exists from '{0}' to '{1}'");
-        public static readonly DiagnosticDescriptor InvalidMemberConfiguration = Error("LITEMAPPER2005", "InvalidMemberConfiguration", "Member configuration '{0}' is invalid");
-        public static readonly DiagnosticDescriptor InvalidConverter = Error("LITEMAPPER2006", "InvalidConverter", "Converter '{0}' is invalid");
-        public static readonly DiagnosticDescriptor AmbiguousConverter = Error("LITEMAPPER2007", "AmbiguousConverter", "Converter resolution for '{0}' is ambiguous");
+        public static readonly DiagnosticDescriptor AmbiguousConversion = Error("LITEMAPPER2005", "AmbiguousConversion", "Conversion from '{0}' to '{1}' is ambiguous");
+        public static readonly DiagnosticDescriptor ExplicitOperatorDisabled = Error("LITEMAPPER2006", "ExplicitOperatorDisabled", "Conversion from '{0}' to '{1}' requires an enabled explicit operator");
+        public static readonly DiagnosticDescriptor NarrowingNumericConversionDisabled = Error("LITEMAPPER2007", "NarrowingNumericConversionDisabled", "Conversion from '{0}' to '{1}' requires an enabled narrowing numeric conversion");
+        public static readonly DiagnosticDescriptor InvalidConverterSignature = Error("LITEMAPPER2009", "InvalidConverterSignature", "Converter '{0}' has an unsupported signature");
+        public static readonly DiagnosticDescriptor ConverterNullabilityMismatch = Error("LITEMAPPER2010", "ConverterNullabilityMismatch", "Converter result cannot satisfy nullability of target '{0}'");
+        public static readonly DiagnosticDescriptor UnsupportedGeneratedType = Error("LITEMAPPER2008", "UnsupportedGeneratedType", "Type '{0}' requires unsupported generated behavior");
+        public static readonly DiagnosticDescriptor AmbiguousConverter = Error("LITEMAPPER2011", "AmbiguousConverter", "Converter resolution for '{0}' is ambiguous");
         public static readonly DiagnosticDescriptor RuntimeObjectDispatchNotSupported = Error("LITEMAPPER2012", "RuntimeObjectDispatchNotSupported", "Runtime object dispatch is required for '{0}'");
         public static readonly DiagnosticDescriptor AmbiguousMapping = Error("LITEMAPPER3001", "AmbiguousMapping", "Mapping resolution for '{0}' is ambiguous");
+        public static readonly DiagnosticDescriptor DuplicateDefaultMapping = Error("LITEMAPPER3002", "DuplicateDefaultMapping", "More than one default mapping exists for '{0}'");
+        public static readonly DiagnosticDescriptor DefaultMappingNotUsable = Error("LITEMAPPER3003", "DefaultMappingNotUsable", "Default mapping for '{0}' is inaccessible or incompatible");
         public static readonly DiagnosticDescriptor StructuralNestedMappingFailed = Error("LITEMAPPER3004", "StructuralNestedMappingFailed", "Structural nested mapping from '{0}' to '{1}' cannot be generated");
         public static readonly DiagnosticDescriptor AbstractDestinationNotSupported = Error("LITEMAPPER3005", "AbstractDestinationNotSupported", "Destination type '{0}' is abstract or an interface");
         public static readonly DiagnosticDescriptor InvalidNullCollectionMapping = Error("LITEMAPPER2002", "InvalidNullCollectionMapping", "Null collection strategy cannot satisfy target nullability");
         public static readonly DiagnosticDescriptor UnsupportedCollectionShape = Error("LITEMAPPER4001", "UnsupportedCollectionShape", "Collection shape is outside 1.0 support");
         public static readonly DiagnosticDescriptor RectangularArrayNotSupported = Error("LITEMAPPER4002", "RectangularArrayNotSupported", "Mapping uses a multidimensional rectangular array");
-        public static readonly DiagnosticDescriptor CollectionTargetCannotBeConstructed = Error("LITEMAPPER4003", "CollectionTargetCannotBeConstructed", "No legal concrete destination collection can be created");
+        public static readonly DiagnosticDescriptor GetOnlyCollectionUpdateNotSupported = Error("LITEMAPPER4004", "GetOnlyCollectionUpdateNotSupported", "Get-only collection '{0}' cannot be updated");
+        public static readonly DiagnosticDescriptor TopLevelArrayUpdateNotSupported = Error("LITEMAPPER4005", "TopLevelArrayUpdateNotSupported", "Existing-target array mapping '{0}' is not supported");
         public static readonly DiagnosticDescriptor CustomCollectionNotSupported = Error("LITEMAPPER4006", "CustomCollectionNotSupported", "Custom collection convention would be required");
         public static readonly DiagnosticDescriptor InvalidUpdateSignature = Error("LITEMAPPER5001", "InvalidUpdateSignature", "Existing-target method has an unsupported signature");
         public static readonly DiagnosticDescriptor NullableVoidDestinationNotSupported = Error("LITEMAPPER5002", "NullableVoidDestinationNotSupported", "Nullable destination cannot be replaced through a void method");
@@ -49,8 +65,6 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor NestedUpdateMappingRequired = Error("LITEMAPPER5005", "NestedUpdateMappingRequired", "Get-only/existing nested mutation lacks explicit update mapping");
         public static readonly DiagnosticDescriptor IgnoreNullOnlyValidForUpdate = Warning("LITEMAPPER5006", "IgnoreNullOnlyValidForUpdate", "Patch null-skipping was configured on a new-object mapping");
         public static readonly DiagnosticDescriptor RecursiveMappingWithoutCycleDetection = Info("LITEMAPPER6001", "RecursiveMappingWithoutCycleDetection", "Recursive type graph uses ReferenceHandling.None");
-        public static readonly DiagnosticDescriptor InvalidReferenceHandling = Error("LITEMAPPER6002", "InvalidReferenceHandling", "Reference handling is unsupported for mapping '{0}'");
-        public static readonly DiagnosticDescriptor CyclePathCannotBeTracked = Error("LITEMAPPER6003", "CyclePathCannotBeTracked", "Required recursive path cannot use reference identity");
         public static readonly DiagnosticDescriptor EnumMemberNotMapped = Error("LITEMAPPER7001", "EnumMemberNotMapped", "Source enum member '{0}' has no target mapping");
         public static readonly DiagnosticDescriptor EnumAliasConflict = Error("LITEMAPPER7002", "EnumAliasConflict", "Enum aliases for value '{0}' map inconsistently");
         public static readonly DiagnosticDescriptor EnumZeroMemberNotMapped = Error("LITEMAPPER7003", "EnumZeroMemberNotMapped", "Source enum zero member '{0}' has no target mapping");
@@ -58,6 +72,7 @@ namespace Mammoth.LiteMapper.Generator
         public static readonly DiagnosticDescriptor EnumValueOverflow = Error("LITEMAPPER7005", "EnumValueOverflow", "Enum value '{0}' cannot fit destination underlying type");
         public static readonly DiagnosticDescriptor UnmappedSourceMember = Info("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor UnmappedSourceMemberWarning = Warning("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
+        public static readonly DiagnosticDescriptor UnmappedSourceMemberError = ConfigurableError("LITEMAPPER1003", "UnmappedSourceMember", "Source member '{0}' is not mapped");
         public static readonly DiagnosticDescriptor InternalGeneratorFailure = Error("LITEMAPPER9001", "InternalGeneratorFailure", "Unexpected failure while processing mapper '{0}'");
 
         private static DiagnosticDescriptor Error(string id, string title, string message)
@@ -68,6 +83,11 @@ namespace Mammoth.LiteMapper.Generator
         private static DiagnosticDescriptor Warning(string id, string title, string message)
         {
             return new DiagnosticDescriptor(id, title, message, Category, DiagnosticSeverity.Warning, isEnabledByDefault: true);
+        }
+
+        private static DiagnosticDescriptor ConfigurableError(string id, string title, string message)
+        {
+            return new DiagnosticDescriptor(id, title, message, Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
         }
 
         private static DiagnosticDescriptor Info(string id, string title, string message)

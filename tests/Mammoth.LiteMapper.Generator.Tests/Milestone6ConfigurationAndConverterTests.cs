@@ -143,28 +143,28 @@ using Mammoth.LiteMapper;
 [LiteMapper] public static partial class Mapper { [MapProperty(Source = ""Missing"", Target = nameof(Target.Id))] public static partial Target ToTarget(Source source); }
 public sealed class Source { public short Id { get; set; } }
 public sealed class Target { public int Id { get; set; } }
-").RunResult, "LITEMAPPER2005");
+").RunResult, "LITEMAPPER1006");
 
             AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;
 [LiteMapper] public static partial class Mapper { [MapProperty(Source = nameof(Source.Id), Target = ""Nested.Id"")] public static partial Target ToTarget(Source source); }
 public sealed class Source { public int Id { get; set; } }
 public sealed class Target { public int Id { get; set; } }
-").RunResult, "LITEMAPPER2005");
+").RunResult, "LITEMAPPER1007");
 
             AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;
 [LiteMapper] public static partial class Mapper { [MapProperty(Source = nameof(Source.Id), Target = nameof(Target.Id))][MapProperty(Source = nameof(Source.Other), Target = nameof(Target.Id))] public static partial Target ToTarget(Source source); }
 public sealed class Source { public int Id { get; set; } public int Other { get; set; } }
 public sealed class Target { public int Id { get; set; } }
-").RunResult, "LITEMAPPER0013");
+").RunResult, "LITEMAPPER1008");
 
             AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;
 [LiteMapper] public static partial class Mapper { [UseTargetDefault(nameof(Target.Id))] public static partial Target ToTarget(Source source); }
 public sealed class Source { public int Id { get; set; } }
 public sealed class Target { public int Id { get; set; } }
-").RunResult, "LITEMAPPER2005");
+").RunResult, "LITEMAPPER1014");
         }
 
         [TestMethod]
@@ -180,7 +180,7 @@ using Mammoth.LiteMapper;
 }
 public sealed class Source { public short Id { get; set; } }
 public sealed class Target { public string Id { get; set; } = string.Empty; }
-").RunResult, "LITEMAPPER2007");
+").RunResult, "LITEMAPPER2011");
 
             AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;
@@ -193,7 +193,7 @@ using Mammoth.LiteMapper;
 }
 public sealed class Source { public short Id { get; set; } }
 public sealed class Target { public string Id { get; set; } = string.Empty; }
-").RunResult, "LITEMAPPER2007");
+").RunResult, "LITEMAPPER2011");
 
             AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;
@@ -205,7 +205,7 @@ using Mammoth.LiteMapper;
 }
 public sealed class Source { public int Id { get; set; } }
 public sealed class Target { public string Id { get; set; } = string.Empty; }
-").RunResult, "LITEMAPPER2006");
+").RunResult, "LITEMAPPER2009");
         }
 
         private static string SingleGeneratedSource(GeneratorDriverRunResult result)

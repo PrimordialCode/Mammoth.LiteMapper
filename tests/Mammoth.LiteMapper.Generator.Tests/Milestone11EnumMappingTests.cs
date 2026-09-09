@@ -91,7 +91,7 @@ public static partial class Mapper
 [Flags]
 public enum SourceFlags { None = 0, Read = 1, Write = 2, ReadWrite = Read | Write, AlsoRead = Read }
 [Flags]
-public enum TargetFlags { None = 0, Read = 4, Write = 8, ReadWrite = Read | Write }
+public enum TargetFlags { None = 0, Read = 4, Write = 8, ReadWrite = Read | Write, AlsoRead = Read }
 ");
 
             AssertNoLiteMapperDiagnostics(result.RunResult);
@@ -100,6 +100,8 @@ public enum TargetFlags { None = 0, Read = 4, Write = 8, ReadWrite = Read | Writ
             var targetType = assembly.GetType("TargetFlags")!;
             var mapped = assembly.GetType("Mapper")!.GetMethod("ToTarget")!.Invoke(null, new[] { Enum.Parse(sourceType, "ReadWrite") });
             Assert.AreEqual(Enum.Parse(targetType, "ReadWrite"), mapped);
+            var alias = assembly.GetType("Mapper")!.GetMethod("ToTarget")!.Invoke(null, new[] { Enum.Parse(sourceType, "AlsoRead") });
+            Assert.AreEqual(Enum.Parse(targetType, "AlsoRead"), alias);
             var exception = Assert.ThrowsExactly<TargetInvocationException>(() => assembly.GetType("Mapper")!.GetMethod("ToTarget")!.Invoke(null, new[] { Enum.ToObject(sourceType, 4) }));
             Assert.IsInstanceOfType<ArgumentOutOfRangeException>(exception.InnerException);
         }

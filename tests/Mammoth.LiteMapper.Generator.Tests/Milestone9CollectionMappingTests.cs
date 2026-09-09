@@ -75,10 +75,14 @@ public sealed class ItemDto { public int Id { get; set; } }
 
             AssertNoLiteMapperDiagnostics(result.RunResult);
             var generated = SingleGeneratedSource(result.RunResult);
-            StringAssert.Contains(generated, "Items = MapCollection_List_Item_To_ItemDto_Array(source.Items)");
-            StringAssert.Contains(generated, "Tags = MapCollection_HashSet_Int32_To_ISet_Int32(source.Tags)");
-            StringAssert.Contains(generated, "Lookup = MapDictionary_Dictionary_String_Item_To_IReadOnlyDictionary_String_ItemDto(source.Lookup)");
-            StringAssert.Contains(generated, "private static ItemDto MapNested_Item_To_ItemDto(Item source)");
+            StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
+                "Items = MapCollection_List_Item_To_ItemDto_Array_[0-9A-F]{8}\\(source\\.Items\\)"));
+            StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
+                "Tags = MapCollection_HashSet_Int32_To_ISet_Int32_[0-9A-F]{8}\\(source\\.Tags\\)"));
+            StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
+                "Lookup = MapDictionary_Dictionary_String_Item_To_IReadOnlyDictionary_String_ItemDto_[0-9A-F]{8}\\(source\\.Lookup\\)"));
+            StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
+                "private static ItemDto MapNested_Item_To_ItemDto_[0-9A-F]{8}\\(Item source\\)"));
 
             var assembly = Emit(result.Compilation);
             var source = assembly.CreateInstance("Source")!;
@@ -200,6 +204,7 @@ public static partial class Mapper
 {
     public static partial HashSet<string> ToSet(HashSet<string> source);
     public static partial Dictionary<int, string> ToDictionary(Dictionary<string, string> source);
+    [MappingConverter]
     private static int ToInt(string source) => source.Length;
 }
 ");
@@ -218,6 +223,184 @@ public static partial class Mapper
             var dictionary = new Dictionary<string, string> { ["aa"] = "one", ["bb"] = "two" };
             var exception = Assert.ThrowsExactly<TargetInvocationException>(() => assembly.GetType("Mapper")!.GetMethod("ToDictionary")!.Invoke(null, new object[] { dictionary }));
             Assert.IsInstanceOfType<ArgumentException>(exception.InnerException);
+        }
+
+        [TestMethod]
+        public void UnmarkedScalarHelperDoesNotSupplyDictionaryKeyConversion()
+        {
+            var result = RunGenerator(@"
+using System.Collections.Generic;
+using Mammoth.LiteMapper;
+[LiteMapper]
+public static partial class Mapper
+{
+    public static partial Dictionary<int, string> Map(Dictionary<string, string> source);
+    private static int ToInt(string source) => source.Length;
+}
+");
+            AssertDiagnostic(result.RunResult, "LITEMAPPER2004");
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void MarkedConvertersOverrideIdentityForCollectionElementsAndDictionaryKeysAndValues(bool dictionaryMapping)
+        {
+            var result = RunGenerator(@"
+using System.Collections.Generic;
+using Mammoth.LiteMapper;
+[LiteMapper]
+public static partial class Mapper
+{
+    public static partial int[] MapArray(int[] source);
+    public static partial Dictionary<string, int> MapDictionary(Dictionary<string, int> source);
+    [MappingConverter]
+    private static int Adjust(int source) => source + 10;
+    [MappingConverter]
+    private static string Rename(string source) => ""mapped:"" + source;
+}
+");
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var mapper = Emit(result.Compilation).GetType("Mapper")!;
+            if (!dictionaryMapping)
+            {
+                var mappedArray = (int[])mapper.GetMethod("MapArray")!.Invoke(null, new object[] { new[] { 1, 2 } })!;
+                CollectionAssert.AreEqual(new[] { 11, 12 }, mappedArray, "Explicit element converters must run before identity assignment.");
+                return;
+            }
+
+            var dictionary = new Dictionary<string, int> { ["a"] = 1 };
+            var mappedDictionary = (Dictionary<string, int>)mapper.GetMethod("MapDictionary")!.Invoke(null, new object[] { dictionary })!;
+            Assert.IsTrue(mappedDictionary.ContainsKey("mapped:a"), "Dictionary keys must use the converter pipeline before identity assignment.");
+            Assert.AreEqual(11, mappedDictionary["mapped:a"], "Dictionary values independently use the converter pipeline.");
+        }
+
+        [TestMethod]
+        public void MarkedDictionaryConverterWinsOverUnrelatedCompatibleHelper()
+        {
+            var result = RunGenerator(@"
+using System.Collections.Generic;
+using Mammoth.LiteMapper;
+[LiteMapper]
+public static partial class Mapper
+{
+    public static partial Dictionary<int, string> Map(Dictionary<string, string> source);
+    [MappingConverter]
+    private static int ConvertKey(string source) => source.Length + 10;
+    private static int UnrelatedHelper(string source) => 99;
+}
+");
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var mapper = Emit(result.Compilation).GetType("Mapper")!;
+            var source = new Dictionary<string, string> { ["a"] = "value" };
+            var mapped = (Dictionary<int, string>)mapper.GetMethod("Map")!.Invoke(null, new object[] { source })!;
+            Assert.IsTrue(mapped.ContainsKey(11), "A compatible ordinary helper must not replace the explicitly marked converter.");
+            Assert.AreEqual("value", mapped[11]);
+        }
+
+        [TestMethod]
+        [DataRow("IEnumerable", true)]
+        [DataRow("IEnumerable", false)]
+        [DataRow("IReadOnlyCollection", true)]
+        [DataRow("IReadOnlyCollection", false)]
+        [DataRow("IReadOnlyList", true)]
+        [DataRow("IReadOnlyList", false)]
+        [DataRow("ICollection", true)]
+        [DataRow("ICollection", false)]
+        [DataRow("IList", true)]
+        [DataRow("IList", false)]
+        public void InterfaceTargetDefaultsProduceSpecifiedIndependentCopies(string targetInterface, bool hasCount)
+        {
+            var sourceType = hasCount ? "IReadOnlyCollection<int>" : "IEnumerable<int>";
+            var result = RunGenerator(@"
+using System.Collections.Generic;
+using Mammoth.LiteMapper;
+[LiteMapper]
+public static partial class Mapper
+{
+    public static partial " + targetInterface + "<int> Map(" + sourceType + @" source);
+}
+");
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var map = Emit(result.Compilation).GetType("Mapper")!.GetMethod("Map")!;
+            var expectedType = targetInterface == "ICollection" || targetInterface == "IList"
+                ? typeof(List<int>)
+                : typeof(int[]);
+
+            foreach (var items in new[] { new[] { 4, 5 }, Array.Empty<int>() })
+            {
+                var countedSource = new List<int>(items);
+                var oneShotSource = new OneShotEnumerable(items);
+                object source = hasCount ? countedSource : oneShotSource;
+                var mapped = map.Invoke(null, new[] { source })!;
+
+                Assert.AreEqual(expectedType, mapped.GetType(), "Specification 15.3 fixes the concrete result even when the public return type is an interface.");
+                Assert.AreNotSame(source, mapped, "Collection mapping must create an independent copy.");
+                CollectionAssert.AreEqual(items, ((IEnumerable<int>)mapped).ToArray());
+                if (hasCount)
+                {
+                    countedSource.Add(99);
+                    CollectionAssert.AreEqual(items, ((IEnumerable<int>)mapped).ToArray(), "Later source changes must not alter the mapped collection.");
+                }
+                else
+                {
+                    Assert.AreEqual(1, oneShotSource.Enumerations, "An uncounted source must be consumed exactly once, including when empty.");
+                }
+            }
+        }
+
+        [TestMethod]
+        [DataRow("IEnumerable")]
+        [DataRow("IReadOnlyCollection")]
+        [DataRow("IReadOnlyList")]
+        public void InterfaceTargetDefaultsUseArraysForNestedMembersAndNullAsEmpty(string targetInterface)
+        {
+            var result = RunGenerator(@"
+using System.Collections.Generic;
+using Mammoth.LiteMapper;
+[LiteMapper(NullCollections = NullCollectionStrategy.Empty)]
+public static partial class Mapper
+{
+    public static partial Target Map(Source source);
+}
+public sealed class Source { public List<int>? Values { get; set; } }
+public sealed class Target { public " + targetInterface + @"<int> Values { get; set; } = null!; }
+");
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var assembly = Emit(result.Compilation);
+            var map = assembly.GetType("Mapper")!.GetMethod("Map")!;
+            foreach (var items in new List<int>?[] { new List<int> { 4, 5 }, new List<int>(), null })
+            {
+                var source = assembly.CreateInstance("Source")!;
+                source.GetType().GetProperty("Values")!.SetValue(source, items);
+                var target = map.Invoke(null, new[] { source })!;
+                var mapped = target.GetType().GetProperty("Values")!.GetValue(target)!;
+
+                Assert.AreEqual(typeof(int[]), mapped.GetType(), "Specification 15.3 also governs nested helpers and NullCollections.Empty results.");
+                Assert.AreNotSame(items, mapped);
+                CollectionAssert.AreEqual(items?.ToArray() ?? Array.Empty<int>(), (int[])mapped);
+            }
+        }
+
+        private sealed class OneShotEnumerable : IEnumerable<int>
+        {
+            private readonly int[] _items;
+
+            public OneShotEnumerable(int[] items)
+            {
+                _items = items;
+            }
+
+            public int Enumerations { get; private set; }
+
+            public IEnumerator<int> GetEnumerator()
+            {
+                Enumerations++;
+                Assert.AreEqual(1, Enumerations, "Mapping must not enumerate a source to count it before copying.");
+                return ((IEnumerable<int>)_items).GetEnumerator();
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
         }
 
         private static string SingleGeneratedSource(GeneratorDriverRunResult result)

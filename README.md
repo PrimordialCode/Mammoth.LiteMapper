@@ -42,3 +42,15 @@ See the compiling samples under `samples/` for static mappers, instance mappers,
 
 - [SPECIFICATION.md](SPECIFICATION.md) is the sole authoritative product contract.
 - [USAGE.md](docs/USAGE.md) is the usage guide and must stay synchronized with the specification, samples, tests, and other project documents.
+
+## Agent skill
+
+The [mammoth-litemapper skill](skills/mammoth-litemapper/SKILL.md) provides consumer mapping guidance for compatible coding agents using the [Skills CLI](https://skills.sh/docs).
+
+Once this skill is published on the repository's default branch, install it from your consuming project:
+
+```sh
+npx skills add PrimordialCode/Mammoth.LiteMapper --skill mammoth-litemapper
+```
+
+Append `--agent codex` to target Codex or `--global` for user-level installation. To preview this checkout's discoverable skills without installing, run `npx skills add . --list` from the repository root. The skill contains its own supporting reference; consumers do not need a LiteMapper source checkout. Local validation does not establish a skills.sh directory listing.

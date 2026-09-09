@@ -1,8 +1,10 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Xml.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Mammoth.LiteMapper.Packaging.Tests
@@ -10,6 +12,29 @@ namespace Mammoth.LiteMapper.Packaging.Tests
     [TestClass]
     public sealed class Milestone14PackagingAndAotTests
     {
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void ZeroWarningBuildSummaryIsAcceptedOnEitherOutputStream(bool standardError)
+        {
+            const string summary = "Mammoth.LiteMapper.Samples.Basic -> /work/bin/Release/net10.0/Mammoth.LiteMapper.Samples.Basic.dll\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n";
+            AssertNoLiteMapperWarnings(standardError ? string.Empty : summary, standardError ? summary : string.Empty);
+        }
+
+        [TestMethod]
+        [DataRow(false, "Consumer.cs(12,5): warning LITEMAPPER1001: Target member is unmapped. [Mammoth.LiteMapper.Samples.Basic.csproj]")]
+        [DataRow(true, "Consumer.cs(12,5): warning LITEMAPPER1001: Target member is unmapped. [Mammoth.LiteMapper.Samples.Basic.csproj]")]
+        [DataRow(false, "Consumer.cs(12,5): warning IL2026: Calling a method requiring unreferenced code. [Consumer.csproj]")]
+        [DataRow(true, "Consumer.cs(12,5): warning IL2026: Calling a method requiring unreferenced code. [Consumer.csproj]")]
+        [DataRow(false, "Mammoth.LiteMapper.Samples.Basic -> /work/bin/Release/net10.0/Mammoth.LiteMapper.Samples.Basic.dll\nBuild succeeded.\n    1 Warning(s)\n    0 Error(s)\n")]
+        [DataRow(true, "Mammoth.LiteMapper.Samples.Basic -> /work/bin/Release/net10.0/Mammoth.LiteMapper.Samples.Basic.dll\nBuild succeeded.\n    1 Warning(s)\n    0 Error(s)\n")]
+        public void ActualWarningsRemainRejectedOnEitherOutputStream(bool standardError, string warning)
+        {
+            Assert.ThrowsExactly<AssertFailedException>(() => AssertNoLiteMapperWarnings(
+                standardError ? string.Empty : warning,
+                standardError ? warning : string.Empty));
+        }
+
         [TestMethod]
         public void PrimaryPackageContainsAnalyzerAndNoRoslynRuntimeAssets()
         {
@@ -81,9 +106,62 @@ if (attribute.NameMatching != NameMatching.Unspecified)
             PackAll(first);
             PackAll(second);
 
-            CollectionAssert.AreEqual(
-                PackageContentFingerprint(SinglePackage(first, "Mammoth.LiteMapper")),
-                PackageContentFingerprint(SinglePackage(second, "Mammoth.LiteMapper")));
+            var firstPackages = Directory.GetFiles(first).Where(static p => p.EndsWith(".nupkg", StringComparison.Ordinal) || p.EndsWith(".snupkg", StringComparison.Ordinal)).Select(Path.GetFileName).OrderBy(static n => n, StringComparer.Ordinal).ToArray();
+            var secondPackages = Directory.GetFiles(second).Where(static p => p.EndsWith(".nupkg", StringComparison.Ordinal) || p.EndsWith(".snupkg", StringComparison.Ordinal)).Select(Path.GetFileName).OrderBy(static n => n, StringComparer.Ordinal).ToArray();
+            Assert.AreEqual(6, firstPackages.Length, "Every shipping package and symbol package must be compared.");
+            CollectionAssert.AreEqual(firstPackages, secondPackages);
+            foreach (var name in firstPackages)
+            {
+                CollectionAssert.AreEqual(PackageContentFingerprint(Path.Combine(first, name!)), PackageContentFingerprint(Path.Combine(second, name!)), name);
+            }
+        }
+
+        [TestMethod]
+        [DataRow("lib/netstandard2.0/Library.dll")]
+        [DataRow("analyzers/dotnet/cs/Generator.dll")]
+        [DataRow("Library.nuspec")]
+        [DataRow("README.md")]
+        [DataRow("Mammoth.png")]
+        [DataRow("lib/netstandard2.0/Library.pdb")]
+        [DataRow("build/Library.targets")]
+        [DataRow("[Content_Types].xml")]
+        public void PackageFingerprintDetectsSameLengthPayloadChanges(string path)
+        {
+            var feed = CreateFeed();
+            var first = Path.Combine(feed, "first.nupkg");
+            var second = Path.Combine(feed, "second.nupkg");
+            WriteArchive(first, path, "first");
+            WriteArchive(second, path, "other");
+            Assert.IsFalse(PackageContentFingerprint(first).SequenceEqual(PackageContentFingerprint(second)), "Same-size changes must invalidate the package fingerprint: " + path);
+        }
+
+        private static void WriteArchive(string path, string entryName, string content)
+        {
+            using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+            using var writer = new StreamWriter(archive.CreateEntry(entryName).Open());
+            writer.Write(content);
+        }
+
+        [TestMethod]
+        public void FingerprintNormalizesNuGetIdsButRetainsMetadataContent()
+        {
+            var feed = CreateFeed();
+            var files = new[] { "first", "other", "third" }.Select(name => Path.Combine(feed, name + ".nupkg")).ToArray();
+            for (var i = 0; i < files.Length; i++)
+            {
+                var metadata = "package/services/metadata/core-properties/" + i + ".psmdcp";
+                using var archive = ZipFile.Open(files[i], ZipArchiveMode.Create);
+                using (var writer = new StreamWriter(archive.CreateEntry("_rels/.rels").Open()))
+                {
+                    writer.Write("<Relationships><Relationship Id='R" + i + "' Type='core-properties' Target='/" + metadata + "' /></Relationships>");
+                }
+
+                using var content = new StreamWriter(archive.CreateEntry(metadata).Open());
+                content.Write(i == 2 ? "<creator>other</creator>" : "<creator>first</creator>");
+            }
+
+            CollectionAssert.AreEqual(PackageContentFingerprint(files[0]), PackageContentFingerprint(files[1]));
+            Assert.IsFalse(PackageContentFingerprint(files[0]).SequenceEqual(PackageContentFingerprint(files[2])), "NuGet metadata content remains part of reproducibility validation.");
         }
 
         [TestMethod]
@@ -98,6 +176,18 @@ if (attribute.NameMatching != NameMatching.Unspecified)
         }
 
         [TestMethod]
+        public void PublicPackagesPassApiCompatibilityValidation()
+        {
+            var feed = CreateFeed();
+            PackAll(feed);
+            RunDotnet("tool restore", Repository.Root);
+            foreach (var package in new[] { "Mammoth.LiteMapper.Abstractions", "Mammoth.LiteMapper" })
+            {
+                RunDotnet("apicompat package \"" + SinglePackage(feed, package) + "\" --run-api-compat", Repository.Root);
+            }
+        }
+
+        [TestMethod]
         public void NativeAotConsumerPublishesAndRunsWithoutLiteMapperWarnings()
         {
             var feed = CreateFeed();
@@ -108,14 +198,14 @@ if (attribute.NameMatching != NameMatching.Unspecified)
             RunPublishedExecutable(FindPublishDirectory(consumer), "Consumer");
         }
 
-        private static string CreateFeed()
+        internal static string CreateFeed()
         {
             var directory = Path.Combine(Path.GetTempPath(), "MammothLiteMapperPackages", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
             return directory;
         }
 
-        private static void PackAll(string feed)
+        internal static void PackAll(string feed)
         {
             RunDotnet("pack src\\Mammoth.LiteMapper.Abstractions\\Mammoth.LiteMapper.Abstractions.csproj -c Release -o \"" + feed + "\"", Repository.Root);
             RunDotnet("pack src\\Mammoth.LiteMapper.Generator\\Mammoth.LiteMapper.Generator.csproj -c Release -o \"" + feed + "\"", Repository.Root);
@@ -251,16 +341,46 @@ public sealed class NodeTarget
             return packages[0];
         }
 
+        /// <summary>
+        /// Compares every uncompressed payload byte, including symbols and package metadata.
+        /// NuGet-generated relationship IDs and core-property filenames carry no package semantics;
+        /// normalize those identifiers while retaining their targets and metadata content.
+        /// </summary>
         private static string[] PackageContentFingerprint(string package)
         {
             using var archive = ZipFile.OpenRead(package);
             return archive.Entries
-                .Where(static e => e.FullName.StartsWith("lib/", StringComparison.Ordinal) ||
-                    e.FullName.StartsWith("analyzers/", StringComparison.Ordinal) ||
-                    e.FullName.EndsWith(".nuspec", StringComparison.Ordinal))
-                .Select(static e => e.FullName + "|" + e.Length)
+                .Select(static entry =>
+                {
+                    using var content = entry.Open();
+                    if (entry.FullName == "_rels/.rels")
+                    {
+                        var relationships = XDocument.Load(content);
+                        foreach (var relationship in relationships.Root!.Elements())
+                        {
+                            relationship.Attribute("Id")?.Remove();
+                            var target = relationship.Attribute("Target");
+                            if (target != null)
+                            {
+                                target.Value = NormalizePackageEntryName(target.Value);
+                            }
+                        }
+
+                        return entry.FullName + "|" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(relationships.ToString(SaveOptions.DisableFormatting))));
+                    }
+
+                    return NormalizePackageEntryName(entry.FullName) + "|" + Convert.ToHexString(SHA256.HashData(content));
+                })
                 .OrderBy(static e => e, StringComparer.Ordinal)
                 .ToArray();
+        }
+
+        private static string NormalizePackageEntryName(string name)
+        {
+            const string coreProperties = "package/services/metadata/core-properties/";
+            return name.TrimStart('/').StartsWith(coreProperties, StringComparison.Ordinal) && name.EndsWith(".psmdcp", StringComparison.Ordinal)
+                ? coreProperties + "metadata.psmdcp"
+                : name;
         }
 
         private static void RunPublishedExecutable(string directory, string assemblyName)
@@ -284,7 +404,7 @@ public sealed class NodeTarget
             return publishDirectories[0];
         }
 
-        private static void RunDotnet(string arguments, string workingDirectory)
+        internal static void RunDotnet(string arguments, string workingDirectory)
         {
             RunProcess("dotnet", arguments, workingDirectory);
         }
@@ -328,43 +448,20 @@ public sealed class NodeTarget
 
         private static ProcessResult RunProcessCore(string fileName, string arguments, string workingDirectory)
         {
-            using var process = new Process();
-            process.StartInfo.FileName = fileName;
-            process.StartInfo.Arguments = arguments;
-            process.StartInfo.WorkingDirectory = workingDirectory;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.UseShellExecute = false;
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            process.WaitForExit();
-
-            return new ProcessResult(process.ExitCode, output, error);
+            return TestProcess.Run(fileName, arguments, workingDirectory, TimeSpan.FromMinutes(10));
         }
 
         private static void AssertNoLiteMapperWarnings(string output, string error)
         {
-            Assert.IsFalse(output.Contains("IL2", StringComparison.OrdinalIgnoreCase), output);
-            Assert.IsFalse(error.Contains("IL2", StringComparison.OrdinalIgnoreCase), error);
-            Assert.IsFalse(output.Contains("Mammoth.LiteMapper", StringComparison.OrdinalIgnoreCase) && output.Contains("warning", StringComparison.OrdinalIgnoreCase), output);
-            Assert.IsFalse(error.Contains("Mammoth.LiteMapper", StringComparison.OrdinalIgnoreCase) && error.Contains("warning", StringComparison.OrdinalIgnoreCase), error);
-        }
-
-        private sealed class ProcessResult
-        {
-            public ProcessResult(int exitCode, string output, string error)
+            foreach (var text in new[] { output, error })
             {
-                ExitCode = exitCode;
-                Output = output;
-                Error = error;
+                Assert.IsFalse(text.Contains("IL2", StringComparison.OrdinalIgnoreCase), text);
+                Assert.IsFalse(text.Contains("Mammoth.LiteMapper", StringComparison.OrdinalIgnoreCase) &&
+                    text.Split('\n').Any(line =>
+                        !line.Trim().Equals("0 Warning(s)", StringComparison.OrdinalIgnoreCase) &&
+                        line.Contains("warning", StringComparison.OrdinalIgnoreCase)), text);
             }
-
-            public int ExitCode { get; }
-
-            public string Output { get; }
-
-            public string Error { get; }
         }
+
     }
 }

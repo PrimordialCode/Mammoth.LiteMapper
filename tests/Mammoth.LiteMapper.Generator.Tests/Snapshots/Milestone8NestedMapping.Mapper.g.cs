@@ -6,12 +6,12 @@ static partial class Mapper
     {
         var target = new CustomerDto()
         {
-            Address = MapNested_Address_To_AddressDto(source.Address),
+            Address = MapNested_Address_To_AddressDto_BD0141E4(source.Address),
             Name = source.Name
         };
         return target;
     }
-    private static AddressDto MapNested_Address_To_AddressDto(Address source)
+    private static AddressDto MapNested_Address_To_AddressDto_BD0141E4(Address source)
     {
         var target = new AddressDto()
         {

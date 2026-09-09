@@ -114,8 +114,10 @@ public sealed class ItemDto { public int Id { get; set; } }
             AssertNoLiteMapperDiagnostics(result.RunResult);
             var generated = SingleGeneratedSource(result.RunResult);
             StringAssert.Contains(generated, "if (source.Name != null)");
-            StringAssert.Contains(generated, "if (source.Child != null && source.Child.Name != null)");
-            StringAssert.Contains(generated, "target.Items = MapCollection_List_Item_To_List_ItemDto(source.Items);");
+            StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
+                "if \\(source\\.Child\\?\\.Name is \\{ \\} __sourcePath_ChildName_[0-9A-F]{8}\\)"));
+            StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
+                "target\\.Items = MapCollection_List_Item_To_List_ItemDto_[0-9A-F]{8}\\(source\\.Items\\);"));
 
             var assembly = Emit(result.Compilation);
             var source = assembly.CreateInstance("Source")!;
@@ -156,12 +158,12 @@ using Mammoth.LiteMapper;
 [LiteMapper] public static partial class Mapper { public static partial void Bad(Source source, Target target); }
 public sealed class Source { public List<int> Items { get; set; } = new List<int>(); }
 public sealed class Target { public List<int> Items { get; } = new List<int>(); }
-").RunResult, "LITEMAPPER5005");
+").RunResult, "LITEMAPPER4004");
 
             AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;
 [LiteMapper] public static partial class Mapper { public static partial void Bad(int[] source, int[] target); }
-").RunResult, "LITEMAPPER5001");
+").RunResult, "LITEMAPPER4005");
 
             AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;

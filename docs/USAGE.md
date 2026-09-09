@@ -1,14 +1,16 @@
 # Mammoth.LiteMapper Usage
 
-This guide is assembled from compiling sample projects and from the 1.0 implementation tests. The referenced samples are the executable smoke examples; feature-specific snippets use the same public API and syntax covered by the test suite.
+Use Mammoth.LiteMapper to declare compile-time mappings, configure conversions, map collections, and update existing objects.
 
-Validated samples:
+Runnable examples:
 
 - `samples/Mammoth.LiteMapper.Samples.Basic/Program.cs`
 - `samples/Mammoth.LiteMapper.Samples.Collections/Program.cs`
 - `samples/Mammoth.LiteMapper.Samples.AspNetCore/Program.cs`
 
 ## Installation
+
+For coding-agent assistance, use the repository's [mammoth-litemapper skill](../skills/mammoth-litemapper/SKILL.md). See [agent skill installation](../README.md#agent-skill) for the Skills CLI command. Installing the skill does not install the NuGet package in your application.
 
 Normal consumers reference the primary package only:
 
@@ -46,9 +48,32 @@ Supported generated method shapes include new-object mappings, extension-method 
 
 Mapper classes can be top-level or nested; nested mapper classes require every containing type to be partial. Generic mapper classes and generic containing types are not generated in 1.0.
 
+A containing type can also be a partial record, record struct, or interface. For example, `public partial record Container { [LiteMapper] public static partial class Mapper { public static partial Target Map(Source source); } }` keeps the mapper inside `Container`; the mapper itself remains a class.
+
 Instance mappers may use fields, properties, constructor-injected dependencies, and instance converter methods. Static mapper classes may use static converters only.
 
 Ordinary inherited handwritten methods may participate when normal C# accessibility and resolution permit them, but mapper configuration is not inherited implicitly.
+
+Select an accessible base-class converter explicitly:
+
+```csharp
+public class MapperBase
+{
+    protected int Parse(string value) => int.Parse(value) + 1;
+}
+
+public class ParsedSource { public string Value { get; set; } = "12"; }
+public class ParsedTarget { public int Value { get; set; } }
+
+[LiteMapper]
+public partial class ParsedMapper : MapperBase
+{
+    [MapProperty(Source = "Value", Target = "Value", Use = nameof(Parse))]
+    public partial ParsedTarget Map(ParsedSource source);
+}
+```
+
+`new ParsedMapper().Map(new ParsedSource()).Value` is `13`. An instance converter requires an instance mapping method; a private base method is inaccessible.
 
 For a simple new-object mapping:
 
@@ -108,7 +133,7 @@ Public types live in the `Mammoth.LiteMapper` namespace:
 - `MappingOptionsAttribute`: overrides supported options on one mapping method.
 - `LiteMapperDefaultsAttribute`: assembly-level defaults for stable cross-cutting options.
 - `UseMapperAttribute`: registers external static mapper or converter-container types.
-- `DefaultMappingAttribute`: marks one visible default mapping for a source/destination pair.
+- `DefaultMappingAttribute`: selects a default for a source/destination pair within the applicable local or registered external mapping stage.
 - `MappingConverterAttribute`: marks a converter method.
 - `MappingConstructorAttribute`: marks the constructor LiteMapper should select.
 - `MapPropertyAttribute`: configures source path, target member, and converter selection.
@@ -117,6 +142,8 @@ Public types live in the `Mammoth.LiteMapper` namespace:
 - Enums: `NameMatching`, `UnmappedMemberPolicy`, `NullableMismatchPolicy`, `NullCollectionStrategy`, `NumericConversion`, `EnumMappingStrategy`, `EnumNumericConversion`, `UnmatchedEnumValuePolicy`, `ReferenceHandling`, and `OptionState`.
 
 ## Configuration scope and defaults
+
+Configuration enum values are checked by their constant value. For example, `NameMatching = (NameMatching)3` is equivalent to `NameMatching.IgnoreCase` and maps source `value` to target `Value`; named enum members are usually clearer. Undefined values such as `(NameMatching)999` are rejected. Invalid assembly defaults prevent mapper generation for that compilation.
 
 Configuration resolves from the most specific scope to the least specific scope:
 
@@ -143,9 +170,26 @@ public static partial class CustomerMapper
 }
 ```
 
-Library defaults are exact name matching, unmapped members ignored, nullable mismatches reported as errors, null collections reported as errors except where nullable target collections can preserve null, implicit numeric conversion only, explicit operators disabled, enum mapping by name, unmatched enum values reported as errors, no cycle tracker, non-null root source guards disabled, and patch null skipping disabled.
+Library defaults are exact name matching followed by a unique case-insensitive match, ordinary unmapped target members reported as warnings, unmapped source members ignored, nullable mismatches reported as errors, null collections reported as errors except where nullable target collections can preserve null, implicit numeric conversion only, explicit operators disabled, enum mapping by name, unmatched enum values reported as errors, no cycle tracker, non-null root source guards disabled, and patch null skipping disabled. Required and otherwise mandatory target members remain errors as specified in section 6.4.
 
 ## Member matching and unmapped members
+
+Accessible public inherited source members participate, including properties inherited by interfaces:
+
+```csharp
+public interface IBase { int Value { get; } }
+public interface ISource : IBase { }
+public class Data : ISource { public int Value => 3; }
+public class InheritedTarget { public int Value { get; set; } }
+
+[LiteMapper]
+public static partial class InheritedMapper
+{
+    public static partial InheritedTarget Map(ISource source);
+}
+```
+
+`InheritedMapper.Map(new Data()).Value` is `3`. Inherited members also work in configured paths such as `Data.Value` and in ignore/default member names. A shared property reached through diamond interface inheritance remains one member. Unrelated inherited properties with the same name are ambiguous (`LITEMAPPER1004`); a more-derived declaration hides its base member with warning `LITEMAPPER1005`.
 
 By default, LiteMapper maps readable source members to writable or constructible target members by name. Configure name matching and unmapped-member handling on the mapper or on a method:
 
@@ -170,6 +214,17 @@ Useful options:
 Member candidates are public instance properties and fields. Hidden members are resolved to the most-derived usable member, with property-over-field preference when needed.
 
 Source paths in `[MapProperty]` may use dotted member paths such as `"Email.Value"`. Source paths must resolve to members and cannot use method-call syntax. Source methods are not discovered automatically; use a converter or root-source `MapProperty.Use` method when a method-derived value is needed.
+
+Nullable source paths are evaluated once per segment. When an explicit converter is selected, its parameter annotation controls traversal nulls. For example:
+
+```csharp
+[MapProperty(Source = "Address.Code", Target = nameof(Target.Code), Use = nameof(Normalize))]
+public static partial Target Map(Source source);
+
+private static string? Normalize(string? value) => value ?? "missing";
+```
+
+If `Source.Address` is null, `Normalize(null)` is invoked and can return `"missing"`. If `Normalize` instead accepts `string`, `NullableMismatchPolicy.Error` reports `LITEMAPPER2001`; `Throw` checks the full `Address.Code` path before invoking the converter, even when `Target.Code` is nullable.
 
 Target paths are direct members only. Dotted target paths are not supported. Duplicate configuration for the same target or ambiguous configuration reports diagnostics.
 
@@ -212,6 +267,8 @@ Unsupported generated method forms include async methods, generic mapping method
 
 LiteMapper can construct classes, structs, records, and record structs using accessible constructors and object initializers. It supports `init` and `required` members when the target construction path satisfies them.
 
+Read-only fields and properties can receive mapped values through a selected constructor. For example, `Target(int value) { Value = value; }` can initialize `public readonly int Value` from source `Value = 3`. An ordinary unbound read-only value field remains unchanged and follows `UnmappedTargetMembers`; it is never assigned by an object initializer. Required and non-nullable target obligations still apply.
+
 Use `[MappingConstructor]` when one constructor should be selected explicitly:
 
 ```csharp
@@ -229,7 +286,29 @@ public sealed class CustomerDto
 }
 ```
 
-Use `[UseTargetDefault]` when an optional constructor parameter or initializer member should keep its declared target default:
+Constructor arguments also use explicit configuration and converters:
+
+```csharp
+[LiteMapper]
+public static partial class Mapper
+{
+    [MapProperty(Source = nameof(Source.Raw), Target = nameof(Target.Value), Use = nameof(Parse))]
+    public static partial Target Map(Source source);
+
+    private static int Parse(string value) => int.Parse(value);
+}
+
+public class Source { public string Raw { get; set; } = string.Empty; }
+public class Target
+{
+    public Target(int value) { Value = value; }
+    public int Value { get; }
+}
+```
+
+Mapping `new Source { Raw = "12" }` constructs `Target(12)`. Nullability follows the constructor parameter annotation. Recursive constructor arguments participate in cycle detection.
+
+Use `[UseTargetDefault]` to preserve a real default:
 
 ```csharp
 [LiteMapper]
@@ -239,6 +318,8 @@ public static partial class CustomerMapper
     public static partial CustomerDto Map(Customer source);
 }
 ```
+
+For a constructor `Target(int id = 17)` that initializes `Id`, `[UseTargetDefault(nameof(Target.Id))]` omits the argument even if the source contains `Id = 99`; the result keeps `17`. Without the attribute, ordinary matching passes `99`. An initializer alone does not satisfy C# `required`: the selected constructor must carry `SetsRequiredMembers`, or the generated initializer must satisfy the member. Constructor-bound members are not assigned twice.
 
 ## Explicit member configuration
 
@@ -258,6 +339,8 @@ public static partial class CustomerMapper
 ```
 
 Use `[IgnoreTarget]` and `[IgnoreSource]` to suppress specific members while still validating the configured names:
+
+Here `DisplayName` is nullable (`public string? DisplayName { get; set; }`). Ignoring a target does not bypass required/non-nullable member obligations. A constructor may satisfy them; otherwise map the member or approve a real default where C# permits it. Combining `MapProperty` with `IgnoreTarget` or `UseTargetDefault` for the same member reports `LITEMAPPER1008`, regardless of attribute order.
 
 ```csharp
 [LiteMapper]
@@ -279,6 +362,8 @@ Email = source.Email.Value
 
 Use `[MappingConverter]`, `Map{TargetMember}`, or explicit `MapProperty.Use` methods for custom values and conversions:
 
+Eligible generated partial mapping declarations participate automatically. Handwritten local methods require explicit `MapProperty.Use`, `[MappingConverter]`, `[DefaultMapping]`, or the documented `Map{TargetMember}` convention. Other unmarked local methods remain ordinary helpers, even if their signatures match; naming a helper `ToDto` alone does not register it. Explicit `[UseMapper]` registration opts in compatible methods in that external static container. Selected methods must still satisfy signature, accessibility, nullability, and precedence rules.
+
 ```csharp
 [LiteMapper]
 public static partial class CustomerMapper
@@ -294,7 +379,7 @@ public static partial class CustomerMapper
 }
 ```
 
-Use `[DefaultMapping]` when a visible handwritten or generated method should be the default mapping for a source/destination pair:
+Use `[DefaultMapping]` to select among eligible mappings for a source/destination pair within the local mapping stage or registered external mapping stage:
 
 ```csharp
 [DefaultMapping]
@@ -303,6 +388,10 @@ public static CustomerDto ToCustomerDto(Customer source) =>
 ```
 
 Use `[UseMapper]` on a mapper class or assembly to register an external static mapper or converter container:
+
+The container must be non-generic and expose an accessible synchronous mapping or converter with a supported signature. For example, `public static int Parse(string value)` is usable even when another mapping does not need it; `public static void Ping()` alone is not. Supported two-parameter update methods also make a container usable. A missing type or a container without usable methods reports `LITEMAPPER0010`; an existing non-static container reports `LITEMAPPER0011`. Accessibility follows C#: a private converter can be used by a mapper nested in its declaring container.
+
+A handwritten `ref` or `ref readonly` converter result can supply a normal value assignment. For example, copying a returned `ref int` containing `3` into an `int` target keeps the target at `3` when the source later changes to `7`.
 
 ```csharp
 [UseMapper(typeof(SharedConverters))]
@@ -313,13 +402,58 @@ public static partial class CustomerMapper
 }
 ```
 
+Local mapping methods precede registered external converters. A default resolves competing mappings within its stage; it does not override earlier stages. Explicit `MapProperty.Use`, local `[MappingConverter]` methods, and `Map{TargetMember}` methods all precede local mappings.
+
+For example, the local default adds 10 while the registered external converter adds 20:
+
+```csharp
+using Mammoth.LiteMapper;
+
+public class SourceValue { public int Value { get; set; } }
+public class TargetValue { public int Value { get; set; } }
+public class SourceEnvelope { public SourceValue Item { get; set; } = new(); }
+public class TargetEnvelope { public TargetValue Item { get; set; } = new(); }
+
+[LiteMapper]
+[UseMapper(typeof(ExternalConverters))]
+public static partial class EnvelopeMapper
+{
+    public static partial TargetEnvelope Map(SourceEnvelope source);
+
+    [DefaultMapping]
+    private static TargetValue MapDefault(SourceValue source) =>
+        new() { Value = source.Value + 10 };
+}
+
+public static class ExternalConverters
+{
+    [MappingConverter]
+    public static TargetValue Convert(SourceValue source) =>
+        new() { Value = source.Value + 20 };
+}
+```
+
+Calling `EnvelopeMapper.Map(new SourceEnvelope { Item = new SourceValue { Value = 3 } })` returns `Item.Value == 13`. To select the external converter explicitly and obtain `23`, add `[MapProperty(Source = nameof(SourceEnvelope.Item), Target = nameof(TargetEnvelope.Item), Use = nameof(ExternalConverters.Convert), ConverterType = typeof(ExternalConverters))]` to `Map`.
+
+Only one visible mapping for a source/destination pair may carry `[DefaultMapping]`. For example, adding this second local default alongside `MapDefault` reports `LITEMAPPER3002` when the pair is requested:
+
+```csharp
+[DefaultMapping]
+private static TargetValue AnotherDefault(SourceValue source) =>
+    new() { Value = source.Value + 20 };
+```
+
+The same restriction applies when the competing default is in a registered external mapper. Keep one default for the pair, or select an eligible method explicitly with `MapProperty.Use` without duplicate default attributes.
+
 For post-processing, wrap a generated core mapping in a handwritten method:
+
+In this example the non-nullable `DisplayName` has a declared `string.Empty` initializer, explicitly approved for the generated core mapping.
 
 ```csharp
 [LiteMapper]
 public static partial class CustomerMapper
 {
-    [IgnoreTarget(nameof(CustomerDto.DisplayName))]
+    [UseTargetDefault(nameof(CustomerDto.DisplayName))]
     private static partial CustomerDto MapCore(Customer source);
 
     public static CustomerDto Map(Customer source)
@@ -349,7 +483,48 @@ public static partial class InvoiceMapper
 
 `NumericConversion.ImplicitOnly` rejects narrowing numeric conversions. `NumericConversion.Checked` emits checked conversions. `NumericConversion.Unchecked` emits unchecked conversions. String parsing, formatting, `Parse`, `TryParse`, `ToString`, culture-dependent conversion, date/string conversion, and `Guid`/string conversion are not automatic; use a converter.
 
+Numeric and explicit-operator options also apply to a selected converter's result:
+
+```csharp
+public class TextNumber { public string Value { get; set; } = "12"; }
+public class IntNumber { public int Value { get; set; } }
+
+[LiteMapper(NumericConversion = NumericConversion.Checked)]
+public static partial class NumberMapper
+{
+    [MapProperty(Source = "Value", Target = "Value", Use = nameof(ReadNumber))]
+    public static partial IntNumber Map(TextNumber source);
+
+    private static long ReadNumber(string value) => long.Parse(value);
+}
+```
+
+`NumberMapper.Map(new TextNumber()).Value` is `12`. Input `"2147483648"` throws `OverflowException`; changing the policy to `Unchecked` yields `int.MinValue`. The converter runs once per mapped value, and its own exceptions propagate unchanged. Nullable results follow the target nullability before narrowing: `long?` to `int` requires the applicable null policy, while `long?` to `int?` preserves null. A method-level option overrides the mapper-level option.
+
+For example:
+
+```csharp
+[LiteMapper(NumericConversion = NumericConversion.Checked)]
+public static partial class Mapper
+{
+    public static partial byte Checked(int source);
+}
+
+[LiteMapper(NumericConversion = NumericConversion.Checked)]
+public static partial class UncheckedMapper
+{
+    [MappingOptions(NumericConversion = NumericConversion.Unchecked)]
+    public static partial byte Map(int source);
+}
+```
+
+`Mapper.Checked(255)` returns `255`; `Mapper.Checked(256)` throws `OverflowException`. The method override makes `UncheckedMapper.Map(256)` return `0`. Numeric policies also apply to members, collection elements, and dictionary keys/values. Disabled narrowing reports `LITEMAPPER2007`, disabled explicit operators report `LITEMAPPER2006`, and ambiguous language conversions report `LITEMAPPER2005`.
+
+For nullable numeric inputs such as `int?` to `byte`, `NullableMismatchPolicy.Error` reports `LITEMAPPER2001` at a root/member or `LITEMAPPER2003` for an element. With `Throw`, null is checked before conversion: root null throws `ArgumentNullException`; a null member/element throws `InvalidOperationException` identifying its path. The same checks apply when unwrapping `bool?`, `Guid?`, `DateTime?`, enum, and custom-struct nullable values to their underlying types.
+
 ## Nullability and null collections
+
+Nullable boxing follows the same policy as other nullable conversions. For example, `object Map(int? source)` reports `LITEMAPPER2001` under `Error`; under `Throw`, `3` becomes a boxed `int` and null throws `ArgumentNullException`. Mapping `int?[]` to `object[]` reports `LITEMAPPER2003` under `Error` and rejects a null element under `Throw`. Use `object?` or `object?[]` to allow null. Reference annotations that are oblivious under `#nullable disable` do not introduce mismatch diagnostics.
 
 Null behavior is configured with `NullableMismatchPolicy` and `NullCollectionStrategy`:
 
@@ -363,7 +538,27 @@ public static partial class CustomerMapper
 }
 ```
 
-`NullableMismatchPolicy.Error` reports compile-time diagnostics for nullable-to-non-null mappings. `NullableMismatchPolicy.Throw` emits runtime checks for supported paths. `NullCollectionStrategy.Empty` maps null collections to empty target collections; `Preserve` preserves null when legal; `Error` reports unsupported null collection flows.
+`NullableMismatchPolicy.Error` reports compile-time diagnostics for nullable-to-non-null mappings. `NullableMismatchPolicy.Throw` emits runtime checks for supported paths. `NullCollectionStrategy.Empty` maps null collections to empty target collections; `Preserve` preserves null when legal; `Error` reports unsupported null collection flows. These collection rules include null introduced by an intermediate configured path segment. For example, if `Source.Data` is nullable, mapping `Data.Items` to a non-null list is rejected by the contextual default and by `Preserve`; `Empty` creates an empty list.
+
+A converter returning a nullable value also follows the target nullability. For example:
+
+```csharp
+public class ConverterSource { public string Value { get; set; } = string.Empty; }
+public class ConverterTarget { public long Value { get; set; } }
+
+[LiteMapper(NullableMismatch = NullableMismatchPolicy.Throw)]
+public static partial class ValueMapper
+{
+    [MapProperty(Source = nameof(ConverterSource.Value), Target = nameof(ConverterTarget.Value), Use = nameof(ReadValue))]
+    public static partial ConverterTarget Map(ConverterSource source);
+
+    private static int? ReadValue(string value) => value == "missing" ? null : 12;
+}
+```
+
+Mapping `new ConverterSource { Value = "present" }` produces `Value == 12L`. Mapping `Value = "missing"` invokes `ReadValue` once and throws `InvalidOperationException` identifying `Value`. With `NullableMismatchPolicy.Error`, the nullable converter result reports `LITEMAPPER2010`. Changing the target property to `long?` permits the result to remain null instead.
+
+Nullable element types are preserved in arrays, lists, sets, and dictionary values. For patch updates, a `bool?` source value of null leaves an existing `true` target unchanged when `IgnoreNullSourceMembers` is enabled; a subsequent non-null `false` maps normally, for both `bool` and `bool?` targets.
 
 Root source null behavior follows the declared source and return nullability. A non-nullable source parameter rejects nullable input at compile time when visible to analysis. By default, LiteMapper does not emit a runtime guard only because a root source parameter is non-nullable. Enable `GuardNonNullSource` on the mapper or mapping method to emit an `ArgumentNullException` guard for that root source parameter.
 
@@ -398,6 +593,35 @@ Visible handwritten or generated mapping methods for the same nested pair are re
 Nested helpers are closed over the concrete source/destination type pair. Closed generic model types can be mapped when the containing mapper and mapping method are not generic. Nullable nested objects follow the same nullability policy as other members.
 
 For existing-target nested objects, LiteMapper replaces writable nested targets by default. Mutation of an existing nested object requires an explicit compatible existing-target nested mapping method.
+
+For a non-null get-only child, declare its updater alongside the parent update:
+
+```csharp
+public class ChildSource { public int Value { get; set; } }
+public class ChildTarget { public int Value { get; set; } }
+public class ParentSource { public ChildSource Child { get; set; } = new(); }
+public class ParentTarget { public ChildTarget Child { get; } = new(); }
+
+[LiteMapper]
+public static partial class ParentMapper
+{
+    public static partial void Apply(ParentSource source, ParentTarget target);
+    public static partial void ApplyChild(ChildSource source, ChildTarget target);
+}
+```
+
+With source `Child.Value == 3`, `Apply` sets the existing target child's value to `3` and preserves its identity. Without a compatible updater, the get-only child reports `LITEMAPPER5005`.
+
+For a writable non-null child, select the updater explicitly with `[MapProperty(Source = nameof(Source.Child), Target = nameof(Target.Child), Use = nameof(ApplyChild))]`. With `void ApplyChild(ChildSource source, ChildTarget target)`, source value `3` updates the original child to `3` and preserves its identity. Without explicit updater selection, writable children use replacement by default.
+
+Omitting `Source` in `[MapProperty(Target = nameof(Target.Child), Use = nameof(ApplyChild))]` passes the root source to `void ApplyChild(Source source, ChildTarget target)`. No source member named `Child` is required: the updater can copy root `Value == 3` into `target.Child.Value`.
+
+Patch mode also applies to nested updater calls. If `source.Child` is null and `IgnoreNullSourceMembers` is enabled, the updater is skipped and the existing target child remains unchanged. With the default mismatch policy, passing a nullable child to a non-null updater parameter reports `LITEMAPPER2001`; `Throw` raises `InvalidOperationException` whose message includes the `Child` path.
+
+A destination-returning updater can create a nullable writable child. For example, `ChildTarget ApplyChild(ChildSource source, ChildTarget? target)` may return a new child; the parent mapping assigns that return value. A nullable get-only child cannot store such a replacement and reports `LITEMAPPER5005`.
+
+For registered external child updaters, class-level `[UseMapper]` registration precedes assembly-level registration. For example, if the class-registered updater adds `20` and the assembly-registered updater adds `10`, source value `3` produces `23`. Two equally eligible updaters in the same registration scope without a unique default report `LITEMAPPER3001`.
+When explicitly selecting an overloaded nested updater with `MapProperty.Use`, identity source compatibility wins. For example, for a `ChildSource` member, `Chosen(ChildSource source, ChildTarget target)` wins over `Chosen(object source, ChildTarget target)`. If the selected overload adds `10`, source value `3` becomes target value `13`.
 
 Generated structural nested mappings use private helper methods, for example:
 
@@ -435,13 +659,24 @@ Supported collection mapping includes:
 
 LiteMapper enumerates arbitrary enumerable sources once. Capacity is preallocated only when cheap count or length information is available. Comparers are preserved for compatible set and dictionary shapes. Unsupported shapes include custom collections, immutable collections, queues, stacks, and rectangular multidimensional arrays.
 
+For array results from sources without a cheap, reliable count, mapping uses an O(n) temporary growing buffer and then creates the final array. It does not count by enumerating first, and each element is converted once. Counted sources allocate their final array directly. The same rule applies to interfaces whose concrete result is an array.
+
 Public collection mappings are allowed when the declared mapping method itself maps one supported collection shape to another supported collection shape:
 
 ```csharp
 public static partial List<CustomerDto> MapCustomers(Customer[] source);
 ```
 
-Interface target defaults use ordinary mutable implementations, such as `List<T>` for list/sequence interfaces, `HashSet<T>` for set interfaces, and `Dictionary<TKey, TValue>` for dictionary interfaces. Ordering is preserved for sequence mappings. Sets and dictionaries use normal destination semantics. Collection mappings produce a mutable copy; existing-target mappings replace collection members rather than mutating them in place.
+Interface target defaults follow specification section 15.3:
+
+| Declared target | Concrete result |
+|---|---|
+| `IEnumerable<T>`, `IReadOnlyCollection<T>`, `IReadOnlyList<T>` | `T[]` |
+| `ICollection<T>`, `IList<T>` | `List<T>` |
+| `ISet<T>`, `IReadOnlySet<T>` (when available) | `HashSet<T>` |
+| `IDictionary<TKey, TValue>`, `IReadOnlyDictionary<TKey, TValue>` | `Dictionary<TKey, TValue>` |
+
+These defaults also apply to nested collection members and empty results under `NullCollectionStrategy.Empty`. Ordering is preserved for sequence mappings. Sets and dictionaries use normal destination semantics. Collection mappings produce a mutable copy; read-only interfaces do not imply immutable objects. Existing-target mappings replace collection members rather than mutating them in place.
 
 For collection copies, generated code is a normal allocation plus one enumeration:
 
@@ -486,7 +721,35 @@ public static partial class CustomerPatchMapper
 
 Existing-target mappings replace collection members rather than applying partial collection updates. `init` members are not assigned during updates.
 
-Null destination parameters throw at runtime. Destination-returning update methods return the same destination instance after mutation. Struct destination updates use `ref` destination parameters.
+For the non-nullable destination signatures above, null destination arguments throw at runtime. Destination-returning update methods return the same destination instance after mutation. Struct destination updates use `ref` destination parameters.
+
+A nullable destination parameter permits construction when the caller passes null. The method must return the destination, and its constructor arguments must be mappable:
+
+```csharp
+public class UpdateSource { public int Value { get; set; } }
+
+public class UpdateTarget
+{
+    public UpdateTarget(int value) { Value = value; }
+    public int Value { get; set; }
+}
+
+[LiteMapper]
+public static partial class UpdateMapper
+{
+    public static partial UpdateTarget Update(UpdateSource source, UpdateTarget? destination);
+}
+```
+
+```csharp
+var created = UpdateMapper.Update(new UpdateSource { Value = 12 }, null);
+// created.Value is 12, supplied through UpdateTarget(int value).
+
+var updated = UpdateMapper.Update(new UpdateSource { Value = 17 }, created);
+// updated.Value is 17; ReferenceEquals(created, updated) is true.
+```
+
+When constructing the replacement, constructor-bound members are not assigned a second time. When updating an existing destination, its writable members are assigned normally.
 
 Generated existing-target mappings mutate the supplied destination:
 
@@ -531,6 +794,28 @@ public static partial class StatusMapper
 
 `EnumMappingStrategy.ByName` emits deterministic name-based mapping. `EnumMappingStrategy.ByValue` uses numeric conversion controlled by `EnumNumericConversion.Checked` or `Unchecked`; for example, set `EnumNumericConversion = EnumNumericConversion.Checked` to reject numeric overflow. `[Flags]` enum composites are supported for valid atomic flag mappings. Use custom converters when enum semantics are domain-specific.
 
+Nullable enum mappings preserve the configured enum strategy:
+
+Under `EnumNumericConversion.Unchecked`, a declared value of `300` in a `long`-backed source enum maps to `44` in a `byte`-backed target enum. Checked conversion retains overflow validation. The same numeric policy applies to unmatched names using `UnmatchedEnumValuePolicy.ByValue`.
+
+For flags, a source composite such as `Both = Read | Write` can map without a target member named `Both`: if target `Read = 4` and `Write = 8`, the result is `12`. A matching target composite must agree with those mapped atoms: `Both = 12` is valid, while `Both = 16` reports `LITEMAPPER7002` and prevents generation of that mapping. Signed high-bit flags are supported; unknown source bits still throw. Ordinary source aliases must each resolve under the selected unmatched-name policy to the same target numeric value. For example, source aliases `Known = 1` and `Alias = 1` can map to target `Known = 9` and `Alias = 9`.
+
+```csharp
+public enum From { None = 0, Ready = 1 }
+public enum To { None = 0, Ready = 9 }
+
+[LiteMapper]
+public static partial class NullableStatusMapper
+{
+    public static partial To? Map(From? source);
+}
+
+// NullableStatusMapper.Map(From.Ready) == To.Ready (numeric value 9)
+// NullableStatusMapper.Map(null) == null
+```
+
+The same name matching and null preservation apply to members and collection elements. A nullable source targeting a non-null enum follows `Error` or `Throw`; unknown numeric values still throw `ArgumentOutOfRangeException` under by-name mapping. Patch mappings with `IgnoreNullSourceMembers` preserve the existing enum value when the source is null.
+
 ## Recursive mappings and cycle detection
 
 From `samples/Mammoth.LiteMapper.Samples.Basic/Program.cs`:
@@ -545,25 +830,9 @@ public static partial class CycleMapper
 
 `ReferenceHandling.ThrowOnCycle` enables generated cycle tracking for recursive type graphs. A detected cycle throws `LiteMapperCycleException`. Non-recursive mappings do not allocate cycle-tracker state.
 
-`LiteMapperCycleException` exposes the mapping method, `SourcePath`, and `DestinationPath` for the detected active-path cycle.
+`LiteMapperCycleException` exposes `SourceType`, `DestinationType`, `MappingMethod`, and `MemberPath` for the detected active-path cycle. It does not expose `SourcePath` or `DestinationPath` properties.
 
-Generated recursive mappings wrap nested traversal with tracker enter/exit calls instead of using runtime graph scanning:
-
-```csharp
-if (!__tracker.Enter(source, "source", "target"))
-{
-    throw new LiteMapperCycleException(...);
-}
-
-try
-{
-    target.Next = MapNested_NodeSource_To_NodeTarget(source.Next, __tracker);
-}
-finally
-{
-    __tracker.Exit(source);
-}
-```
+Recursive components may pass through value types and declared mapping methods. For example, an `A -> B -> A` graph mapped by declared `MapA` and `MapB` methods uses one tracker; a cycle reports `MapA` and member path `B.A`. A class-to-struct-to-class path forwards the tracker through the struct without tracking or boxing the struct itself.
 
 ## Unsupported and special types
 
@@ -571,17 +840,40 @@ Interfaces and abstract classes are not automatically constructed as destination
 
 `object` to a concrete destination requires an explicitly selected converter; LiteMapper does not generate runtime type dispatch. `dynamic` mapping is not generated. Ref-like types such as `Span<T>` and `ReadOnlySpan<T>`, pointer types, and function-pointer types require handwritten code when legal C# allows it.
 
-Tuples and `ValueTuple` shapes are not treated as structural object mappings. Use handwritten methods or converters for tuple-oriented APIs.
+Tuple-to-tuple mapping uses C# `ValueTuple` values positionally when arity matches and each element is convertible. Names do not participate:
+
+```csharp
+[LiteMapper]
+public static partial class TupleMapper
+{
+    public static partial (long Id, string Label) Map((int Number, string Text) source);
+}
+
+var mapped = TupleMapper.Map((Number: 7, Text: "seven"));
+// mapped.Id == 7L; mapped.Label == "seven"
+```
+
+Automatic tuple-to-object and object-to-tuple structural mapping is unsupported and reports `LITEMAPPER2004`. Use an explicit converter or handwritten mapping for those boundaries.
 
 ## Generated code, trimming, and Native AOT
 
 Generated mappings use direct C# constructs: constructors, assignments, loops, casts, and ordinary method calls. Supported generated paths use zero runtime reflection, no runtime type scanning, no dynamic dispatch, no runtime code generation, and no runtime mapper registry.
 
-The package layout keeps the generator and Roslyn assemblies out of consumer runtime output. Package-consumer validation covers trimming and Native AOT, including static mapping, instance mapping, nested collections, and cycle detection.
+The generator and Roslyn assemblies are build-time dependencies and are not copied to consumer runtime output. Mappings can be used in trimmed and Native AOT applications.
+
+For example, publish a console application using generated mappings with:
+
+```sh
+dotnet publish -c Release -p:PublishAot=true -p:TreatWarningsAsErrors=true
+```
+
+Native AOT requires the platform's native build tools. On Linux, install Clang and the zlib development package; on Windows, run from an MSVC developer environment with the C++ linker available. A missing linker prevents publishing even when the generated mappings compile successfully.
 
 ## Package and platform support
 
-Shipping assemblies target `netstandard2.0`. Supported consumer projects are tested for `netstandard2.0`, `net8.0`, `net9.0`, and `net10.0`, with a C# 9 minimum language version. The generator uses the Roslyn 4.8.0 API baseline and is delivered as an analyzer asset.
+Shipping assemblies target `netstandard2.0`. Consumer targets are `netstandard2.0`, `net8.0`, `net9.0`, and `net10.0`, with a C# 9 minimum language version. Use a compiler host compatible with Roslyn 4.8.0 or later. The generator is delivered as an analyzer asset.
+
+Windows and Linux are supported. A `netstandard2.0` library runs inside an application targeting a compatible runtime; for example, a .NET 10 console application can reference and execute its generated mappings.
 
 The primary `Mammoth.LiteMapper` package is the normal install path. `Mammoth.LiteMapper.Generator` is the generator implementation package and is not the normal consumer install route.
 
@@ -597,21 +889,33 @@ LiteMapper_TreatInternalGeneratorErrorsAsExceptions
 
 These options must not change mapping semantics.
 
+Unexpected mapper validation, planning, or rendering failures normally produce one sanitized `LITEMAPPER9001` at that mapper while unrelated mappers continue. `LiteMapper_TreatInternalGeneratorErrorsAsExceptions=true` exposes the original exception through the compiler's generator-failure reporting for development and tests. Exception details can contain local paths; remove sensitive details before sharing a report.
+
 ## Diagnostics
 
 LiteMapper reports compile-time diagnostics for unsupported declarations, invalid configuration, and unsupported mapping shapes. Diagnostic IDs are stable once introduced.
 
+A fatal error in one mapping method leaves that method unimplemented while independent valid methods in the same mapper still generate. Invalid mapper-wide configuration suppresses that mapper's generated methods. Unrelated mapper classes continue generating. Correct the reported errors before building the consumer successfully.
+
 Diagnostics are either configurable severity diagnostics, such as unmapped-member policy diagnostics, or non-configurable hard semantic errors, such as invalid declarations, unsupported shapes, ambiguous mappings, invalid converters, and generator internal failures. Diagnostics are reported at the most specific source location available, such as the mapping method or attribute argument.
 
-Implemented diagnostic ranges:
+Mapping declarations must be synchronous. For example, `public static async partial Target Map(Source source);` reports `LITEMAPPER0006`; declare `public static partial Target Map(Source source);` instead. Perform any asynchronous work before calling the mapper. Task-returning mapping methods and asynchronous converters are unsupported.
+
+Ordinary unmapped source and target members honor `Ignore`, `Info`, `Warning`, and `Error` exactly. With source checking enabled through `UnmappedSourceMembers`, standard `.editorconfig` overrides apply to `LITEMAPPER1003`; target overrides apply to `LITEMAPPER1001`. An ordinary diagnostic reported as an error still leaves the valid generated implementation available, so downgrading or suppressing it does not create a missing partial method. Unsatisfied required or non-nullable target members remain hard `LITEMAPPER1002` errors, including members with unapproved initializers; use `UseTargetDefault` to approve a real default.
+
+Configuration errors include `LITEMAPPER1006` for an invalid source path, `1007` for a dotted target, `1008` for duplicate target mapping, `1014` for a missing requested default, and `1015` for an invalid ignored member. Selected converter signatures use `2009`, converter ambiguity uses `2011`, get-only collection updates use `4004`, and existing-target arrays use `4005`.
+
+A nullable reference or value result from a converter cannot satisfy a non-null target under `NullableMismatchPolicy.Error` and reports `LITEMAPPER2010`. Under `Throw`, the converter is invoked once and a null result throws `InvalidOperationException` naming the target path. Duplicate visible defaults for the requested pair report `LITEMAPPER3002`; an inaccessible or incompatible default reports `LITEMAPPER3003` instead of silently selecting another mapping. Unsupported generated member types such as `dynamic`, pointers, function pointers, or ref-like structural members report `LITEMAPPER2008`; use an explicit handwritten converter where legal C# permits the conversion.
+
+Diagnostic families:
 
 - `LITEMAPPER0001` through `LITEMAPPER0013`: mapper declaration and configuration diagnostics.
-- `LITEMAPPER1001` through `LITEMAPPER1014`: construction and member mapping diagnostics.
-- `LITEMAPPER2001` through `LITEMAPPER2012`: nullability, source-path, conversion, and nested mapping diagnostics.
+- `LITEMAPPER1001` through `LITEMAPPER1016`: construction, member mapping, and source-path diagnostics.
+- `LITEMAPPER2001` through `LITEMAPPER2012`: nullability, conversion, and unsupported generated-type diagnostics.
 - `LITEMAPPER3001` through `LITEMAPPER3005`: nested mapping diagnostics.
-- `LITEMAPPER4001` through `LITEMAPPER4006`: collection diagnostics.
+- `LITEMAPPER4001`, `LITEMAPPER4002`, and `LITEMAPPER4004` through `LITEMAPPER4006`: collection diagnostics.
 - `LITEMAPPER5001` through `LITEMAPPER5006`: existing-target mapping diagnostics.
-- `LITEMAPPER6001` through `LITEMAPPER6003`: recursive mapping diagnostics.
+- `LITEMAPPER6001`: recursive mapping diagnostics.
 - `LITEMAPPER7001` through `LITEMAPPER7005`: enum mapping diagnostics.
 - `LITEMAPPER9001`: internal generator error diagnostic.
 

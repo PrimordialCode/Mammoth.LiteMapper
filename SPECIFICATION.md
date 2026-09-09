@@ -1121,16 +1121,15 @@ For each target value, LiteMapper MUST resolve mapping in this exact order:
 2. explicit source path selection, completing immediately when directly assignable and otherwise continuing through the remaining conversion stages with the selected source value;
 3. local method marked `[MappingConverter]`;
 4. local `Map{TargetMember}` member converter;
-5. explicit local mapping method;
+5. explicit local mapping method, including eligible local default mappings;
 6. explicitly registered external converter;
-7. explicitly registered external mapping method;
-8. mapping marked `[DefaultMapping]` for the source/destination pair;
-9. identity or implicit C# conversion;
-10. enabled explicit operator or numeric conversion policy;
-11. enum conversion policy;
-12. collection mapping;
-13. generated private structural nested mapping;
-14. diagnostic for unresolved or ambiguous mapping.
+7. explicitly registered external mapping method, including eligible external default mappings;
+8. identity or implicit C# conversion;
+9. enabled explicit operator or numeric conversion policy;
+10. enum conversion policy;
+11. collection mapping;
+12. generated private structural nested mapping;
+13. diagnostic for unresolved or ambiguous mapping.
 
 Explicit user intent MUST outrank language and structural convenience.
 
@@ -1140,11 +1139,15 @@ Multiple mappings with the same source and destination types are allowed.
 
 Exactly one MAY be marked `[DefaultMapping]` within a visible resolution scope.
 
-When nested mapping requires a source/destination pair:
+`[DefaultMapping]` selects among mapping methods within the local mapping stage or the registered external mapping stage currently being considered. It does not create a separate precedence stage or override an earlier stage. The visible-scope restriction on duplicate defaults and the registration precedence in section 11.5 still apply.
 
-- use the unique default mapping when present;
-- use a unique mapping when only one visible mapping exists;
-- report ambiguity when multiple mappings exist and none is the unique default.
+When resolution reaches either mapping-method stage for a source/destination pair:
+
+- use the unique default mapping in that stage when present;
+- use a unique mapping when only one eligible mapping exists in that stage;
+- report ambiguity when multiple mappings exist in that stage and none is the unique default.
+
+For example, a local default mapping that returns `source.Value + 10` precedes a registered external converter returning `source.Value + 20`. For source value `3`, the result is `13`. An explicit `MapProperty.Use` selection still takes precedence over both.
 
 ### 11.3 Converter discovery
 
@@ -1156,6 +1159,10 @@ Eligible custom converters are:
 - methods marked `[MappingConverter]`;
 - methods named `Map{TargetMember}` for a specific target member;
 - explicit mapping methods used according to the resolution hierarchy.
+
+Eligible user-declared bodyless partial mapping methods participate automatically. Handwritten local methods participate only when explicitly selected by `MapProperty.Use`, marked `[MappingConverter]` or `[DefaultMapping]`, or matched by the `Map{TargetMember}` convention. Other unmarked local methods remain ordinary helpers regardless of their accessibility or whether their parameter and result types are scalar or structural. Method names other than the documented member convention MUST NOT imply eligibility.
+
+Explicit `[UseMapper]` registration opts in compatible methods from that static external container, including unmarked handwritten mapping methods. Every selected method must still satisfy the signature, accessibility, nullability, and resolution rules. These eligibility rules do not change the precedence in sections 11.1 and 11.2.
 
 ### 11.4 Converter signatures
 
@@ -1172,6 +1179,15 @@ Static mapper classes may use static converters only.
 Instance mapper classes may use static or instance converters and MAY access their own fields and dependencies.
 
 A converter selected for a normal source member receives that member value.
+
+When a configured source path can produce null because any path segment is nullable,
+converter-parameter nullability governs the boundary. A converter with a nullable
+source parameter MUST receive null when traversal encounters null. A converter with
+a non-null source parameter MUST follow the effective `NullableMismatch` policy:
+`Error` reports `LITEMAPPER2001` and omits the invalid implementation; `Throw`
+checks the complete configured path before invoking the converter and preserves the
+member path in the exception message. This rule also applies when the destination
+type is nullable.
 
 A converter selected by a `MapProperty` with omitted `Source` receives the complete root source object.
 
@@ -1277,6 +1293,8 @@ An emitted root-source null check MAY use `ArgumentNullException.ThrowIfNull` on
 
 By-name mapping MUST match declared enum member names exactly.
 
+For flags, named composite members MUST also satisfy the atomic consistency rule in section 13.4.
+
 The effective `UnmatchedEnumValuePolicy` controls declared source members that have no target name:
 
 - `Error`: generation fails when any required declared source member lacks a target name;
@@ -1310,6 +1328,7 @@ For `[Flags]` enums mapped by name:
 
 - every atomic non-zero source flag MUST have a matching target flag;
 - declared composite aliases need not have matching names when their atomic components all map consistently;
+- when a declared composite has a matching target name, that target member's numeric value MUST equal the bitwise OR of the mapped atomic target flags; otherwise generation MUST report `LITEMAPPER7002` and omit the invalid implementation;
 - zero is handled by the zero-member rule;
 - runtime values MUST be decomposed and reconstructed without losing unmatched bits;
 - values containing unknown bits MUST throw.
@@ -1866,7 +1885,6 @@ The implementation MUST define and test at least the following stable diagnostic
 |---|---:|---|---|
 | `LITEMAPPER4001` | Error, non-configurable | UnsupportedCollectionShape | Collection shape is outside 1.0 support. |
 | `LITEMAPPER4002` | Error, non-configurable | RectangularArrayNotSupported | Mapping uses a multidimensional rectangular array. |
-| `LITEMAPPER4003` | Error, non-configurable | CollectionTargetCannotBeConstructed | No legal concrete destination collection can be created. |
 | `LITEMAPPER4004` | Error, non-configurable | GetOnlyCollectionUpdateNotSupported | Update targets a get-only collection. |
 | `LITEMAPPER4005` | Error, non-configurable | TopLevelArrayUpdateNotSupported | Existing-target array mapping was declared. |
 | `LITEMAPPER4006` | Error, non-configurable | CustomCollectionNotSupported | Custom collection convention would be required. |
@@ -1887,15 +1905,13 @@ The implementation MUST define and test at least the following stable diagnostic
 | ID | Default severity | Name | Meaning |
 |---|---:|---|---|
 | `LITEMAPPER6001` | Info | RecursiveMappingWithoutCycleDetection | Recursive type graph uses `ReferenceHandling.None`. |
-| `LITEMAPPER6002` | Error, non-configurable | InvalidReferenceHandling | Reference handling is unsupported for the declared mapping. |
-| `LITEMAPPER6003` | Error, non-configurable | CyclePathCannotBeTracked | Required recursive path cannot use reference identity. |
 
 #### Enum diagnostics
 
 | ID | Default severity | Name | Meaning |
 |---|---:|---|---|
 | `LITEMAPPER7001` | Error, non-configurable | EnumMemberNotMapped | Source enum member has no target mapping. |
-| `LITEMAPPER7002` | Error, non-configurable | EnumAliasConflict | Aliases map inconsistently. |
+| `LITEMAPPER7002` | Error, non-configurable | EnumAliasConflict | Aliases map inconsistently, or a named composite flag disagrees with its mapped atomic flags. |
 | `LITEMAPPER7003` | Error, non-configurable | EnumZeroMemberNotMapped | Required zero member has no match. |
 | `LITEMAPPER7004` | Error, non-configurable | EnumFlagNotMapped | Atomic flag has no target match. |
 | `LITEMAPPER7005` | Error, non-configurable | EnumValueOverflow | By-value mapping cannot fit destination underlying type. |
@@ -2256,6 +2272,8 @@ Expected allocations are:
 | Non-recursive mapping | no tracker allocation |
 | Recursive `ThrowOnCycle` | one tracker state plus required active-path entries |
 
+For array materialization from an enumerable without a cheap, reliable count, temporary buffering and its backing-storage growth are permitted with O(n) total temporary storage and allocation, where n is the source element count. This exception also applies to the array-backed interface destinations in section 15.3. The source MUST still be enumerated exactly once, and every element MUST be converted exactly once. Preliminary enumeration to count the source remains forbidden. When a cheap, reliable count is available, generated code MUST allocate the final array directly instead of using temporary buffering. This exception permits no unrelated mapping overhead and MUST be represented in allocation benchmarks and usage documentation.
+
 User converters may allocate independently.
 
 ### 23.4 Regression policy
@@ -2546,10 +2564,9 @@ resolveValue(sourceValue, targetType, targetMember):
     otherwise continue with that selected source value
     try local MappingConverter
     try local Map{TargetMember}
-    try explicit local mapping method
+    try explicit local mapping method, selecting the unique default within this stage
     try registered external converter
-    try registered external mapping method
-    try default mapping
+    try registered external mapping method, selecting the unique default within this stage
     try identity or implicit C# conversion
     try enabled explicit operator / numeric policy
     try enum strategy

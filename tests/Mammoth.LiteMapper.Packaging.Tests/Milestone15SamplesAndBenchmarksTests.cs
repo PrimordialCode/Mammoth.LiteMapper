@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Mammoth.LiteMapper.Packaging.Tests
@@ -32,37 +31,10 @@ namespace Mammoth.LiteMapper.Packaging.Tests
 
         private static ProcessResult RunDotnet(string arguments, string workingDirectory)
         {
-            using var process = new Process();
-            process.StartInfo.FileName = "dotnet";
-            process.StartInfo.Arguments = arguments;
-            process.StartInfo.WorkingDirectory = workingDirectory;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.UseShellExecute = false;
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            if (!process.WaitForExit(60000))
-            {
-                process.Kill(entireProcessTree: true);
-                Assert.Fail("dotnet " + arguments + " timed out.");
-            }
-
-            Assert.AreEqual(0, process.ExitCode, "dotnet " + arguments + Environment.NewLine + output + Environment.NewLine + error);
-            return new ProcessResult(output, error);
+            var result = TestProcess.Run("dotnet", arguments, workingDirectory, TimeSpan.FromSeconds(60));
+            Assert.AreEqual(0, result.ExitCode, "dotnet " + arguments + Environment.NewLine + result.Output + Environment.NewLine + result.Error);
+            return result;
         }
 
-        private sealed class ProcessResult
-        {
-            public ProcessResult(string output, string error)
-            {
-                Output = output;
-                Error = error;
-            }
-
-            public string Output { get; }
-
-            public string Error { get; }
-        }
     }
 }

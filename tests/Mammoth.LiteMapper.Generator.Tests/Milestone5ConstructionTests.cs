@@ -57,11 +57,11 @@ using Mammoth.LiteMapper;
 
 [LiteMapper]
 public static partial class Mapper { public static partial Target ToTarget(Source source); }
-public sealed class Source { public int Id { get; set; } public int Other { get; set; } }
+public sealed class Source { public int Id { get; set; } public string Other { get; set; } = string.Empty; }
 public sealed class Target
 {
     public Target(int id) { }
-    public Target(int other) { }
+    public Target(string other) { }
 }
 ").RunResult, "LITEMAPPER1011");
 
@@ -137,10 +137,27 @@ public readonly record struct PointStruct(int X, int Y);
             StringAssert.Contains(generated, "Name = source.Name");
             StringAssert.Contains(generated, "new PersonRecord(Id: source.Id)");
             StringAssert.Contains(generated, "new PointStruct(X: source.X, Y: source.Y)");
+            var assembly = Emit(result.Compilation);
+            var source = assembly.CreateInstance("Source")!;
+            source.GetType().GetProperty("Id")!.SetValue(source, 3);
+            source.GetType().GetProperty("Name")!.SetValue(source, "Ada");
+            source.GetType().GetProperty("X")!.SetValue(source, 4);
+            source.GetType().GetProperty("Y")!.SetValue(source, 5);
+            var mapper = assembly.GetType("Mapper")!;
+            var target = mapper.GetMethod("ToTarget")!.Invoke(null, new[] { source })!;
+            Assert.AreEqual(3, target.GetType().GetProperty("Id")!.GetValue(target));
+            Assert.AreEqual(9, target.GetType().GetProperty("Optional")!.GetValue(target));
+            Assert.AreEqual("Ada", target.GetType().GetProperty("Name")!.GetValue(target));
+            var record = mapper.GetMethod("ToRecord")!.Invoke(null, new[] { source })!;
+            Assert.AreEqual(3, record.GetType().GetProperty("Id")!.GetValue(record));
+            Assert.AreEqual("Ada", record.GetType().GetProperty("Name")!.GetValue(record));
+            var point = mapper.GetMethod("ToStruct")!.Invoke(null, new[] { source })!;
+            Assert.AreEqual(4, point.GetType().GetProperty("X")!.GetValue(point));
+            Assert.AreEqual(5, point.GetType().GetProperty("Y")!.GetValue(point));
         }
 
         [TestMethod]
-        public void RequiredReadOnlyMembersRequireConstructorBindingUnlessConstructorSetsRequiredMembers()
+        public void RequiredMembersNeedSatisfactionUnlessConstructorSetsRequiredMembers()
         {
             AssertDiagnostic(RunGenerator(@"
 using Mammoth.LiteMapper;
@@ -148,7 +165,7 @@ using Mammoth.LiteMapper;
 [LiteMapper]
 public static partial class Mapper { public static partial Target ToTarget(Source source); }
 public sealed class Source { }
-public sealed class Target { public required string Name { get; } }
+public sealed class Target { public required string Name { get; init; } }
 ").RunResult, "LITEMAPPER1002");
 
             var result = RunGenerator(@"
@@ -162,11 +179,14 @@ public sealed class Target
 {
     [SetsRequiredMembers]
     public Target() { Name = ""set""; }
-    public required string Name { get; }
+    public required string Name { get; init; }
 }
 ");
 
             AssertNoLiteMapperDiagnostics(result.RunResult);
+            var assembly = Emit(result.Compilation);
+            var target = assembly.GetType("Mapper")!.GetMethod("ToTarget")!.Invoke(null, new[] { assembly.CreateInstance("Source") })!;
+            Assert.AreEqual("set", target.GetType().GetProperty("Name")!.GetValue(target));
         }
 
         [TestMethod]
@@ -192,6 +212,105 @@ public sealed class Source { public int Id { get; set; } }
 
             AssertNoLiteMapperDiagnostics(result.RunResult);
             StringAssert.Contains(SingleGeneratedSource(result.RunResult), "new Target()");
+            var assembly = Emit(result.Compilation);
+            var source = assembly.CreateInstance("Source")!;
+            source.GetType().GetProperty("Id")!.SetValue(source, 3);
+            var target = assembly.GetType("Target+Mapper")!.GetMethod("ToTarget")!.Invoke(null, new[] { source })!;
+            Assert.AreEqual(3, target.GetType().GetProperty("Id")!.GetValue(target));
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void ConstructorSelectionUsesGreatestArityUnlessExplicitlyMarked(bool marked)
+        {
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+[LiteMapper] public static partial class Mapper { public static partial Target Map(Source source); }
+public class Source { public int Id { get; set; } public string Name { get; set; } = string.Empty; }
+public class Target
+{
+    public static int Selected;
+    " + (marked ? "[MappingConstructor]" : string.Empty) + @" public Target(int id) { Id = id; Selected = 1; }
+    public Target(int id, string name) { Id = id; Selected = 2; }
+    public int Id { get; }
+}
+public static class Probe { public static bool Run() => Mapper.Map(new Source { Id = 3, Name = ""Ada"" }).Id == 3 && Target.Selected == " + (marked ? "1" : "2") + "; }");
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            Assert.AreEqual(true, Emit(result.Compilation).GetType("Probe")!.GetMethod("Run")!.Invoke(null, null));
+        }
+
+        [TestMethod]
+        public void ReadOnlyFieldsAreInitializedThroughTheSelectedConstructor()
+        {
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+[LiteMapper] public static partial class Mapper { public static partial Target Map(Source source); }
+public class Source { public int Value { get; set; } }
+public class Target { public Target(int value) { Value = value; } public readonly int Value; }
+public static class Probe { public static bool Run() => Mapper.Map(new Source { Value = 3 }).Value == 3; }");
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            Assert.AreEqual(true, Emit(result.Compilation).GetType("Probe")!.GetMethod("Run")!.Invoke(null, null));
+        }
+
+        [TestMethod]
+        [DataRow("Error")]
+        [DataRow("Warning")]
+        [DataRow("Ignore")]
+        public void UnboundReadOnlyFieldCannotReceiveAnAssignment(string policy)
+        {
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+[LiteMapper(UnmappedTargetMembers = UnmappedMemberPolicy." + policy + @")] public static partial class Mapper { public static partial Target Map(Source source); }
+public class Source { public int Value { get; set; } }
+public class Target { public readonly int Value; }
+");
+            if (policy != "Ignore")
+            {
+                AssertDiagnostic(result.RunResult, "LITEMAPPER1001");
+                Assert.AreEqual(policy == "Error" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
+                    result.RunResult.Diagnostics.Single(d => d.Id == "LITEMAPPER1001").Severity);
+            }
+            else
+            {
+                AssertNoLiteMapperDiagnostics(result.RunResult);
+            }
+            // Ordinary configurable diagnostics retain legal generated code, including when configured as errors.
+            var assembly = Emit(result.Compilation);
+            var source = assembly.CreateInstance("Source")!;
+            source.GetType().GetProperty("Value")!.SetValue(source, 3);
+            var target = assembly.GetType("Mapper")!.GetMethod("Map")!.Invoke(null, new[] { source })!;
+            Assert.AreEqual(0, target.GetType().GetField("Value")!.GetValue(target), "An ordinary unbound read-only field must retain its value.");
+        }
+
+        [TestMethod]
+        public void NestedUnboundReadOnlyFieldUsesTargetPolicy()
+        {
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+[LiteMapper(UnmappedTargetMembers = UnmappedMemberPolicy.Error)] public static partial class Mapper { public static partial Target Map(Source source); }
+public class Source { public ChildSource Child { get; set; } = new ChildSource(); }
+public class Target { public ChildTarget Child { get; set; } = new ChildTarget(); }
+public class ChildSource { public int Value { get; set; } }
+public class ChildTarget { public readonly int Value; }");
+            AssertDiagnostic(result.RunResult, "LITEMAPPER1001");
+            Emit(result.Compilation);
+        }
+
+        [TestMethod]
+        public void AccessibleRecordCopyConstructorDoesNotCompeteWithMappingConstruction()
+        {
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+public partial record Target(int Value)
+{
+    protected Target(Target original) { Value = original.Value + 100; }
+    [LiteMapper] public static partial class Mapper { public static partial Target Map(Source source); }
+}
+public class Source { public int Value { get; set; } public Target Original { get; set; } = new Target(7); }
+public static class Probe { public static bool Run() => Target.Mapper.Map(new Source { Value = 3 }).Value == 3; }");
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            Assert.AreEqual(true, Emit(result.Compilation).GetType("Probe")!.GetMethod("Run")!.Invoke(null, null));
         }
 
         private static string SingleGeneratedSource(GeneratorDriverRunResult result)
@@ -214,6 +333,8 @@ public sealed class Source { public int Id { get; set; } }
         private static GeneratorRun RunGenerator(string source, LanguageVersion languageVersion = LanguageVersion.CSharp11)
         {
             var compilation = CreateCompilation(source, languageVersion);
+            var inputErrors = compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error && d.Id != "CS8795").ToArray();
+            Assert.AreEqual(0, inputErrors.Length, "Invalid construction fixture: " + string.Join(Environment.NewLine, inputErrors.Select(d => d.ToString())));
             GeneratorDriver driver = CSharpGeneratorDriver.Create(
                 new[] { new Mammoth.LiteMapper.Generator.LiteMapperGenerator().AsSourceGenerator() },
                 parseOptions: CSharpParseOptions.Default.WithLanguageVersion(languageVersion),

@@ -121,7 +121,8 @@ public sealed class Target
 
             AssertDiagnostic(result.RunResult, "LITEMAPPER1001");
             AssertDiagnostic(result.RunResult, "LITEMAPPER1003");
-            Assert.AreEqual(0, result.RunResult.GeneratedTrees.Length);
+            Assert.AreEqual(1, result.RunResult.GeneratedTrees.Length,
+                "Ordinary unmapped diagnostics must remain configurable without removing a valid partial implementation.");
         }
 
         [TestMethod]
