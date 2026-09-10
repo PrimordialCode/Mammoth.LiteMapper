@@ -15,7 +15,7 @@ Consumers declare partial mapping methods on classes marked with `[LiteMapper]`.
 Install the primary package:
 
 ```xml
-<PackageReference Include="Mammoth.LiteMapper" Version="1.0.0" />
+<PackageReference Include="Mammoth.LiteMapper" />
 ```
 
 Declare a mapper:

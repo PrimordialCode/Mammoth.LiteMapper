@@ -3,6 +3,7 @@
   "public_key": "pk_IUhRG2JcUGR0weBdXCgQ3",
   "projectTitle": "Mammoth.LiteMapper",
   "description": "A convention-first, compile-time object mapping library for C# using a Roslyn incremental source generator.",
+  "branch": "main",
   "folders": [
     "src",
     "docs",
