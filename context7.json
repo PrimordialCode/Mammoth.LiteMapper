@@ -1,0 +1,42 @@
+{
+  "url": "https://context7.com/primordialcode/mammoth.litemapper",
+  "public_key": "pk_IUhRG2JcUGR0weBdXCgQ3",
+  "projectTitle": "Mammoth.LiteMapper",
+  "description": "A convention-first, compile-time object mapping library for C# using a Roslyn incremental source generator.",
+  "folders": [
+    "src",
+    "docs",
+    "samples",
+    "skills"
+  ],
+  "excludeFolders": [
+    ".git",
+    ".codex",
+    ".agents",
+    ".tokensave",
+    ".vs",
+    "tests",
+    "benchmarks",
+    "artifacts",
+    "BenchmarkDotNet.Artifacts",
+    "bin",
+    "obj"
+  ],
+  "excludeFiles": [
+    "CHANGELOG.md",
+    "IMPLEMENTATION_PLAN.md",
+    "DECISIONS.md",
+    "STATUS.md",
+    "PERFORMANCE_OPTIMIZATION_NOTES.md",
+    "CONFORMANCE_REVIEW.md",
+    "HANDOFF.md",
+    "WORK_LEDGER.md"
+  ],
+  "rules": [
+    "Treat SPECIFICATION.md as the sole authoritative mapper specification and normative product contract.",
+    "Use docs/USAGE.md as the consumer-facing usage guide for practical examples, while keeping it subordinate to SPECIFICATION.md.",
+    "When the specification and usage guide differ, follow SPECIFICATION.md and do not infer undocumented behavior from examples.",
+    "Use only documented and implemented Mammoth.LiteMapper APIs; do not infer unsupported runtime reflection, runtime scanning, dynamic dispatch, or runtime code generation.",
+    "Prefer compile-time source-generator mapping examples targeting the supported C# and .NET configurations."
+  ]
+}
