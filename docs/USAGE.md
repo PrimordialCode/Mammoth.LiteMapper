@@ -15,7 +15,7 @@ For coding-agent assistance, use the repository's [mammoth-litemapper skill](../
 Normal consumers reference the primary package only:
 
 ```xml
-<PackageReference Include="Mammoth.LiteMapper" Version="1.0.0" />
+<PackageReference Include="Mammoth.LiteMapper" />
 ```
 
 `Mammoth.LiteMapper.Abstractions` is pulled in as a dependency and contains the public attributes, enums, and `LiteMapperCycleException`. The generator is included as an analyzer asset and is not a runtime dependency.
