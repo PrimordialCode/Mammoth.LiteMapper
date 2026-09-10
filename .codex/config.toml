@@ -1,0 +1,36 @@
+# Keep Codex sandboxed while allowing it to modify files inside the repository.
+sandbox_mode = "workspace-write"
+
+# Ask for approval only when an operation needs permissions beyond the
+# configured sandbox.
+approval_policy = "on-request"
+
+[sandbox_workspace_write]
+
+# Allow commands running inside the sandbox to access the network.
+# Required by `dotnet restore` when NuGet needs packages or audit metadata
+# that are not already cached locally.
+network_access = true
+
+# Allow NuGet to write to its normal per-user locations.
+#
+# ~/.nuget
+#   Contains the standard global package cache:
+#   %USERPROFILE%\.nuget\packages
+#
+# ~/AppData/Local/NuGet
+#   Contains NuGet HTTP/cache data, including:
+#   %LOCALAPPDATA%\NuGet\v3-cache
+#
+# Keeping these standard locations allows packages and metadata to be shared
+# between repositories and Git worktrees.
+writable_roots = [
+    "~/.nuget",
+    "~/AppData/Local/NuGet"
+]
+
+# Use the current Windows sandbox implementation.
+# Setup requires administrator elevation, but commands still run
+# inside restricted sandbox identities.
+[windows]
+sandbox = "elevated"

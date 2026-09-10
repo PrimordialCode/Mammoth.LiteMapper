@@ -149,9 +149,54 @@ You may add verified repository-specific operational guidance, including exact b
 
 Do not remove, weaken, or reinterpret the user-authored normative rules in this file without explicit approval.
 
-## Compilation
+## .NET restore, build and test
 
-Compile, run and test dotnet projects outside the sandbox due to NuGet package restore issues.
+Run restore explicitly when required:
+
+```bash
+dotnet restore
+```
+
+Restore is required for a fresh checkout/worktree or after dependency-related changes such as:
+
+- `PackageReference` changes
+- package version changes
+- target framework changes
+- NuGet configuration changes
+- missing or stale restore assets
+
+After a successful restore, avoid implicit restores.
+
+Build with:
+
+```bash
+dotnet build --no-restore
+```
+
+If the code has already been successfully built, test with:
+
+```bash
+dotnet test --no-build --no-restore
+```
+
+If a rebuild is required:
+
+```bash
+dotnet build --no-restore
+dotnet test --no-build --no-restore
+```
+
+If the application has already been built, run with:
+
+```bash
+dotnet run --no-build
+```
+
+Prefer the smallest relevant project or test subset first. Run broader tests when appropriate before considering the task complete.
+
+Do not repeatedly run `dotnet restore` unless dependency-related inputs have changed.
+
+If restore fails because NuGet cannot access a package source, treat it as a network or sandbox issue first. Do not modify package references merely to work around sandbox restrictions.
 
 ## Milestone execution
 
