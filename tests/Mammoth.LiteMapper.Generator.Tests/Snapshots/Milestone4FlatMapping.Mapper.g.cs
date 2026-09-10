@@ -2,6 +2,7 @@
 #nullable enable
 static partial class Mapper
 {
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public static partial Target ToTarget(Source source)
     {
         var target = new Target()

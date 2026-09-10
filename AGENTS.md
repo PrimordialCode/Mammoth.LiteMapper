@@ -137,7 +137,7 @@ Keep these files current as required by the specification.
 
 ## Usage guide synchronization
 
-`docs/USAGE.md` MUST remain synchronized with `SPECIFICATION.md`, compiling samples, tests, and other project documents.
+`docs/USAGE.md` is the consumer usage guide, it MUST remain synchronized with `SPECIFICATION.md`, compiling samples, tests, and other project documents.
 
 Whenever library usage, public API behavior, diagnostics, package layout, supported platforms, samples, or documented validation changes, update `docs/USAGE.md` in the same change so it stays accurate.
 
@@ -148,6 +148,10 @@ Whenever library usage, public API behavior, diagnostics, package layout, suppor
 You may add verified repository-specific operational guidance, including exact build, test, packaging, formatting, and benchmark commands.
 
 Do not remove, weaken, or reinterpret the user-authored normative rules in this file without explicit approval.
+
+## Compilation
+
+Compile, run and test dotnet projects outside the sandbox due to NuGet package restore issues.
 
 ## Milestone execution
 

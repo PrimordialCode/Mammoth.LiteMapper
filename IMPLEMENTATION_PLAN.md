@@ -1,6 +1,6 @@
 # Mammoth.LiteMapper Implementation Plan
 
-Current execution state (2026-09-09): W01 through W10 are complete for local review and validation. Final configured-path/default-resolution regressions are green, all three Roslyn hosts pass 535 tests, the Windows solution passes 602 tests with one linker-prerequisite AOT skip, and required Linux Native AOT passes 1/1. The affinity-pinned Medium performance comparison passes all five scenarios with unchanged allocation and no review-threshold regression. Remote CI remains unexecuted.
+Current execution state (2026-09-10): W01 through W10 remain complete for local review and validation. The approved Milestone 13 flat-mapping optimization is also complete: all three Roslyn hosts pass 540 tests, the Windows solution passes 607 tests with one linker-prerequisite AOT skip, and required Linux Native AOT passes 1/1. Current paired disassembly shows generated LiteMapper code inlined into one 70-byte method versus 73 bytes for manual code, with means of 4.465 ns and 4.307 ns and identical 40-byte allocation. Remote CI remains unexecuted.
 
 PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, and regression-tested. All milestone and dated checkpoint sections below are historical planning and revision-specific evidence; their pending-work statements are superseded by the current execution state above.
 
@@ -9,6 +9,14 @@ PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, 
 Performance evidence (CV-007): the17 existing cases were extended with three acyclic nested-graph cases (manual/default/ThrowOnCycle) and12 recursive cases (manual/generated, tracking off/on, depths1/16/128). Setup verifies equivalent outputs before timing. Baseline and candidate were compared on the same machine with the same affinity-pinned harness and pinned dependencies. Local release tag1.0.0 resolves to2df99925bc38638acc8352f904f8cc69facbad96. Different or invalid behavior is not treated as a comparable performance baseline.
 
 Comparison handling covers missing cases, environment/configuration mismatch, allocations, and statistical throughput loss. Section23.4 uses throughput:100ns to121ns is a17.36% loss, requiring review if significant; it is not a greater-than20% blocking result. Any allocation increase blocks unless explicitly approved/documented. The accepted affinity-pinned Medium artifacts are under `artifacts/performance/controlled-20260909`; the comparison script reports five passing scenarios.
+
+## Milestone 13 inline follow-up (2026-09-10)
+
+- Objective: remove the extra call observed between the benchmark wrapper and a small generated flat mapping without changing mapping semantics or public API.
+- Test-first: `InliningOptimizationTests.SmallStraightLineRootMappingUsesAggressiveInlining` failed because the generated method had no inline hint. A capability regression then failed with `CS0122` before accessibility checks were added. The final five-test fixture proves generated-source compilation and excludes guarded, collection, nullable-path, tracking, constructor-bound, helper-based, update, and inaccessible/inexact-capability cases.
+- Implementation: emit `MethodImplOptions.AggressiveInlining` only for root new-object mappings whose assignments are all direct member copies and only when the exact attribute constructor and enum field exist in the compilation. Nullable/guarded roots, reference tracking, constructor arguments, preconditions, helpers, collections, updates, and custom bodies remain unannotated.
+- Validation: related focused tests pass 15/15; Roslyn 4.8/4.14/5.9 pass 540 each; Windows solution passes 607 with one Native AOT prerequisite skip; isolated Linux Native AOT passes 1/1. The current paired Medium run reports Manual 4.307 ns/73 bytes and LiteMapper 4.465 ns/70 bytes, both allocating 40 bytes.
+- Documentation: no consumer API or behavior changed. `docs/USAGE.md` and the consumer skill remain unchanged after alignment review and skill validation.
 
 ## Milestone 1: repository, solution, package, and CI skeleton
 

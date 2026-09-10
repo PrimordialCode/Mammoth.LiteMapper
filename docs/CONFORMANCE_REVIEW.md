@@ -4,7 +4,7 @@
 
 ## Scope and evidence
 
-- Review completed locally: 2026-09-09. Final generator suites pass 535 tests on each Windows Roslyn 4.8/4.14/5.9 host. The Windows solution passes 602 tests with one linker-prerequisite Native AOT skip; required isolated Linux Native AOT passes 1/1. Controlled affinity-pinned performance passes five scenarios. Remote CI remains unexecuted.
+- Review completed locally: 2026-09-10. Final generator suites pass 540 tests on each Windows Roslyn 4.8/4.14/5.9 host. The Windows solution passes 607 tests with one linker-prerequisite Native AOT skip; required isolated Linux Native AOT passes 1/1. The prior five-scenario controlled comparison remains valid, and current paired disassembly proves the optimized flat mapper is inlined. Remote CI remains unexecuted.
 - A sections 1-30 static audit and final targeted re-audits are complete. Concrete findings were converted into failing MSTest regressions before repair. STATUS records exact revision boundaries and TRX evidence.
 - The generator, diagnostic catalogue, generator declaration/capability tests, package-consumer tests, benchmark harness, project settings, and active `.github/workflows/ci.yml` were inspected. File line references below identify the inspected revision and may move during fixes.
 - TokenSave status/context was consulted initially; current files were used to verify findings. Context7 did not identify a matching Mammoth.LiteMapper library, so unrelated library documentation was not used.
@@ -75,9 +75,9 @@ The invalid self-containing struct fixture was replaced with legal class-to-stru
 | ID | Contract | Current evidence and missing proof |
 |---|---|---|
 | CV-003 | 22.5/22.17/29: consumer framework matrix | All12 clean-package combinations passed on Windows and Linux: netstandard2.0/net8/net9/net10 with C#9/14/latest, matching runtime execution and local package source mapping. Linux retry packaging56 passes includes the matrix after warning-helper repair. SDK/runtime/TRX evidence is in artifacts/validation/linux-20260909-cr016. Remote CI remains unexecuted. |
-| CV-004 | 22.6/22.7/29: language and Roslyn matrices | Final current Windows generator535 tests pass on Roslyn4.8/4.14/5.9, zero failures/skips; default4.8 restored. Earlier Linux host/consumer matrices passed on their recorded revision, and current required Linux Native AOT passes. CI configuration exists but remote runs remain unexecuted. |
-| CV-007 | 23.1/23.3/23.4/29: benchmark acceptance | Resolved locally. The 32-scenario harness and comparison-policy tests are present. The final back-to-back affinity-pinned Medium artifacts compare five flat scenarios: Manual 4.2054 ns to 4.1690 ns (-0.87%), LiteMapper 4.8502 ns to 4.8219 ns (-0.58%), unchanged 40-byte allocation; the comparison script passes all five. |
-| CV-009 | 20.2/22.9-22.16/29: complete behavior/diagnostic coverage | Resolved by the sections 1-30 audit, red-first feature/diagnostic units, final 535-test host suites, and targeted re-audits. Descriptor existence or milestone labels alone were not used as proof. |
+| CV-004 | 22.6/22.7/29: language and Roslyn matrices | Final current Windows generator540 tests pass on Roslyn4.8/4.14/5.9, zero failures/skips; default4.8 restored. Earlier Linux host/consumer matrices passed on their recorded revision, and current required Linux Native AOT passes. CI configuration exists but remote runs remain unexecuted. |
+| CV-007 | 23.1/23.3/23.4/29: benchmark acceptance | Resolved locally. The 32-scenario harness and comparison-policy tests are present, and the accepted five-scenario comparison remains recorded under `artifacts/performance/controlled-20260909`. The 2026-09-10 flat follow-up changes the measured Manual/LiteMapper pair from the earlier 4.1690/4.8219 ns gap to 4.307/4.465 ns; allocation remains 40 bytes, and disassembly is one 70-byte LiteMapper method versus 73 bytes manual. |
+| CV-009 | 20.2/22.9-22.16/29: complete behavior/diagnostic coverage | Resolved by the sections 1-30 audit, red-first feature/diagnostic units, final 540-test host suites, and targeted re-audits. Descriptor existence or milestone labels alone were not used as proof. |
 
 ## Historical evidence inventory, superseded by final validation
 

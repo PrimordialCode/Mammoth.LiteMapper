@@ -342,6 +342,16 @@
 - Specification references: 6.4, 6.5, 10.3, 12.1-12.5, 20.2.
 - Evidence: 21 mandatory-target cases and 13 numeric/operator cases pass after failing regressions. This does not approve alternate semantics or close constructor/general-nullable/precedence findings in the conformance ledger.
 
+### DEC-0037
+
+- Date: 2026-09-10
+- Milestone: 13
+- Status: Accepted non-semantic optimization
+- Context: The flat-object benchmark showed an extra generated mapper call: the unoptimized LiteMapper path compiled as a 10-byte wrapper tail-jump plus a separate 69-byte mapping method, while equivalent handwritten code compiled as one 73-byte method.
+- Decision: When the compilation exposes the exact public `MethodImplAttribute(MethodImplOptions)` constructor and the constant `MethodImplOptions.AggressiveInlining` field, annotate only root new-object mappings made entirely of direct member copies. Exclude nullable or guarded roots, reference tracking, constructor arguments, preconditions, generated helpers, collections, updates, and custom bodies. Let the JIT make the final inlining decision instead of imposing a target-framework or member-count heuristic.
+- Specification references: 2.2, 19.9, 23.2, 23.3, 23.4, 24.4.
+- Evidence: The positive regression failed before implementation because the attribute was absent; a later capability regression failed with `CS0122` before accessibility checks were tightened. Five optimization cases and the related Milestone 4/13 suites pass 15/15; Roslyn 4.8/4.14/5.9 each pass 540 tests. Current .NET 10 disassembly is one 70-byte LiteMapper benchmark method with no mapper call, compared with 73 bytes for manual code. The paired means are 4.465 ns and 4.307 ns with 40 bytes allocated by both.
+
 ### Pause checkpoint: implementation evidence (2026-09-08)
 
 - No new normative decision. Existing approved contracts now have regression-backed handling of duplicate defaults across visible local/external scopes, nullable value converter results before implicit widening, unsupported member types, and ref-like updates. A handwritten Span member converter remains supported.

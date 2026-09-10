@@ -582,7 +582,11 @@ namespace Mammoth.LiteMapper.Generator
                     usedSources.Add(conversion.SourceMember);
                 }
 
-                assignments.Add(new AssignmentModel(targetMember.Name, conversion.Expression));
+                var directMemberExpression = conversion.SourceMember == null
+                    ? null
+                    : EscapeIdentifier(method.Parameters[0].Name) + "." + EscapeIdentifier(conversion.SourceMember.Name);
+                assignments.Add(new AssignmentModel(targetMember.Name, conversion.Expression,
+                    isDirectMemberCopy: string.Equals(conversion.Expression, directMemberExpression, StringComparison.Ordinal)));
             }
 
             if (options.UnmappedSourceMembers != UnmappedMemberPolicyIgnore)
@@ -593,7 +597,17 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, options.GuardNonNullSource, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null);
+            var emitAggressiveInlining = HasAggressiveInlining(compilation) &&
+                !sourceNullable &&
+                !options.GuardNonNullSource &&
+                options.ReferenceHandling == ReferenceHandlingNone &&
+                construction != null &&
+                construction.Arguments.Length == 0 &&
+                preconditions.Count == 0 &&
+                helpers.Count == 0 &&
+                assignments.Count != 0 &&
+                assignments.All(static assignment => assignment.IsDirectMemberCopy);
+            return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, options.GuardNonNullSource, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null, emitAggressiveInlining: emitAggressiveInlining);
         }
 
         private static MappingModel CreateUpdateMappingModel(IMethodSymbol method, Compilation compilation, List<Diagnostic> diagnostics)
@@ -2333,6 +2347,36 @@ namespace Mammoth.LiteMapper.Generator
                 SymbolEqualityComparer.Default.Equals(array.ElementType, method.TypeParameters[0]));
         }
 
+        private static bool HasAggressiveInlining(Compilation compilation)
+        {
+            var attributeType = compilation.GetTypeByMetadataName("System.Runtime.CompilerServices.MethodImplAttribute");
+            var optionsType = compilation.GetTypeByMetadataName("System.Runtime.CompilerServices.MethodImplOptions");
+            var systemAttributeType = compilation.GetTypeByMetadataName("System.Attribute");
+            if (attributeType == null ||
+                optionsType == null ||
+                systemAttributeType == null ||
+                attributeType.DeclaredAccessibility != Accessibility.Public ||
+                attributeType.TypeKind != TypeKind.Class ||
+                attributeType.IsAbstract ||
+                !SymbolEqualityComparer.Default.Equals(attributeType.BaseType, systemAttributeType) ||
+                optionsType.DeclaredAccessibility != Accessibility.Public ||
+                optionsType.TypeKind != TypeKind.Enum)
+            {
+                return false;
+            }
+
+            var hasConstructor = attributeType.InstanceConstructors.Any(constructor =>
+                constructor.DeclaredAccessibility == Accessibility.Public &&
+                constructor.Parameters.Length == 1 &&
+                SymbolEqualityComparer.Default.Equals(constructor.Parameters[0].Type, optionsType));
+            var hasOption = optionsType.GetMembers("AggressiveInlining").OfType<IFieldSymbol>().Any(field =>
+                field.DeclaredAccessibility == Accessibility.Public &&
+                field.IsStatic &&
+                field.HasConstantValue &&
+                SymbolEqualityComparer.Default.Equals(field.Type, optionsType));
+            return hasConstructor && hasOption;
+        }
+
         private static bool CanPreserveComparer(CollectionShape sourceShape, CollectionShape targetShape, ITypeSymbol sourceType, ITypeSymbol targetType)
         {
             if (sourceShape.Kind != targetShape.Kind || sourceShape.Kind != CollectionKind.Set && sourceShape.Kind != CollectionKind.Dictionary)
@@ -3759,6 +3803,11 @@ namespace Mammoth.LiteMapper.Generator
             var targetLocal = CreateUniqueIdentifier(method, "target", trackerLocal, memberPathLocal, destinationCreatedLocal);
             var trackedHelper = mapping.HelperName != null && recursiveHelperNames.Contains(mapping.HelperName);
             var trackedPublicEntry = mapping.HelperName == null && mapping.ReferenceHandling == ReferenceHandlingThrowOnCycle && recursiveHelperNames.Count != 0;
+            if (mapping.EmitAggressiveInlining)
+            {
+                builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+            }
+
             builder.Append("    ");
             builder.Append(mapping.HelperName == null ? ToAccessibility(method.DeclaredAccessibility) : "private");
             builder.Append(' ');
@@ -4323,7 +4372,7 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class MappingModel
         {
-            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, string referenceHandling, bool guardNonNullSource, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments, ImmutableArray<MappingModel> helpers, string? helperName, ITypeSymbol? helperSourceType, ITypeSymbol? helperTargetType, string? customBody, bool isUpdate = false, IParameterSymbol? destinationParameter = null, bool destinationNullable = false, bool isDeclaredCore = false)
+            public MappingModel(IMethodSymbol method, bool sourceNullable, bool returnNullable, string nullableMismatch, string referenceHandling, bool guardNonNullSource, ConstructionModel? construction, ImmutableArray<PreconditionModel> preconditions, ImmutableArray<AssignmentModel> assignments, ImmutableArray<MappingModel> helpers, string? helperName, ITypeSymbol? helperSourceType, ITypeSymbol? helperTargetType, string? customBody, bool isUpdate = false, IParameterSymbol? destinationParameter = null, bool destinationNullable = false, bool isDeclaredCore = false, bool emitAggressiveInlining = false)
             {
                 Method = method;
                 SourceNullable = sourceNullable;
@@ -4343,6 +4392,7 @@ namespace Mammoth.LiteMapper.Generator
                 DestinationParameter = destinationParameter;
                 DestinationNullable = destinationNullable;
                 IsDeclaredCore = isDeclaredCore;
+                EmitAggressiveInlining = emitAggressiveInlining;
             }
 
             public IMethodSymbol Method { get; }
@@ -4380,6 +4430,8 @@ namespace Mammoth.LiteMapper.Generator
             public bool DestinationNullable { get; }
 
             public bool IsDeclaredCore { get; }
+
+            public bool EmitAggressiveInlining { get; }
         }
 
         private sealed class ConstructionModel
@@ -4419,7 +4471,7 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class AssignmentModel
         {
-            public AssignmentModel(string targetName, string expression, string? guard = null, bool initializeDuringConstruction = false, bool isStatement = false, string? initializationExpression = null)
+            public AssignmentModel(string targetName, string expression, string? guard = null, bool initializeDuringConstruction = false, bool isStatement = false, string? initializationExpression = null, bool isDirectMemberCopy = false)
             {
                 TargetName = targetName;
                 Expression = expression;
@@ -4427,6 +4479,7 @@ namespace Mammoth.LiteMapper.Generator
                 InitializeDuringConstruction = initializeDuringConstruction;
                 IsStatement = isStatement;
                 InitializationExpression = initializationExpression ?? expression;
+                IsDirectMemberCopy = isDirectMemberCopy;
             }
 
             public string TargetName { get; }
@@ -4440,6 +4493,8 @@ namespace Mammoth.LiteMapper.Generator
             public bool IsStatement { get; }
 
             public string InitializationExpression { get; }
+
+            public bool IsDirectMemberCopy { get; }
         }
 
         private sealed class PreconditionModel

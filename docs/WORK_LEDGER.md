@@ -19,7 +19,19 @@ Each repair requires valid-input failing tests, minimal implementation, focused 
 | W09 | Documentation/skill reconciliation; scoped | W06/W08 | Complete | Consumer-only USAGE retained; decisions/plan/status/review/skill synchronized. |
 | W10 | Final integrated validation; verify | W01–W09 | Complete locally | Three Roslyn hosts, full Windows suite with 12 consumers, and required Linux Native AOT passed; one Windows linker-prerequisite skip recorded. |
 
-Final integrated checkpoint: 535 generator tests pass on each Roslyn 4.8/4.14/5.9 host. The Windows solution passes 602 with one Native AOT prerequisite skip; Linux Native AOT passes 1/1. The controlled affinity-pinned comparison passes five scenarios. Final read-only subagent checks found no remaining configured-path/nested defect and accepted the exact/fallback default-pair correction.
+Final integrated checkpoint: 540 generator tests pass on each Roslyn 4.8/4.14/5.9 host. The Windows solution passes 607 with one Native AOT prerequisite skip; Linux Native AOT passes 1/1. The controlled five-scenario comparison remains accepted, and the current flat pair confirms the inline optimization. Final read-only subagent checks found no remaining configured-path/nested defect and accepted the exact/fallback default-pair correction.
+
+## Inline optimization delegation (2026-09-10)
+
+Three agents were sufficient because contract verification, regression authoring, and consumer-skill alignment were independent. Root retained `LiteMapperGenerator.cs`, existing snapshots, all commands, integration, and documentation.
+
+| Agent | Class | Model/effort/fork | Ownership and accepted result |
+|---|---|---|---|
+| `/root/inline_contract_verifier` | verify | gpt-5.6-terra / medium / none | Read-only specification and final acceptance review; found no normative ambiguity and accepted the bounded direct-root predicate, exact capability fallback, and expanded exclusions. |
+| `/root/inline_regression_author` | scoped | gpt-5.6-luna / medium / none | Created only `InliningOptimizationTests.cs`; root corrected fixture mechanics, then retained the red-first positive case and added guarded/collection controls. |
+| `/root/inline_skill_auditor` | scan | gpt-5.6-luna / low / none | Read-only comparison of library, usage, and skill; found no consumer-visible mismatch and recommended no implementation-detail edit. |
+
+Acceptance: the valid positive case and exact-capability case each failed before their fixes; focused tests pass 15/15, including create-map nullable-path control flow; each Roslyn host passes 540/540 in the final3 runs. The sandboxed final3 integration attempt failed 11 packaging child restores at the blocked NuGet boundary; the unrestricted rerun passes 607 with one linker-prerequisite skip. Linux Native AOT passes 1/1 without skip. Current paired disassembly reports Manual 4.307 ns/73 bytes and LiteMapper 4.465 ns/70 bytes with 40-byte allocation for both. Skill validation passes unchanged.
 
 The ten planned packages were an estimate of known work; later regressions expanded them. Historical checkpoints below retain their original incomplete-state wording and revision boundaries.
 
