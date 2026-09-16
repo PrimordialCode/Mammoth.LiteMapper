@@ -39,7 +39,7 @@ Assembly-level defaults and `[UseMapper]` registrations are compile-time inputs 
 
 An explicit `Use = nameof(Parse)` can select an accessible inherited handwritten converter, following normal C# member lookup. For example, a protected base `int Parse(string value) => int.Parse(value) + 1` maps `"12"` to `13`. Instance converters require an instance mapping method; private base methods are inaccessible. Mapper configuration is not implicitly inherited.
 
-Register only non-generic static containers exposing an accessible supported synchronous converter or mapping, including two-parameter updates. A container with `int Parse(string value)` is usable even for unrelated mapping pairs; one with only `void Ping()` reports `LITEMAPPER0010`. Missing types also report0010, while existing non-static containers report0011. Normal C# accessibility permits private converters from a nested mapper; assembly registration does not make inaccessible methods callable.
+Register static containers, including closed constructed generic types, exposing an accessible supported synchronous converter or mapping, including two-parameter updates. A container with `int Parse(string value)` is usable even for unrelated mapping pairs; one with only `void Ping()` reports `LITEMAPPER0010`. Unbound generic containers and generic methods are unsupported. Missing types also report0010, while existing non-static containers report0011. Normal C# accessibility permits private converters from a nested mapper; assembly registration does not make inaccessible methods callable.
 
 Handwritten `ref`/`ref readonly` converter results may be copied into ordinary value targets: copying3 and then changing the source to7 leaves the target3.
 

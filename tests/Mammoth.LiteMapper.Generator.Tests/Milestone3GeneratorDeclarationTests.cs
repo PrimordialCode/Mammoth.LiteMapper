@@ -24,7 +24,7 @@ namespace Mammoth.LiteMapper.Generator.Tests
         [TestMethod]
         public void ValidStaticAndInstanceMappersProduceDeterministicDeclarationSources()
         {
-            var result = RunGenerator(@"
+            var compilation = CreateCompilation(@"
 using Mammoth.LiteMapper;
 
 [LiteMapper]
@@ -42,7 +42,13 @@ internal sealed partial class InstanceMapper
 public sealed class Source { }
 public sealed class Target { }
 ");
+            AssertNoUnexpectedInputErrors(compilation);
+            var driver = CreateDriver().RunGeneratorsAndUpdateCompilation(compilation, out var updatedCompilation, out var generatorDiagnostics);
+            var result = driver.GetRunResult();
 
+            Assert.AreEqual(0, generatorDiagnostics.Length, string.Join(Environment.NewLine, generatorDiagnostics.Select(static diagnostic => diagnostic.ToString())));
+            Assert.AreEqual(0, updatedCompilation.GetDiagnostics().Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
+                string.Join(Environment.NewLine, updatedCompilation.GetDiagnostics().Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Select(static diagnostic => diagnostic.ToString())));
             AssertNoLiteMapperDiagnostics(result);
             Assert.AreEqual(2, result.GeneratedTrees.Length);
             var sources = result.GeneratedTrees.OrderBy(static tree => tree.FilePath, StringComparer.Ordinal).ToArray();
@@ -96,16 +102,49 @@ public static partial class Mapper
         public void InvalidMappingMethodsReportDeclarationDiagnostics()
         {
             AssertDiagnostic("LITEMAPPER0005", "[LiteMapper] public static partial class Mapper { public static partial void Map(Source source); } public sealed class Source { }");
-            AssertDiagnostic("LITEMAPPER0006", "[LiteMapper] public static partial class Mapper { public static async partial Target Map(Source source); } public sealed class Source { } public sealed class Target { }");
-            AssertDiagnostic("LITEMAPPER0007", "[LiteMapper] public static partial class Mapper { protected static partial Target Map(Source source); } public sealed class Source { } public sealed class Target { }");
+            AssertDiagnostic("LITEMAPPER0006", "[LiteMapper] public static partial class Mapper { public static async partial System.Threading.Tasks.Task<Target> Map(Source source); } public sealed class Source { } public sealed class Target { }");
+            AssertDiagnostic("LITEMAPPER0007", "[LiteMapper] public partial class Mapper { protected partial Target Map(Source source); } public sealed class Source { } public sealed class Target { }");
             AssertDiagnostic("LITEMAPPER0005", "[LiteMapper] public static partial class Mapper { public static partial Target Map<T>(Source source); } public sealed class Source { } public sealed class Target { }");
             AssertDiagnostic("LITEMAPPER0005", "[LiteMapper] public static partial class Mapper { public static partial Target Map(ref Source source); } public sealed class Source { } public sealed class Target { }");
         }
 
         [TestMethod]
-        [DataRow("Target")]
+        public void LegalUnsupportedSignatureFixturesReportStableDiagnosticsWithoutHidingCompilerErrors()
+        {
+            var source = @"using Mammoth.LiteMapper;
+[LiteMapper]
+public partial class Mapper
+{
+    protected partial Target Protected(Source source);
+    public partial Target In(in Source source);
+    public partial Target Out(out Source source);
+    public partial Target Extra(Source source, Target destination, int context);
+    public partial Target Healthy(Source source);
+}
+public sealed class Source { public int Value { get; set; } }
+public sealed class Target { public int Value { get; set; } }
+";
+            var result = RunValidDeclarationFixture(source);
+            var diagnostics = result.Diagnostics.Where(static d => d.Id.StartsWith("LITEMAPPER", StringComparison.Ordinal)).ToArray();
+
+            Assert.AreEqual(4, diagnostics.Length, string.Join(Environment.NewLine, diagnostics.Select(static diagnostic => diagnostic.ToString())));
+            AssertDiagnosticContract(diagnostics, "LITEMAPPER0007", "Mapping method 'Protected' has unsupported accessibility", source, "Protected");
+            AssertDiagnosticContract(diagnostics, "LITEMAPPER0005", "Mapping method 'In' has an unsupported signature", source, "In");
+            AssertDiagnosticContract(diagnostics, "LITEMAPPER0005", "Mapping method 'Out' has an unsupported signature", source, "Out");
+            AssertDiagnosticContract(diagnostics, "LITEMAPPER0005", "Mapping method 'Extra' has an unsupported signature", source, "Extra");
+
+            var generated = result.GeneratedTrees.Single().GetText().ToString();
+            StringAssert.Contains(generated, "Healthy(");
+            Assert.IsFalse(generated.Contains("Protected(", StringComparison.Ordinal));
+            Assert.IsFalse(generated.Contains("In(", StringComparison.Ordinal));
+            Assert.IsFalse(generated.Contains("Out(", StringComparison.Ordinal));
+            Assert.IsFalse(generated.Contains("Extra(", StringComparison.Ordinal));
+        }
+
+        [TestMethod]
         [DataRow("void")]
         [DataRow("System.Threading.Tasks.Task<Target>")]
+        [DataRow("System.Threading.Tasks.ValueTask<Target>")]
         public void AsyncPartialDeclarationsAreRejectedWithoutSuppressingHealthyMappings(string returnType)
         {
             var result = RunGenerator("using Mammoth.LiteMapper; [LiteMapper] public static partial class Mapper { " +
@@ -181,6 +220,29 @@ public static partial class Mapper
         private static GeneratorDriverRunResult RunGenerator(string source, LanguageVersion languageVersion = LanguageVersion.CSharp9)
         {
             return CreateDriver(languageVersion).RunGenerators(CreateCompilation(source, languageVersion)).GetRunResult();
+        }
+
+        private static GeneratorDriverRunResult RunValidDeclarationFixture(string source)
+        {
+            var compilation = CreateCompilation(source);
+            AssertNoUnexpectedInputErrors(compilation);
+            return CreateDriver().RunGenerators(compilation).GetRunResult();
+        }
+
+        private static void AssertNoUnexpectedInputErrors(Compilation compilation)
+        {
+            var inputErrors = compilation.GetDiagnostics().Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS8795").ToArray();
+            Assert.AreEqual(0, inputErrors.Length, "The declaration fixture must be valid apart from deliberately unimplemented partial methods. " +
+                string.Join(Environment.NewLine, inputErrors.Select(static diagnostic => diagnostic.ToString())));
+        }
+
+        private static void AssertDiagnosticContract(Diagnostic[] diagnostics, string id, string message, string source, string locationText)
+        {
+            var diagnostic = diagnostics.Single(d => d.Id == id && d.GetMessage() == message);
+            Assert.AreEqual(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.IsTrue(diagnostic.Descriptor.CustomTags.Contains(WellKnownDiagnosticTags.NotConfigurable));
+            Assert.IsTrue(diagnostic.Location.IsInSource);
+            Assert.AreEqual(source.IndexOf(locationText, StringComparison.Ordinal), diagnostic.Location.SourceSpan.Start);
         }
 
         private static GeneratorDriver CreateDriver(LanguageVersion languageVersion = LanguageVersion.CSharp9)

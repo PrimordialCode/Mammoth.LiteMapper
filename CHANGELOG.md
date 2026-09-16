@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Issue #5: closed constructed static generic external registration containers are now supported; unbound generic registrations and generic methods remain rejected. Declaration, registration, constructor, accessibility, and diagnostic-contract coverage was expanded across the Roslyn host matrix. [#5](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/5)
 - Issue #4: clarified that ordinary unmapped-target suppression or downgrade does not suppress valid generation or prove complete mapping; mandatory target obligations remain hard errors, and CI guidance recommends treating configurable `LITEMAPPER1001` as an error when full coverage is required. [#4](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/4)
 - Issue #3: generated nested and collection helper names are allocated deterministically within each mapper, reserve handwritten/generated helper signatures, reuse identical closed identities, and disambiguate preferred-name collisions independently of syntax-tree or equivalent compilation order. [#3](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/3)
 - Issue #1: ordinary unmapped target properties and fields now default to errors; explicit target policies and `IgnoreTarget`/`UseTargetDefault` opt-outs remain supported, while unmapped source members remain ignored by default. Unmapped-member diagnostics identify the exact source or target member. [#1](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/1)

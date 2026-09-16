@@ -104,6 +104,33 @@ public sealed class Target
         }
 
         [TestMethod]
+        public void AmbiguousConstructorDiagnosticHasStableContractDetails()
+        {
+            var source = @"using Mammoth.LiteMapper;
+
+[LiteMapper]
+public static partial class Mapper
+{
+    public static partial Target ToTarget(Source source);
+}
+public sealed class Source { public int Id { get; set; } public string Name { get; set; } = string.Empty; }
+public sealed class Target
+{
+    public Target(int id) { }
+    public Target(string name) { }
+}
+";
+            var result = RunGenerator(source).RunResult;
+            var diagnostic = result.Diagnostics.Single(d => d.Id == "LITEMAPPER1011");
+
+            Assert.AreEqual(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.IsTrue(diagnostic.Descriptor.CustomTags.Contains(WellKnownDiagnosticTags.NotConfigurable));
+            Assert.AreEqual("Target type 'Target' has ambiguous satisfiable constructors", diagnostic.GetMessage());
+            Assert.IsTrue(diagnostic.Location.IsInSource);
+            Assert.AreEqual(source.IndexOf("ToTarget", StringComparison.Ordinal), diagnostic.Location.SourceSpan.Start);
+        }
+
+        [TestMethod]
         public void OptionalParametersRecordsInitRequiredAndValueTypesAreSupported()
         {
             var result = RunGenerator(@"

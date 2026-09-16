@@ -391,7 +391,7 @@ public static CustomerDto ToCustomerDto(Customer source) =>
 
 Use `[UseMapper]` on a mapper class or assembly to register an external static mapper or converter container:
 
-The container must be non-generic and expose an accessible synchronous mapping or converter with a supported signature. For example, `public static int Parse(string value)` is usable even when another mapping does not need it; `public static void Ping()` alone is not. Supported two-parameter update methods also make a container usable. A missing type or a container without usable methods reports `LITEMAPPER0010`; an existing non-static container reports `LITEMAPPER0011`. Accessibility follows C#: a private converter can be used by a mapper nested in its declaring container.
+The container must be static and may be a non-generic or closed constructed generic type. It must expose an accessible synchronous mapping or converter with a supported signature. For example, `typeof(External<int>)` is valid when the closed container exposes `public static int Parse(string value)`, even when another mapping does not need it; `public static void Ping()` alone is not. Unbound registrations such as `typeof(External<>)` and generic methods are unsupported. Supported two-parameter update methods also make a container usable. A missing type or a container without usable methods reports `LITEMAPPER0010`; an existing non-static container reports `LITEMAPPER0011`. Accessibility follows C#: a private converter can be used by a mapper nested in its declaring container.
 
 A handwritten `ref` or `ref readonly` converter result can supply a normal value assignment. For example, copying a returned `ref int` containing `3` into an `int` target keeps the target at `3` when the source later changes to `7`.
 
@@ -935,7 +935,7 @@ The following are not LiteMapper 1.0 usage features:
 - Runtime mapper registration or assembly scanning.
 - Dependency-injection registration extensions.
 - Object factories, hooks, or mapping context propagation.
-- Open generic mappings or generic mapper containers.
+- Open generic mappings or unbound generic registration containers. Closed constructed generic external containers are supported when their methods satisfy the ordinary registration rules.
 - External instance mapper resolution.
 - Automatic flattening or naming-strategy plugins.
 - Custom collections, immutable collections, queues, stacks, and rectangular multidimensional arrays.

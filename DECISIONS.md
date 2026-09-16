@@ -496,12 +496,12 @@ No semantic decision was required. Sections7.2/10.6 and the configuration contra
 
 - Date: 2026-09-16
 - Milestone: Post-Milestone 13 documentation synchronization, GitHub issue #5
-- Status: Blocked pending an explicit specification decision
+- Status: Approved by the user on 2026-09-16; incorporated into SPECIFICATION.md; implementation resumed
 - Context: Issue #5 acceptance criteria require registration tests for valid generic containers. The current implementation and `ExternalRegistrationTests` reject generic registered types, including closed constructed static containers.
 - Conflict: Sections 5.5 and 11.5 require an external registered type to be static, to exist, and to expose usable methods, but do not prohibit generic external containers. Section 8.4 rejects open generic source or destination declarations, and section 14.2 permits closed constructed mapping models while prohibiting reusable open generic templates; neither section defines whether a generic external registration container is valid.
-- Question: Should a closed constructed static external container such as `typeof(External<int>)` be accepted when it exposes usable closed methods, or should all generic external registration containers remain rejected and issue #5's acceptance wording be narrowed? The specification must be updated before adding competing tests or changing implementation behavior.
+- Decision: Accept a closed constructed static external container such as `typeof(External<int>)` when it exposes usable non-generic methods after type substitution. Reject unbound generic registrations such as `typeof(External<>)` and retain the generic-method prohibition in section 11.4.
 - Specification references: 5.5, 7.1, 8.4, 11.3, 11.4, 11.5, 14.2, 22.9.
-- Consequences: Issue #5 implementation is stopped without changing production code or adding tests that choose an unstated semantic. Declaration, constructor, accessibility, and non-generic registration gaps remain unimplemented until the decision is resolved because repository policy requires stopping on a normative ambiguity.
+- Consequences: Issue #5 implementation may add red-first coverage for closed constructed generic registrations and unbound-type rejection. No open generic template or runtime type resolution is introduced. Declaration, constructor, accessibility, and remaining registration gaps remain in scope for issue #5.
 
 ### Package validation repair (2026-09-08)
 

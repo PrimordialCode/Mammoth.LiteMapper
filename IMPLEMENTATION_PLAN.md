@@ -1,6 +1,6 @@
 # Mammoth.LiteMapper Implementation Plan
 
-Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1, #2, #3, and #4 are implemented and documented; issue #4 was committed as `5ea413f`, merged into `develop`, pushed, and closed. Issue #5 is claimed and planned on `codex/issue-5-declaration-coverage` but blocked by normative ambiguity PENDING-0008. Remote CI remains unexecuted.
+Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1, #2, #3, and #4 are implemented and documented; issue #4 was committed as `5ea413f`, merged into `develop`, pushed, and closed. Issue #5 is claimed and implementing on `codex/issue-5-declaration-coverage`; PENDING-0008 was approved and incorporated into the specification. Remote CI remains unexecuted.
 
 PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, and regression-tested. All milestone and dated checkpoint sections below are historical planning and revision-specific evidence; their pending-work statements are superseded by the current execution state above.
 

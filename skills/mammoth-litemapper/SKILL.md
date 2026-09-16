@@ -48,7 +48,7 @@ Call `new InstanceMapper().Map(new InstanceSource { Id = 42 })`. Static mappers 
 - Mappers are non-abstract partial classes. Nested containers must also be partial and non-generic. Generic mapper classes and generic mapping methods are unsupported; closed generic model pairs are permitted.
 - New-object methods take one by-value source parameter and return the destination. Use explicit `public`, `internal`, or `private` accessibility.
 - Reference updates take source and destination and return `void` or the destination. Value-type updates require `ref` on the destination.
-- Instance mappers can use their own dependencies and converters. External `[UseMapper(typeof(...))]` containers must be static. No library DI registration extension exists.
+- Instance mappers can use their own dependencies and converters. External `[UseMapper(typeof(...))]` containers must be static; closed constructed generic containers are allowed, while unbound generic containers and generic methods are not. No library DI registration extension exists.
 - Assembly-level `LiteMapperDefaults` values and `UseMapper` registrations are compile-time inputs. Changing one replans affected generated mappings and diagnostics during an incremental build; unrelated output remains cached where the host preserves candidate identity. Never describe `UseMapper` as runtime registration.
 
 ## Choose the relevant mapping rules
