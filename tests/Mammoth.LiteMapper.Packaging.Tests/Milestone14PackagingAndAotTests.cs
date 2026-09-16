@@ -22,8 +22,8 @@ namespace Mammoth.LiteMapper.Packaging.Tests
         }
 
         [TestMethod]
-        [DataRow(false, "Consumer.cs(12,5): warning LITEMAPPER1001: Target member is unmapped. [Mammoth.LiteMapper.Samples.Basic.csproj]")]
-        [DataRow(true, "Consumer.cs(12,5): warning LITEMAPPER1001: Target member is unmapped. [Mammoth.LiteMapper.Samples.Basic.csproj]")]
+        [DataRow(false, "Consumer.cs(12,5): warning LITEMAPPER1001: Target member 'Extra' is not mapped [Mammoth.LiteMapper.Samples.Basic.csproj]")]
+        [DataRow(true, "Consumer.cs(12,5): warning LITEMAPPER1001: Target member 'Extra' is not mapped [Mammoth.LiteMapper.Samples.Basic.csproj]")]
         [DataRow(false, "Consumer.cs(12,5): warning IL2026: Calling a method requiring unreferenced code. [Consumer.csproj]")]
         [DataRow(true, "Consumer.cs(12,5): warning IL2026: Calling a method requiring unreferenced code. [Consumer.csproj]")]
         [DataRow(false, "Mammoth.LiteMapper.Samples.Basic -> /work/bin/Release/net10.0/Mammoth.LiteMapper.Samples.Basic.dll\nBuild succeeded.\n    1 Warning(s)\n    0 Error(s)\n")]

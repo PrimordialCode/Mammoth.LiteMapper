@@ -73,7 +73,7 @@ For `int` to `byte`, checked conversion of `256` throws `OverflowException`; unc
 
 Nullable boxing follows the target annotation: `int?` to non-null `object` reports2001 under Error (2003 for collection elements), or checks null under Throw. `object?` preserves null; oblivious reference targets do not introduce nullable mismatch diagnostics. Nullable enum mappings retain the selected enum strategy: with `From.Ready=1` and `To.Ready=9`, `To? Map(From? source)` maps Ready to9 and null to null. The same applies to members/elements; a non-null target requires Error/Throw policy, unknown numeric values still throw under by-name mapping, and patch-null values skip assignment.
 
-Options resolve method `[MappingOptions]`, mapper `[LiteMapper]`, assembly `[LiteMapperDefaults]`, then library defaults. `Unspecified` inherits. Mapper Boolean options use `true`/`false`; method Boolean overrides use `OptionState.Enabled`/`Disabled`. Assembly defaults expose only name matching, unmapped source/target policies, nullable mismatch, and null collections.
+Options resolve method `[MappingOptions]`, mapper `[LiteMapper]`, assembly `[LiteMapperDefaults]`, then library defaults. `Unspecified` inherits. Mapper Boolean options use `true`/`false`; method Boolean overrides use `OptionState.Enabled`/`Disabled`. Assembly defaults expose only name matching, unmapped source/target policies, nullable mismatch, and null collections. The library default for ordinary unmapped target members is `Error`; explicit `Ignore`, `Info`, `Warning`, or `Error` target policy overrides it. Unmapped source members remain `Ignore` by default.
 
 ## Nulls and updates
 
@@ -117,7 +117,7 @@ In 2.0.0, a method-specific fatal error leaves that method unimplemented but doe
 
 Async mapping declarations report `LITEMAPPER0006`. For example, change `async partial Target Map(Source source);` to `partial Target Map(Source source);` and perform asynchronous work before mapping. Task-returning mappings and async converters remain unsupported.
 
-Ordinary unmapped policies support `Ignore`, `Info`, `Warning`, and `Error`. Standard severity overrides work for target diagnostic `LITEMAPPER1001` and source diagnostic `1003` when source checking is enabled. These configurable diagnostics preserve valid generated implementations. Mandatory non-nullable targets remain hard errors even under `Ignore`; initializers need explicit `UseTargetDefault` approval.
+Ordinary unmapped policies support `Ignore`, `Info`, `Warning`, and `Error`. Standard severity overrides work for target diagnostic `LITEMAPPER1001` and source diagnostic `1003` when source checking is enabled. Reported diagnostics identify the exact source or target member. These configurable diagnostics preserve valid generated implementations. Mandatory non-nullable targets remain hard errors even under `Ignore`; initializers need explicit `UseTargetDefault` approval.
 
 For configuration troubleshooting, use `1006` invalid source path, `1007` dotted target, `1008` duplicate target mapping, `1014` missing requested default, `1015` invalid ignored member, `1016` unsupported indexer selection, `2009` invalid selected converter signature, and `2011` ambiguous converters (all prefixed `LITEMAPPER`). Existing-target array updates report `4005`; get-only collection updates report `4004`. IDs `4003`, `6002`, and `6003` are not part of the 2.0.0 catalogue.
 

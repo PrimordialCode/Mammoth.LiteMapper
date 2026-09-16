@@ -721,7 +721,7 @@ The 1.0 library defaults MUST be:
 | Option | Default |
 |---|---|
 | Name matching | `ExactThenIgnoreCase` |
-| Ordinary writable nullable/value target member | `Warning` |
+| Ordinary writable target member | `Error` |
 | Unmapped source member | `Ignore` |
 | Nullable mismatch | `Error` |
 | Null collection | contextual, as defined below |
@@ -1835,9 +1835,9 @@ The implementation MUST define and test at least the following stable diagnostic
 
 | ID | Default severity | Name | Meaning |
 |---|---:|---|---|
-| `LITEMAPPER1001` | Warning, configurable | UnmappedTargetMember | Ordinary target member is not mapped. |
+| `LITEMAPPER1001` | Error, configurable | UnmappedTargetMember | Ordinary target member is not mapped; the message names the target member. |
 | `LITEMAPPER1002` | Error, non-configurable | RequiredTargetMemberNotMapped | Required or semantically mandatory target member is unsatisfied. |
-| `LITEMAPPER1003` | Ignore, configurable | UnmappedSourceMember | Source member is unused while strict source checking is enabled. |
+| `LITEMAPPER1003` | Ignore, configurable | UnmappedSourceMember | Source member is unused while strict source checking is enabled; the message names the source member. |
 | `LITEMAPPER1004` | Error, non-configurable | AmbiguousMemberMatch | Multiple source members match one target member. |
 | `LITEMAPPER1005` | Warning | HiddenMemberSelected | Most-derived hidden member was selected. |
 | `LITEMAPPER1006` | Error, non-configurable | InvalidSourcePath | Source path or one segment cannot be resolved. |

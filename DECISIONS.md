@@ -352,6 +352,26 @@
 - Specification references: 2.2, 19.9, 23.2, 23.3, 23.4, 24.4.
 - Evidence: The positive regression failed before implementation because the attribute was absent; a later capability regression failed with `CS0122` before accessibility checks were tightened. Five optimization cases and the related Milestone 4/13 suites pass 15/15; Roslyn 4.8/4.14/5.9 each pass 540 tests. Current .NET 10 disassembly is one 70-byte LiteMapper benchmark method with no mapper call, compared with 73 bytes for manual code. The paired means are 4.465 ns and 4.307 ns with 40 bytes allocated by both.
 
+### DEC-0038
+
+- Date: 2026-09-16
+- Milestone: Post-1.0 specification update
+- Status: Accepted
+- Context: GitHub issue #1 requests defensive target-member coverage so an unmapped target property or field cannot pass unnoticed and does not require a consumer-written test for every DTO.
+- Decision: Change the library default for ordinary unmapped target members from `Warning` to `Error`. Keep explicit `UnmappedMemberPolicy` overrides, including `Ignore`, and retain `[IgnoreTarget]` and `[UseTargetDefault]` as explicit code-level opt-outs. Leave unmapped source members defaulting to `Ignore`. Keep `LITEMAPPER1001` configurable so an explicit policy or compiler severity configuration can still relax the default when intentionally required.
+- Specification references: 6.2, 6.4, 6.5, 9.1, 20.1, 20.2, 22.16.
+- Consequences: A simple structural mapping is checked by compilation rather than requiring a consumer runtime test for each DTO. Library regression tests must cover the default error and explicit opt-outs. Required and otherwise mandatory target-member errors remain unchanged.
+
+### DEC-0039
+
+- Date: 2026-09-16
+- Milestone: Post-1.0 specification update
+- Status: Accepted
+- Context: An unmapped-member diagnostic must tell the consumer which property or field requires attention at every supported severity.
+- Decision: Preserve the existing stable diagnostic IDs and report the exact source or target member name in every emitted `LITEMAPPER1001` and `LITEMAPPER1003` message, including Error, Warning, Info, and configured severity results.
+- Specification references: 20.2, 22.16.
+- Consequences: Compiler output is actionable without requiring a separate DTO test or source inspection; generator tests assert the member-specific message contract.
+
 ### Pause checkpoint: implementation evidence (2026-09-08)
 
 - No new normative decision. Existing approved contracts now have regression-backed handling of duplicate defaults across visible local/external scopes, nullable value converter results before implicit widening, unsupported member types, and ref-like updates. A handwritten Span member converter remains supported.

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Issue #1: ordinary unmapped target properties and fields now default to errors; explicit target policies and `IgnoreTarget`/`UseTargetDefault` opt-outs remain supported, while unmapped source members remain ignored by default. Unmapped-member diagnostics identify the exact source or target member. [#1](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/1)
+
 ## 2.0.0
 
 ### Added

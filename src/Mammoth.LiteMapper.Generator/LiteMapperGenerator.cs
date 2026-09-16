@@ -2925,7 +2925,7 @@ namespace Mammoth.LiteMapper.Generator
             var nullCollections = ReadNullCollectionOption(mapping) ?? ReadNullCollectionOption(mapper) ?? ReadNullCollectionOption(assemblyDefaults);
             return new EffectiveMappingOptions(
                 ReadEnumOption(mapping, "NameMatching") ?? ReadEnumOption(mapper, "NameMatching") ?? ReadEnumOption(assemblyDefaults, "NameMatching") ?? "ExactThenIgnoreCase",
-                ReadEnumOption(mapping, "UnmappedTargetMembers") ?? ReadEnumOption(mapper, "UnmappedTargetMembers") ?? ReadEnumOption(assemblyDefaults, "UnmappedTargetMembers") ?? UnmappedMemberPolicyWarning,
+                ReadEnumOption(mapping, "UnmappedTargetMembers") ?? ReadEnumOption(mapper, "UnmappedTargetMembers") ?? ReadEnumOption(assemblyDefaults, "UnmappedTargetMembers") ?? UnmappedMemberPolicyError,
                 ReadEnumOption(mapping, "UnmappedSourceMembers") ?? ReadEnumOption(mapper, "UnmappedSourceMembers") ?? ReadEnumOption(assemblyDefaults, "UnmappedSourceMembers") ?? UnmappedMemberPolicyIgnore,
                 ReadEnumOption(mapping, "NullableMismatch") ?? ReadEnumOption(mapper, "NullableMismatch") ?? ReadEnumOption(assemblyDefaults, "NullableMismatch") ?? NullableMismatchPolicyError,
                 nullCollections ?? NullCollectionStrategyError,

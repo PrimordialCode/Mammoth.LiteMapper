@@ -24,7 +24,7 @@
   "default_path_exclude": [],
   "source_path_overrides": [],
   "docs_dir": "tokensave-docs",
-  "last_indexed_version": "7.11.1",
+  "last_indexed_version": "7.12.1",
   "auto_track": true,
   "strict_tree": false,
   "max_auto_sync_files": 2000,

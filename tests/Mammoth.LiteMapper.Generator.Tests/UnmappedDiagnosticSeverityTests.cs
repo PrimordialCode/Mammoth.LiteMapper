@@ -24,6 +24,41 @@ namespace Mammoth.LiteMapper.Generator.Tests
         {
             var result = RunGenerator(Source(target, policy));
             AssertSeverity(result.RunResult, target ? "LITEMAPPER1001" : "LITEMAPPER1003", expectedSeverity);
+            if (expectedSeverity >= 0)
+            {
+                AssertUnmappedMessage(result.RunResult, target ? "LITEMAPPER1001" : "LITEMAPPER1003",
+                    target ? "Target member 'Extra' is not mapped" : "Source member 'Extra' is not mapped");
+            }
+            AssertValidImplementation(result.Compilation);
+        }
+
+        [TestMethod]
+        public void UnconfiguredUnmappedTargetUsesErrorPolicy()
+        {
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+[LiteMapper]
+public static partial class Mapper { public static partial Target Map(Source source); }
+public sealed class Source { public int Value { get; set; } }
+public sealed class Target { public int Value { get; set; } public int Extra { get; set; } }
+");
+
+            AssertSeverity(result.RunResult, "LITEMAPPER1001", (int)DiagnosticSeverity.Error);
+            AssertUnmappedMessage(result.RunResult, "LITEMAPPER1001", "Target member 'Extra' is not mapped");
+        }
+
+        [TestMethod]
+        public void ExplicitIgnoreOptsOutOfUnmappedTargetErrorPolicy()
+        {
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+[LiteMapper(UnmappedTargetMembers = UnmappedMemberPolicy.Ignore)]
+public static partial class Mapper { public static partial Target Map(Source source); }
+public sealed class Source { public int Value { get; set; } }
+public sealed class Target { public int Value { get; set; } public int Extra { get; set; } }
+");
+
+            AssertSeverity(result.RunResult, "LITEMAPPER1001", -1);
             AssertValidImplementation(result.Compilation);
         }
 
@@ -41,6 +76,11 @@ namespace Mammoth.LiteMapper.Generator.Tests
             var id = target ? "LITEMAPPER1001" : "LITEMAPPER1003";
             var result = RunGenerator(Source(target, policy), new EditorConfigSeverityProvider(id, configuredSeverity));
             AssertSeverity(result.RunResult, id, expectedSeverity);
+            if (expectedSeverity >= 0)
+            {
+                AssertUnmappedMessage(result.RunResult, id,
+                    target ? "Target member 'Extra' is not mapped" : "Source member 'Extra' is not mapped");
+            }
             AssertValidImplementation(result.Compilation);
         }
 
@@ -117,6 +157,12 @@ public sealed class Target { public int Value { get; set; } " + (target ? "publi
             {
                 Assert.AreEqual((DiagnosticSeverity)expectedSeverity, diagnostics[0].Severity, "Configured unmapped severity must be honored exactly.");
             }
+        }
+
+        private static void AssertUnmappedMessage(GeneratorDriverRunResult result, string id, string expectedMessage)
+        {
+            var diagnostic = result.Diagnostics.Single(d => d.Id == id && !d.IsSuppressed);
+            Assert.AreEqual(expectedMessage, diagnostic.GetMessage(), "Unmapped diagnostics must identify the exact member.");
         }
 
         private static void AssertValidImplementation(Compilation compilation)

@@ -170,7 +170,7 @@ public static partial class CustomerMapper
 }
 ```
 
-Library defaults are exact name matching followed by a unique case-insensitive match, ordinary unmapped target members reported as warnings, unmapped source members ignored, nullable mismatches reported as errors, null collections reported as errors except where nullable target collections can preserve null, implicit numeric conversion only, explicit operators disabled, enum mapping by name, unmatched enum values reported as errors, no cycle tracker, non-null root source guards disabled, and patch null skipping disabled. Required and otherwise mandatory target members remain errors as specified in section 6.4.
+Library defaults are exact name matching followed by a unique case-insensitive match, ordinary unmapped target members reported as errors, unmapped source members ignored, nullable mismatches reported as errors, null collections reported as errors except where nullable target collections can preserve null, implicit numeric conversion only, explicit operators disabled, enum mapping by name, unmatched enum values reported as errors, no cycle tracker, non-null root source guards disabled, and patch null skipping disabled. Explicit `UnmappedTargetMembers = UnmappedMemberPolicy.Ignore`, `Info`, `Warning`, or `Error` overrides this target default. `IgnoreTarget` and `UseTargetDefault` are explicit member-level opt-outs; required and otherwise mandatory target members remain errors as specified in section 6.4.
 
 ## Member matching and unmapped members
 
@@ -191,7 +191,7 @@ public static partial class InheritedMapper
 
 `InheritedMapper.Map(new Data()).Value` is `3`. Inherited members also work in configured paths such as `Data.Value` and in ignore/default member names. A shared property reached through diamond interface inheritance remains one member. Unrelated inherited properties with the same name are ambiguous (`LITEMAPPER1004`); a more-derived declaration hides its base member with warning `LITEMAPPER1005`.
 
-By default, LiteMapper maps readable source members to writable or constructible target members by name. Configure name matching and unmapped-member handling on the mapper or on a method:
+By default, LiteMapper maps readable source members to writable or constructible target members by name. An ordinary target member that remains unmapped is an error by default. Configure name matching and unmapped-member handling on the mapper or on a method:
 
 ```csharp
 [LiteMapper(
@@ -901,7 +901,7 @@ Diagnostics are either configurable severity diagnostics, such as unmapped-membe
 
 Mapping declarations must be synchronous. For example, `public static async partial Target Map(Source source);` reports `LITEMAPPER0006`; declare `public static partial Target Map(Source source);` instead. Perform any asynchronous work before calling the mapper. Task-returning mapping methods and asynchronous converters are unsupported.
 
-Ordinary unmapped source and target members honor `Ignore`, `Info`, `Warning`, and `Error` exactly. With source checking enabled through `UnmappedSourceMembers`, standard `.editorconfig` overrides apply to `LITEMAPPER1003`; target overrides apply to `LITEMAPPER1001`. An ordinary diagnostic reported as an error still leaves the valid generated implementation available, so downgrading or suppressing it does not create a missing partial method. Unsatisfied required or non-nullable target members remain hard `LITEMAPPER1002` errors, including members with unapproved initializers; use `UseTargetDefault` to approve a real default.
+Ordinary unmapped source and target members honor `Ignore`, `Info`, `Warning`, and `Error` exactly. Each reported unmapped-member diagnostic names the exact source or target member, for example `Target member 'Extra' is not mapped`. With source checking enabled through `UnmappedSourceMembers`, standard `.editorconfig` overrides apply to `LITEMAPPER1003`; target overrides apply to `LITEMAPPER1001`. An ordinary diagnostic reported as an error still leaves the valid generated implementation available, so downgrading or suppressing it does not create a missing partial method. Unsatisfied required or non-nullable target members remain hard `LITEMAPPER1002` errors, including members with unapproved initializers; use `UseTargetDefault` to approve a real default.
 
 Configuration errors include `LITEMAPPER1006` for an invalid source path, `1007` for a dotted target, `1008` for duplicate target mapping, `1014` for a missing requested default, and `1015` for an invalid ignored member. Selected converter signatures use `2009`, converter ambiguity uses `2011`, get-only collection updates use `4004`, and existing-target arrays use `4005`.
 

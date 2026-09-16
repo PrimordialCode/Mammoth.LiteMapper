@@ -10,6 +10,16 @@ Performance evidence (CV-007): the17 existing cases were extended with three acy
 
 Comparison handling covers missing cases, environment/configuration mismatch, allocations, and statistical throughput loss. Section23.4 uses throughput:100ns to121ns is a17.36% loss, requiring review if significant; it is not a greater-than20% blocking result. Any allocation increase blocks unless explicitly approved/documented. The accepted affinity-pinned Medium artifacts are under `artifacts/performance/controlled-20260909`; the comparison script reports five passing scenarios.
 
+## GitHub issue #1 follow-up (2026-09-16)
+
+- Objective: make ordinary unmapped target properties and fields fail compilation by default, while preserving explicit policy configuration and member-level opt-outs.
+- Decision: change the default target-member policy from `Warning` to `Error`; retain explicit `UnmappedMemberPolicy` overrides, `IgnoreTarget`, and `UseTargetDefault`; keep unmapped source members ignored by default; keep `LITEMAPPER1001` configurable.
+- Implementation: update generator fallback and add generator regressions for the default error and explicit ignore cases. Mandatory target-member diagnostics remain unchanged.
+- Message contract: every reported configurable unmapped-member diagnostic identifies the exact source or target member; regression assertions cover target and source messages across configured severities.
+- Documentation: synchronize `SPECIFICATION.md`, `docs/USAGE.md`, `CHANGELOG.md`, the consumer skill, and mapping-rules reference. `DEC-0038` records the default-policy rationale and `DEC-0039` records the member-specific diagnostic message contract.
+- Acceptance: focused and full generator tests pass, the complete solution validation passes, documentation and skill validation pass, and no consumer DTO mapping test is required for this library-default change.
+- Status: implementation and documentation are complete; focused and integrated validation pass. The branch is ready for user review and remains uncommitted.
+
 ## Milestone 13 inline follow-up (2026-09-10)
 
 - Objective: remove the extra call observed between the benchmark wrapper and a small generated flat mapping without changing mapping semantics or public API.

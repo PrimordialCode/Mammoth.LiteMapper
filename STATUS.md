@@ -1,20 +1,29 @@
 # Mammoth.LiteMapper Status
 
-Latest active work: the authorized all-defects review remains complete locally, and the approved flat-mapping inline optimization is implemented. Final Roslyn 4.8/4.14/5.9 suites each pass 540 tests. The final Windows solution passes 607 tests with one Native AOT prerequisite skip, including all 12 consumers; required isolated Linux Native AOT passes 1/1 with no skip. Current paired Medium evidence is Manual 4.307 ns/73 bytes and LiteMapper 4.465 ns/70 bytes, with identical 40-byte allocation and no remaining generated mapper call. Default Roslyn 4.8 is restored. The consumer usage guide and skill were verified against the library and remain unchanged because this is an internal generated-code optimization. Remote CI was not executed. No commit, push, or publication occurred.
+Latest active work: GitHub issue #1 is implemented on `codex/issue-1-defensive-unmapped-targets`. Ordinary unmapped target properties and fields now default to compilation errors, with explicit policies and member-level opt-outs preserved. No commit, push, or publication occurred.
 
-- Current scope: user-authorized conformance review and defect repair across all milestones.
-- Current state: completed local review and validation on 2026-09-10 on `feature/improvement_and_skill`. PENDING-0002 through PENDING-0007 are approved and incorporated; DEC-0037 records the non-semantic inline optimization.
+- Current scope: GitHub issue #1 defensive unmapped-target diagnostics, documentation synchronization, and regression validation.
+- Current state: implementation, documentation, and validation are complete on `codex/issue-1-defensive-unmapped-targets`; the branch is ready for user review and remains uncommitted. DEC-0038 and DEC-0039 record the semantic decisions.
 - Completed milestones: Milestone 1; Milestone 2; Milestone 3; Milestone 4; Milestone 5; Milestone 6; Milestone 7; Milestone 8; Milestone 9; Milestone 10; Milestone 11; Milestone 12; Milestone 13; Milestone 14; Milestone 15; Milestone 16.
-- Current work: no known local implementation defect remains. Direct flat root mappings receive an inline hint only when the exact compiler capability exists and the mapping contains no guards, helpers, tracking, constructors, collection body, or other generated control flow. Local consumer, packaging, trimming, sample, benchmark smoke, compiler-host, paired-performance, and Native AOT evidence is complete. Remote CI remains unexecuted.
-- Work completed: Added `GuardNonNullSource` to `LiteMapperAttribute` and `MappingOptionsAttribute`; resolved mapper-level and method-level configuration with default disabled; removed default root-source guards from new-object/update/nested generated paths; preserved nullable-source `Throw` behavior; kept update destination guards; adjusted recursive tracker generation so disabled root guards do not produce nullable warnings; updated public API baselines, snapshots, usage docs, specification, and decision log.
-- Tests added or updated: Added five inline optimization tests covering positive emission and generated-source compilation, guarded and collection exclusions, other generated control flow, and inaccessible or inexact framework symbols. Updated the representative flat-mapping generated-source snapshot.
-- Diagnostics added: None.
-- Generated-source review: The benchmark mapper now emits `[MethodImpl(MethodImplOptions.AggressiveInlining)]`; .NET 10 disassembly contains the mapping body directly in the benchmark method and no call to `LiteMapperBenchmarkMapper.Map`. Guarded and collection controls remain unannotated.
-- Validation evidence: Roslyn 4.8/4.14/5.9 each pass 540 generator tests. The final Windows solution passes 607 tests with one Native AOT prerequisite skip; required isolated Linux Native AOT passes 1/1. The paired affinity-pinned Medium run reports Manual 4.307 ns and LiteMapper 4.465 ns with unchanged 40-byte allocation. Exact evidence is recorded in the checkpoint below.
-- Skipped validation: the Windows Native AOT case was skipped because the local linker prerequisite was unavailable; the required Linux run with Clang/zlib passed. Remote CI was not executed.
-- Blockers: none known. PENDING-0002 through PENDING-0007 are approved and incorporated.
-- Known issues: none found in the reviewed implementation. NuGet pack may emit non-fatal missing-readme warnings. Historical checkpoints below retain their original revision boundaries.
-- Next permitted action: review the dirty diff and commit only if explicitly requested. Do not repeat unchanged validation without a new change or unresolved concern.
+- Current work: generator fallback is changed from `Warning` to `Error`; explicit `UnmappedMemberPolicy` settings, `IgnoreTarget`, `UseTargetDefault`, and source-member defaults remain unchanged.
+- Work completed: added red-first generator regressions for the new default error and explicit ignore opt-out, locked the exact source and target member names into unmapped diagnostic tests, updated the packaging expectation, synchronized the authoritative specification and consumer-facing documentation, and recorded `DEC-0038` and `DEC-0039`.
+- Tests added or updated: `UnmappedDiagnosticSeverityTests` now covers the default error, explicit ignore behavior, and exact member names for every reported configured severity. No consumer DTO mapping test is required for this library-default change.
+- Diagnostics added: no new diagnostic ID; `LITEMAPPER1001` remains configurable and now defaults to Error for ordinary unmapped target members.
+- Generated-source review: explicit `Ignore` still produces a valid mapper implementation without `LITEMAPPER1001`; no runtime DTO test is needed to verify the policy fallback.
+- Validation evidence: focused issue-related and flat-mapping tests pass 29/29; the full generator suite passes 542/542; `dotnet build Mammoth.LiteMapper.sln --no-restore` passes with 0 warnings and 0 errors; the full solution test run passes 610 tests with 1 Native AOT prerequisite skip; the consumer skill validator passes.
+- Skipped validation: one existing Windows Native AOT packaging case was skipped because the local linker prerequisite was unavailable. Remote CI was not executed. Historical limitations remain recorded in the checkpoints below.
+- Blockers: none known.
+- Known issues: none found for issue #1. Existing unrelated changes in `.agents/skills/subagent-orchestrator/references/routing.md` and `.tokensave/config.json` were preserved.
+- Next permitted action: review the dirty diff. Commit only if explicitly requested.
+
+## GitHub issue #1 implementation checkpoint (2026-09-16)
+
+- Red-first evidence: the generator regression fixture proves an ordinary unmapped target member produces `LITEMAPPER1001` at Error severity by default and names `Target member 'Extra'` in the message.
+- Control evidence: an explicit mapper-level `UnmappedMemberPolicy.Ignore` suppresses the diagnostic and still produces a valid implementation.
+- Compatibility: explicit Warning, Info, Error, and Ignore policies remain supported and all reported target/source diagnostics name the exact member; `IgnoreTarget` and `UseTargetDefault` remain explicit target-member opt-outs; unmapped source members remain ignored by default.
+- Documentation: `SPECIFICATION.md`, `docs/USAGE.md`, `CHANGELOG.md`, `skills/mammoth-litemapper/SKILL.md`, and `skills/mammoth-litemapper/references/mapping-rules.md` are synchronized. `DEC-0038` records the default rationale and `DEC-0039` records the member-specific message contract.
+- Test boundary: library generator regressions are required; consumers do not need to write a mapping test for every DTO solely because the default diagnostic severity changed.
+- Current state: delegated implementation and documentation checks passed; integrated validation passed; user review remains.
 
 ## Flat mapping inline optimization checkpoint (2026-09-10)
 
