@@ -1,9 +1,9 @@
 # Mammoth.LiteMapper Status
 
-Latest completed work: GitHub issue #5 declaration, registration, constructor, and accessibility coverage was committed as `bd532f0`, merged into `develop`, pushed, and closed. GitHub issue #6 is claimed and implementing on `codex/issue-6-existing-target-atomicity` after Option A in PENDING-0009 was approved and incorporated into the specification.
+Latest completed work: GitHub issue #6 existing-target update atomicity was committed as `c428e90`, pushed on `codex/issue-6-existing-target-atomicity`, and submitted as PR [#9](https://github.com/PrimordialCode/Mammoth.LiteMapper/pull/9). AgentStack issue #6 is in `pr-open` and awaiting human review. Issue #5 declaration, registration, constructor, and accessibility coverage was previously merged into `develop` and closed.
 
 - Current scope: issue #6 existing-target update atomicity semantics; remote CI remains unexecuted.
-- Current state: issue #6 plan and claim are recorded in AgentStack. Option A is approved: non-null existing-target updates are deterministic, non-transactional, and sequential; per-member captures may prevent repeated source evaluation.
+- Current state: issue #6 plan, claim, and PR #9 review handoff are recorded in AgentStack. Option A is approved: non-null existing-target updates are deterministic, non-transactional, and sequential; per-member captures may prevent repeated source evaluation.
 - Completed milestones: Milestone 1; Milestone 2; Milestone 3; Milestone 4; Milestone 5; Milestone 6; Milestone 7; Milestone 8; Milestone 9; Milestone 10; Milestone 11; Milestone 12; Milestone 13; Milestone 14; Milestone 15; Milestone 16.
 - Current work: issue #6 implementation and coverage are complete locally on the claimed branch.
 - Evidence: current `CreateUpdateMappingModel` and `AppendMapping` paths preserve deterministic target-member order and emit each direct assignment sequentially. A later evaluation can therefore observe earlier destination changes.
@@ -13,7 +13,7 @@ Latest completed work: GitHub issue #5 declaration, registration, constructor, a
 - Skipped validation: one Windows Native AOT packaging case skipped because linker prerequisites are unavailable. Remote CI was not executed.
 - Blockers: none for the approved issue #6 scope; remote CI remains unexecuted.
 - Known issues: exact generated helper names remain intentionally non-public and must not be used as consumer dependencies.
-- Next permitted action: review the generated diff, commit, push, and submit issue #6 for human review through AgentStack.
+- Next permitted action: await human review of PR #9. Do not merge or close issue #6 until explicit approval is received.
 
 ## GitHub issue #6 atomicity checkpoint (2026-09-16)
 
@@ -21,7 +21,7 @@ Latest completed work: GitHub issue #5 declaration, registration, constructor, a
 - Current behavior: existing-target assignments are generated in deterministic target-member name order. Each getter/converter expression is evaluated immediately before its assignment, so a later failure can leave earlier destination members changed.
 - Normative gap: sections 9.4, 16.1, 16.3, 16.4, and 19.7 require stable evaluation/single-evaluation and update semantics but do not choose transaction-like staging versus sequential commits.
 - Recommendation: Option A, document non-transactional updates with deterministic target-member evaluation and assignment order, preserving the current direct generated behavior. This does not make setter side effects transactional.
-- Status: Option A approved by the user and incorporated into `SPECIFICATION.md`; implementation and all required local validation are complete. Review submission remains.
+- Status: Option A approved by the user and incorporated into `SPECIFICATION.md`; implementation and all required local validation are complete. PR #9 is open and awaiting human review.
 
 ## GitHub issue #5 generic-registration decision (2026-09-16)
 
