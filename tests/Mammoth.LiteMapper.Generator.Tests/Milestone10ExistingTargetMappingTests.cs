@@ -167,6 +167,56 @@ public sealed class Target
         }
 
         [TestMethod]
+        public void NonTransactionalUpdateRetainsEarlierAssignmentWhenLaterNullableMemberThrows()
+        {
+            var result = RunGenerator(@"
+#nullable enable
+using System;
+using Mammoth.LiteMapper;
+
+[LiteMapper(NullableMismatch = NullableMismatchPolicy.Throw)]
+public static partial class Mapper
+{
+    [MapProperty(Source = nameof(Source.Second), Target = nameof(Target.Second), Use = nameof(ApplySecond))]
+    public static partial void Apply(Source source, Target target);
+
+    private static void ApplySecond(ChildSource source, ChildTarget target)
+    {
+        target.Value = source.Value;
+    }
+}
+
+public sealed class Source
+{
+    public int First { get; set; }
+    public ChildSource? Second { get; set; }
+}
+
+public sealed class Target
+{
+    public int First { get; set; } = 1;
+    public ChildTarget Second { get; } = new ChildTarget { Value = 2 };
+}
+
+public sealed class ChildSource { public int Value { get; set; } }
+public sealed class ChildTarget { public int Value { get; set; } }
+");
+
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var assembly = Emit(result.Compilation);
+            var source = assembly.CreateInstance("Source")!;
+            source.GetType().GetProperty("First")!.SetValue(source, 7);
+            var target = assembly.CreateInstance("Target")!;
+            var exception = Assert.ThrowsExactly<TargetInvocationException>(() =>
+                assembly.GetType("Mapper")!.GetMethod("Apply")!.Invoke(null, new[] { source, target }));
+
+            Assert.IsInstanceOfType(exception.InnerException, typeof(InvalidOperationException));
+            Assert.AreEqual(7, target.GetType().GetProperty("First")!.GetValue(target));
+            var second = target.GetType().GetProperty("Second")!.GetValue(target)!;
+            Assert.AreEqual(2, second.GetType().GetProperty("Value")!.GetValue(second));
+        }
+
+        [TestMethod]
         public void UpdateGetterConverterAndAssignmentOrderIsDeterministic()
         {
             var result = RunGenerator(@"
