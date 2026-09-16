@@ -768,6 +768,8 @@ target.Name = source.Name;
 return target;
 ```
 
+Existing-target updates are non-transactional and deterministic. Members are evaluated and assigned in target-member name order. If a later getter, converter, nested mapping, collection operation, or setter throws, earlier assignments remain and later members are not attempted. LiteMapper may capture a source value once within a member update when a null guard and assignment both need it; this does not provide rollback. New-object mappings keep their separate construction and initialization behavior.
+
 ## ASP.NET Core
 
 From `samples/Mammoth.LiteMapper.Samples.AspNetCore/Program.cs`:

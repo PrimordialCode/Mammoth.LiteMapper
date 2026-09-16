@@ -1,18 +1,27 @@
 # Mammoth.LiteMapper Status
 
-Latest completed work: GitHub issue #4 unmapped-diagnostic suppression documentation and regression coverage were committed as `5ea413f`, merged into `develop`, and pushed. Issue #4 is closed; issue #3 helper-name hardening remains implemented and documented. GitHub issue #5 is claimed on `codex/issue-5-declaration-coverage` and implementing after PENDING-0008 was approved.
+Latest completed work: GitHub issue #6 existing-target update atomicity was committed as `c428e90`, pushed on `codex/issue-6-existing-target-atomicity`, and submitted as PR [#9](https://github.com/PrimordialCode/Mammoth.LiteMapper/pull/9). AgentStack issue #6 is in `pr-open` and awaiting human review. Issue #5 declaration, registration, constructor, and accessibility coverage was previously merged into `develop` and closed.
 
-- Current scope: issue #5 declaration, registration, constructor, and accessibility coverage audit; remote CI remains unexecuted.
-- Current state: issue #5 plan is recorded in AgentStack and its claim is active. PENDING-0008 is approved and incorporated into the specification: closed constructed generic static registration containers are valid; unbound generic registrations and generic methods remain rejected.
+- Current scope: issue #6 existing-target update atomicity semantics; remote CI remains unexecuted.
+- Current state: issue #6 plan, claim, and PR #9 review handoff are recorded in AgentStack. Option A is approved: non-null existing-target updates are deterministic, non-transactional, and sequential; per-member captures may prevent repeated source evaluation.
 - Completed milestones: Milestone 1; Milestone 2; Milestone 3; Milestone 4; Milestone 5; Milestone 6; Milestone 7; Milestone 8; Milestone 9; Milestone 10; Milestone 11; Milestone 12; Milestone 13; Milestone 14; Milestone 15; Milestone 16.
-- Current work: issue #5 implementation and coverage are complete locally on the claimed branch; specification and usage guidance record the approved generic-registration rule.
-- Work completed: shared one registry across declared mappings; reserved handwritten names; reused identical closed pairs; added deterministic suffixes for preferred-name collisions; synchronized the specification, usage, README, changelog, conformance review, handoff, work ledger, and consumer skill/reference text.
-- Tests added or updated: issue #5 adds legal declaration-signature fixtures and exact diagnostic-contract assertions, closed and unbound generic registration cases at class and assembly scope, and exact constructor/registration diagnostic checks. Existing constructor and containing-type runtime coverage remains green.
-- Validation evidence: affected focused tests pass 86/86; complete generator suite passes 558/558 on Roslyn 4.8.0, 4.14.0, and 5.9.0; solution build passes with 0 warnings/errors; complete solution tests pass 624/625 with one Native AOT linker-prerequisite skip; usage documentation test passes 1/1; skill validator passes.
+- Current work: issue #6 implementation and coverage are complete locally on the claimed branch.
+- Evidence: current `CreateUpdateMappingModel` and `AppendMapping` paths preserve deterministic target-member order and emit each direct assignment sequentially. A later evaluation can therefore observe earlier destination changes.
+- Issue #6 red-first/green evidence: the nullable patch getter regression first failed because the getter was evaluated twice. After the minimal capture fix, the focused update suite passes 82/82 and the complete default-host generator suite passes 561/561.
+- Integrated validation: `dotnet build Mammoth.LiteMapper.sln --no-restore` passes with 0 warnings/errors; `dotnet test Mammoth.LiteMapper.sln --no-build --no-restore` passes 629/629 executed tests with one expected Windows Native AOT linker-prerequisite skip; `Milestone16UsageDocumentationTests` passes 1/1; `git diff --check` passes.
+- Completed prior issue evidence: issue #5 focused tests passed 86/86; generator tests passed 558/558 on Roslyn 4.8.0, 4.14.0, and 5.9.0; solution build passed with 0 warnings/errors; solution tests passed 624/625 with one Native AOT linker-prerequisite skip.
 - Skipped validation: one Windows Native AOT packaging case skipped because linker prerequisites are unavailable. Remote CI was not executed.
-- Blockers: none for the approved issue #5 scope; remote CI remains unexecuted.
+- Blockers: none for the approved issue #6 scope; remote CI remains unexecuted.
 - Known issues: exact generated helper names remain intentionally non-public and must not be used as consumer dependencies.
-- Next permitted action: commit, push, open the issue #5 pull request, and submit it for human review through AgentStack.
+- Next permitted action: await human review of PR #9. Do not merge or close issue #6 until explicit approval is received.
+
+## GitHub issue #6 atomicity checkpoint (2026-09-16)
+
+- AgentStack claim and execution plan are recorded for issue #6 on `codex/issue-6-existing-target-atomicity`.
+- Current behavior: existing-target assignments are generated in deterministic target-member name order. Each getter/converter expression is evaluated immediately before its assignment, so a later failure can leave earlier destination members changed.
+- Normative gap: sections 9.4, 16.1, 16.3, 16.4, and 19.7 require stable evaluation/single-evaluation and update semantics but do not choose transaction-like staging versus sequential commits.
+- Recommendation: Option A, document non-transactional updates with deterministic target-member evaluation and assignment order, preserving the current direct generated behavior. This does not make setter side effects transactional.
+- Status: Option A approved by the user and incorporated into `SPECIFICATION.md`; implementation and all required local validation are complete. PR #9 is open and awaiting human review.
 
 ## GitHub issue #5 generic-registration decision (2026-09-16)
 

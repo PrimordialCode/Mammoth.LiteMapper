@@ -1551,6 +1551,10 @@ Writable scalar members are assigned after conversion using the normal resolutio
 
 `init` members, read-only fields, and inaccessible setters cannot be updated.
 
+Existing-target updates are non-transactional. For a non-null destination, generated member updates MUST be processed in deterministic target-member order: ordinal target-member name, then fully qualified containing-type metadata name. For each member, LiteMapper MUST evaluate the selected source path and conversion and apply that member's assignment before proceeding to the next member. If a getter, converter, nested mapping, collection operation, or destination setter throws, assignments already applied MUST remain, later members MUST NOT be attempted, and LiteMapper MUST NOT promise rollback.
+
+Within one member update, a source getter or source-path segment MUST NOT be evaluated more than once when the generated guard and value expression both need it. A per-member capture is permitted and does not make the update transactional. New-object construction and initialization retain their separate construction semantics.
+
 ### 16.2 Null destination
 
 For a non-null destination parameter, a runtime null value MUST throw `ArgumentNullException`.
