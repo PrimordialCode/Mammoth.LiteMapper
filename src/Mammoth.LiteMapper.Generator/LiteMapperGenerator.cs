@@ -630,7 +630,6 @@ namespace Mammoth.LiteMapper.Generator
             var options = EffectiveOptions(method);
             var location = method.Locations.FirstOrDefault();
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
-            var preconditions = ImmutableArray.CreateBuilder<PreconditionModel>();
             var helpers = ImmutableArray.CreateBuilder<MappingModel>();
             var usedSources = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
             var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
@@ -752,6 +751,7 @@ namespace Mammoth.LiteMapper.Generator
                                     ? sourcePathCaptureName ?? throwCaptureName ?? BuildNullSafeSourcePathExpression(source.Name, selected)
                                     : escapedSourceName + "." + EscapeIdentifier(match.Member.Name);
                             string? updaterGuard = null;
+                            PreconditionModel? updaterPrecondition = null;
                             if (sourceMayBeNull)
                             {
                                 if (options.IgnoreNullSourceMembers)
@@ -771,13 +771,13 @@ namespace Mammoth.LiteMapper.Generator
                                         : selected == null ? argument + " == null" : BuildNullCheck(source.Name, selected);
                                     if (nullCheck != null)
                                     {
-                                        preconditions.Add(new PreconditionModel(nullCheck, "Source member path '" + sourcePath + "' was null."));
+                                        updaterPrecondition = new PreconditionModel(nullCheck, "Source member path '" + sourcePath + "' was null.");
                                     }
                                 }
                             }
                             assignments.Add(new AssignmentModel(targetMember.Name,
                                 receiver + EscapeIdentifier(updater.Name) + "(" + argument + ", " + EscapeIdentifier(destination.Name) + "." + EscapeIdentifier(targetMember.Name) + ")",
-                                guard: updaterGuard, isStatement: updater.ReturnsVoid || !CanAssignAfterConstruction(targetMember)));
+                                guard: updaterGuard, isStatement: updater.ReturnsVoid || !CanAssignAfterConstruction(targetMember), precondition: updaterPrecondition));
                             usedSources.Add(match.Member);
                             continue;
                         }
@@ -822,11 +822,6 @@ namespace Mammoth.LiteMapper.Generator
                             continue;
                         }
 
-                        if (conversion.NullCheckExpression != null)
-                        {
-                            preconditions.Add(new PreconditionModel(conversion.NullCheckExpression, "Source member path '" + conversion.MemberPath + "' was null."));
-                        }
-
                         conversion = new ConversionModel(
                             conversion.Expression + " ?? throw new global::System.InvalidOperationException(\"Source member '" + conversion.MemberPath + "' was null.\")",
                             conversion.SourceMember,
@@ -868,7 +863,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             }
 
-            return new MappingModel(method, sourceNullable, returnNullable: !method.ReturnsVoid && IsMaybeNull(method.ReturnType), options.NullableMismatch, options.ReferenceHandling, options.GuardNonNullSource, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null, isUpdate: true, destinationParameter: destination, destinationNullable: destinationNullable);
+            return new MappingModel(method, sourceNullable, returnNullable: !method.ReturnsVoid && IsMaybeNull(method.ReturnType), options.NullableMismatch, options.ReferenceHandling, options.GuardNonNullSource, construction, ImmutableArray<PreconditionModel>.Empty, assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null, isUpdate: true, destinationParameter: destination, destinationNullable: destinationNullable);
         }
 
         private static IMethodSymbol? ResolveNestedUpdater(IMethodSymbol current, ITypeSymbol sourceType, ITypeSymbol targetType,
@@ -4133,13 +4128,21 @@ namespace Mammoth.LiteMapper.Generator
                         builder.Append(guard);
                         builder.AppendLine(")");
                         builder.AppendLine("        {");
-                        builder.Append("            ");
-                    }
-                    else
-                    {
-                        builder.Append("        ");
                     }
 
+                    if (assignment.Precondition != null)
+                    {
+                        builder.Append(guard == null ? "        if (" : "            if (");
+                        builder.Append(assignment.Precondition.Expression);
+                        builder.AppendLine(")");
+                        builder.AppendLine(guard == null ? "        {" : "            {");
+                        builder.Append(guard == null ? "            throw new global::System.InvalidOperationException(\"" : "                throw new global::System.InvalidOperationException(\"");
+                        builder.Append(assignment.Precondition.Message.Replace("\\", "\\\\").Replace("\"", "\\\""));
+                        builder.AppendLine("\");");
+                        builder.AppendLine(guard == null ? "        }" : "            }");
+                    }
+
+                    builder.Append(guard == null ? "        " : "            ");
                     if (!assignment.IsStatement)
                     {
                         builder.Append(EscapeIdentifier(destination.Name));
@@ -4638,7 +4641,7 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class AssignmentModel
         {
-            public AssignmentModel(string targetName, string expression, string? guard = null, bool initializeDuringConstruction = false, bool isStatement = false, string? initializationExpression = null, bool isDirectMemberCopy = false)
+            public AssignmentModel(string targetName, string expression, string? guard = null, bool initializeDuringConstruction = false, bool isStatement = false, string? initializationExpression = null, bool isDirectMemberCopy = false, PreconditionModel? precondition = null)
             {
                 TargetName = targetName;
                 Expression = expression;
@@ -4647,6 +4650,7 @@ namespace Mammoth.LiteMapper.Generator
                 IsStatement = isStatement;
                 InitializationExpression = initializationExpression ?? expression;
                 IsDirectMemberCopy = isDirectMemberCopy;
+                Precondition = precondition;
             }
 
             public string TargetName { get; }
@@ -4662,6 +4666,8 @@ namespace Mammoth.LiteMapper.Generator
             public string InitializationExpression { get; }
 
             public bool IsDirectMemberCopy { get; }
+
+            public PreconditionModel? Precondition { get; }
         }
 
         private sealed class PreconditionModel
