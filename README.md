@@ -42,6 +42,8 @@ CustomerDto dto = CustomerMapper.Map(customer);
 
 See the compiling samples under `samples/` for static mappers, instance mappers, collections, recursive mappings, and ASP.NET Core usage.
 
+Ordinary unmapped target members are reported as `LITEMAPPER1001` errors by default. Explicit mapper or method `UnmappedMemberPolicy` values and standard compiler severity configuration may intentionally relax this configurable diagnostic; doing so preserves valid generation but is not proof of complete target coverage. Required, non-nullable, inaccessible, invalid, and otherwise mandatory target obligations remain hard errors. Projects requiring mandatory unmapped-target coverage should treat `LITEMAPPER1001` as an error in CI and audit or avoid project-wide suppression.
+
 ## Documentation
 
 - [SPECIFICATION.md](SPECIFICATION.md) is the sole authoritative product contract.

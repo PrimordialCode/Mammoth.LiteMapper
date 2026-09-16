@@ -758,6 +758,8 @@ Regardless of the ordinary target-member policy:
 - a member that cannot be assigned after construction and is not constructor-bound or covered by `UseTargetDefault` is an error when leaving it uninitialized would violate its declared contract;
 - ordinary writable value-type members, nullable reference members, and members with an explicitly approved target default follow the configured target-member policy.
 
+The configured policy for an ordinary member is a diagnostic policy, not a completeness guarantee. Reporting `LITEMAPPER1001` as an error, downgrading it, or suppressing it MUST NOT be interpreted as proof that every target obligation is satisfied, and an ordinary severity change MUST NOT suppress generation of an otherwise valid implementation. Required, non-nullable, inaccessible, invalid, and otherwise mandatory target obligations remain hard non-configurable errors. `IgnoreTarget` and `UseTargetDefault` remain explicit member-level controls and MUST continue to receive their existing validation.
+
 ### 6.5 Hard semantic errors
 
 Some conditions remain errors regardless of configurable unmapped-member severity, including:
@@ -770,6 +772,8 @@ Some conditions remain errors regardless of configurable unmapped-member severit
 - ambiguous constructor, converter, member, or mapping selection;
 - invalid attribute configuration;
 - missing target default requested through `UseTargetDefault`.
+
+These hard errors MUST remain outside ordinary `UnmappedMemberPolicy` and `.editorconfig` suppression or downgrade behavior. A consumer that requires mandatory unmapped-target coverage SHOULD configure `LITEMAPPER1001` as an error in CI and audit or avoid project-wide suppression; the library MUST NOT claim to prevent an intentional consumer override while this diagnostic remains configurable.
 
 ---
 
@@ -1808,6 +1812,8 @@ Category ranges are:
 Standard `.editorconfig` severity overrides MUST work for configurable diagnostics.
 
 Fatal semantic diagnostics MUST use `WellKnownDiagnosticTags.NotConfigurable` or equivalent behavior so suppressing them cannot create an invalid missing implementation contract.
+
+The configurable status of `LITEMAPPER1001` is intentionally limited to ordinary unmapped target members. Its default severity remains `Error`, but a mapper/method policy or standard compiler severity configuration MAY intentionally relax that diagnostic. Such a relaxation does not suppress generation and does not prove complete target coverage. Hard errors for required, non-nullable, inaccessible, invalid, and otherwise mandatory target obligations, together with validation of `IgnoreTarget` and `UseTargetDefault`, remain non-configurable. Projects requiring mandatory unmapped-target coverage SHOULD treat `LITEMAPPER1001` as an error in CI and audit or avoid project-wide suppression.
 
 Messages SHOULD use concise type names. Diagnostic properties SHOULD contain fully qualified metadata names. When concise names are ambiguous in the message, fully qualified names MUST be used.
 

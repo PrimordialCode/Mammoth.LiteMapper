@@ -48,6 +48,21 @@ public sealed class Target { public int Value { get; set; } public int Extra { g
         }
 
         [TestMethod]
+        public void EditorConfigSuppressionOfDefaultUnmappedTargetKeepsValidImplementation()
+        {
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+[LiteMapper]
+public static partial class Mapper { public static partial Target Map(Source source); }
+public sealed class Source { public int Value { get; set; } }
+public sealed class Target { public int Value { get; set; } public int Extra { get; set; } }
+", new EditorConfigSeverityProvider("LITEMAPPER1001", ReportDiagnostic.Suppress));
+
+            AssertSeverity(result.RunResult, "LITEMAPPER1001", -1);
+            AssertValidImplementation(result.Compilation);
+        }
+
+        [TestMethod]
         public void ExplicitIgnoreOptsOutOfUnmappedTargetErrorPolicy()
         {
             var result = RunGenerator(@"

@@ -10,6 +10,10 @@
 - TokenSave status/context was consulted initially; current files were used to verify findings. Context7 did not identify a matching Mammoth.LiteMapper library, so unrelated library documentation was not used.
 - The approved section 11.3 eligibility definition and section 23.3 unknown-count buffering exception are present in the specification. These previously reported questions are not open blockers.
 
+### GitHub issue #4 unmapped-diagnostic suppression (2026-09-16)
+
+The documentation now preserves the issue #1 default of `Error` for ordinary unmapped target members while explicitly stating that `LITEMAPPER1001` remains configurable for intentional mapper/method policy and standard compiler severity configuration. Ordinary suppression or downgrade preserves valid generation but is not proof of complete mapping. Required, non-nullable, inaccessible, invalid, and otherwise mandatory target obligations remain hard non-configurable errors, and `IgnoreTarget`/`UseTargetDefault` validation remains required. CI guidance recommends treating `LITEMAPPER1001` as an error and auditing or avoiding project-wide suppression when mandatory coverage is required. No public API, diagnostic, or semantic behavior was introduced; issue #3 remains a completed prior checkpoint.
+
 ## Final implementation findings
 
 ### GitHub issue #3 helper-name hardening (2026-09-16)

@@ -483,6 +483,15 @@ No semantic decision was required. Sections7.2/10.6 and the configuration contra
 - Specification references: 14.1, 15.2, 19.8, 19.9, 24.4.
 - Consequences: Nested and collection helper planning shares mapper-scoped allocation state, while constructor candidates clone and merge only the selected state. No public API, runtime reflection, dynamic dispatch, or speculative consumer behavior is introduced. Focused and integrated validation are recorded in STATUS.
 
+### DEC-0042 Preventing accidental suppression of default unmapped-target diagnostics (2026-09-16)
+
+- Milestone: Post-Milestone 13 documentation synchronization, GitHub issue #4
+- Status: Accepted
+- Context: The library default for ordinary unmapped target members is `Error`, while `LITEMAPPER1001` remains configurable for explicit mapper/method policy and standard compiler severity configuration. Documentation must state the safety boundary without claiming control over a consumer's intentional project-wide override.
+- Decision: Keep ordinary unmapped target members at the library default `Error` and keep `LITEMAPPER1001` configurable. Ordinary suppression or downgrade does not suppress generation and is not proof of complete mapping. Required, non-nullable, inaccessible, invalid, and otherwise mandatory target obligations remain hard non-configurable errors. `IgnoreTarget` and `UseTargetDefault` retain their existing validation. Projects requiring mandatory unmapped-target coverage should treat `LITEMAPPER1001` as an error in CI and audit or avoid project-wide suppression.
+- Specification references: 6.2, 6.4, 6.5, 20.1, 20.2.
+- Consequences: No public API, diagnostic ID, or semantic behavior is introduced. Consumer documentation may recommend CI configuration, but must not claim that LiteMapper can prevent an intentional editorconfig or other compiler severity override.
+
 ### Package validation repair (2026-09-08)
 
 - Sections 22.19/24.6: compare SHA-256 hashes of every uncompressed entry in all three nupkg and all three snupkg artifacts. Normalize only NuGet-generated relationship IDs and core-property filenames; retain metadata content and relationship targets in the comparison. ZIP envelope/compression details are outside the payload comparison. This does not relax the ban on content-changing timestamps or machine-specific paths.

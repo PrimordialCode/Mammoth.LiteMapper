@@ -1,5 +1,9 @@
 # Mammoth.LiteMapper handoff
 
+## Latest: GitHub issue #4 unmapped-diagnostic suppression documentation, 2026-09-16
+
+This branch contains documentation synchronization and a focused regression for issue #4. Ordinary unmapped target members remain `Error` by default, while configurable `LITEMAPPER1001` supports explicit mapper/method policy and standard compiler severity configuration. Suppression or downgrade does not suppress valid generation or prove complete mapping. Required, non-nullable, inaccessible, invalid, and otherwise mandatory target obligations remain hard non-configurable errors; `IgnoreTarget` and `UseTargetDefault` retain their validation. Projects requiring mandatory coverage should treat `LITEMAPPER1001` as an error in CI and audit or avoid project-wide suppression. No production source, public API, diagnostic, or semantic behavior changed. No commit, push, or publication occurred.
+
 ## Latest: GitHub issue #3 helper-name hardening, 2026-09-16
 
 The branch implements and documents deterministic mapper-scoped allocation for private generated nested and collection helpers. Handwritten members and other generated helper signatures reserve names; identical closed source/destination identities reuse a name; distinct identities are deterministically disambiguated under preferred shape-plus-hash collisions independently of syntax-tree or equivalent compilation order. Consumers must not depend on helper names or signatures. This is post-Milestone 13 hardening with no public API change. Focused 7/7 and full generator 551/551 tests pass; the solution build has 0 warnings/errors; integrated solution tests pass 618/619 with one known Windows Native AOT prerequisite skip. No commit, push, or publication occurred.
