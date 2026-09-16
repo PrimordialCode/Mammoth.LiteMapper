@@ -1,6 +1,6 @@
 # Mammoth.LiteMapper Implementation Plan
 
-Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete for local review and validation. GitHub issues #1, #2, and #3 are implemented and documented; issue #4 is the current documentation and regression synchronization scope on `codex/issue-4-unmapped-diagnostic-suppression`. Remote CI remains unexecuted.
+Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1, #2, #3, and #4 are implemented and documented; issue #4 was committed as `5ea413f`, merged into `develop`, pushed, and closed. Remote CI remains unexecuted.
 
 PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, and regression-tested. All milestone and dated checkpoint sections below are historical planning and revision-specific evidence; their pending-work statements are superseded by the current execution state above.
 
@@ -12,7 +12,7 @@ PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, 
 - Decision: keep ordinary unmapped target members at the library default `Error`; keep `LITEMAPPER1001` configurable for explicit mapper/method policy and standard compiler severity configuration; state that suppression or downgrade does not suppress generation or prove complete mapping; retain hard non-configurable errors and existing `IgnoreTarget`/`UseTargetDefault` validation.
 - Scope: `SPECIFICATION.md`, `DECISIONS.md`, `IMPLEMENTATION_PLAN.md`, `STATUS.md`, `README.md`, `CHANGELOG.md`, `docs/USAGE.md`, `docs/CONFORMANCE_REVIEW.md`, `docs/HANDOFF.md`, `docs/WORK_LEDGER.md`, and the consumer skill/reference, plus the focused `UnmappedDiagnosticSeverityTests` regression. No production-source, public API, diagnostic, or semantic behavior changes.
 - CI guidance: projects requiring mandatory unmapped-target coverage should treat `LITEMAPPER1001` as an error in CI and audit or avoid project-wide suppression. Documentation must not claim the library can prevent an intentional consumer editorconfig override.
-- Status: documentation and regression edits are complete locally on this branch; scoped contradiction search, `git diff --check`, `quick_validate.py skills/mammoth-litemapper`, and the focused usage-documentation test pass. Issue #3 remains a completed prior checkpoint. No commit or push.
+- Status: documentation and regression edits are complete; scoped contradiction search, `git diff --check`, `quick_validate.py skills/mammoth-litemapper`, and the focused usage-documentation test pass. Issue #3 remains a completed prior checkpoint. Committed as `5ea413f`, merged into `develop`, pushed, and issue #4 closed.
 
 ## GitHub issue #3 helper-name hardening checkpoint (post-Milestone 13, 2026-09-16)
 

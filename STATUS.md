@@ -1,18 +1,18 @@
 # Mammoth.LiteMapper Status
 
-Latest active work: GitHub issue #4 unmapped-diagnostic suppression documentation and regression coverage are being synchronized on `codex/issue-4-unmapped-diagnostic-suppression`. Issue #3 helper-name hardening remains implemented and documented on its branch; no commit, push, or publication occurred.
+Latest completed work: GitHub issue #4 unmapped-diagnostic suppression documentation and regression coverage were committed as `5ea413f`, merged into `develop`, and pushed. Issue #4 is closed; issue #3 helper-name hardening remains implemented and documented.
 
-- Current scope: GitHub issue #4 documentation synchronization and targeted regression coverage for ordinary unmapped-target diagnostic suppression.
-- Current state: documentation synchronization and the focused `UnmappedDiagnosticSeverityTests` regression are complete locally; DEC-0042 records the accepted decision. Issue #3 remains complete and historical/current context is retained below.
+- Current scope: no active issue #4 work; remote CI remains unexecuted.
+- Current state: documentation synchronization and the focused `UnmappedDiagnosticSeverityTests` regression are committed and merged into `develop`; DEC-0042 records the accepted decision. Issue #3 remains complete and historical/current context is retained below.
 - Completed milestones: Milestone 1; Milestone 2; Milestone 3; Milestone 4; Milestone 5; Milestone 6; Milestone 7; Milestone 8; Milestone 9; Milestone 10; Milestone 11; Milestone 12; Milestone 13; Milestone 14; Milestone 15; Milestone 16.
-- Current work: review the issue #4 documentation diff, contradiction search, and documentation/skill validation.
+- Current work: issue #4 completion is verified; no further local action is pending.
 - Work completed: shared one registry across declared mappings; reserved handwritten names; reused identical closed pairs; added deterministic suffixes for preferred-name collisions; synchronized the specification, usage, README, changelog, conformance review, handoff, work ledger, and consumer skill/reference text.
 - Tests added or updated: `HelperNameCollisionTests` covers nested and collection handwritten signature collisions, preferred hash collision, syntax-tree order, cross-mapping helper reuse, and rollback after rejected planning.
 - Validation evidence: focused helper-collision tests pass 7/7; full generator suite passes 551/551; solution build passes with 0 warnings/errors; solution tests pass 619 total with 618 passed and 1 known Windows Native AOT prerequisite skip; usage documentation test passes 1/1; skill validator passes.
 - Skipped validation: one Windows Native AOT packaging case skipped because linker prerequisites are unavailable. Remote CI was not executed.
-- Blockers: none known for issue #4 documentation work.
+- Blockers: none known for issue #4.
 - Known issues: exact generated helper names remain intentionally non-public and must not be used as consumer dependencies.
-- Next permitted action: root review of the documentation diff. Commit only if explicitly requested.
+- Next permitted action: none for issue #4; begin a separately scoped task when requested.
 
 ## GitHub issue #4 documentation checkpoint (2026-09-16)
 
@@ -20,7 +20,7 @@ Latest active work: GitHub issue #4 unmapped-diagnostic suppression documentatio
 - Safety boundary: ordinary suppression or downgrade does not suppress generation and is not proof of complete mapping. Required, non-nullable, inaccessible, invalid, and otherwise mandatory target obligations remain hard non-configurable errors. `IgnoreTarget` and `UseTargetDefault` retain their existing validation.
 - CI guidance: projects requiring mandatory unmapped-target coverage should treat `LITEMAPPER1001` as an error in CI and audit or avoid project-wide suppression. LiteMapper cannot prevent an intentional consumer editorconfig override while the diagnostic remains configurable.
 - Scope: documentation and skill synchronization plus one generator regression; no production-source, public API, diagnostic, or semantic behavior changes.
-- Validation: contradiction search found no old warning-default or non-configurable-`LITEMAPPER1001` claims; scoped `git diff --check` passed; `python C:/Users/aless/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/mammoth-litemapper` passed; `dotnet test tests\Mammoth.LiteMapper.Packaging.Tests\Mammoth.LiteMapper.Packaging.Tests.csproj --no-restore --filter Milestone16UsageDocumentationTests` passed 1/1. No production-source, public API, diagnostic, or semantic behavior changes are part of this scope; no commit, push, or publication.
+- Validation: contradiction search found no old warning-default or non-configurable-`LITEMAPPER1001` claims; scoped `git diff --check` passed; `python C:/Users/aless/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/mammoth-litemapper` passed; `dotnet test tests\Mammoth.LiteMapper.Packaging.Tests\Mammoth.LiteMapper.Packaging.Tests.csproj --no-restore --filter Milestone16UsageDocumentationTests` passed 1/1. No production-source, public API, diagnostic, or semantic behavior changes are part of this scope. Committed as `5ea413f`, merged into `develop`, pushed, and issue #4 closed.
 
 ## GitHub issue #1 implementation checkpoint (2026-09-16)
 
