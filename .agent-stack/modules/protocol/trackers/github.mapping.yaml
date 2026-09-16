@@ -1,0 +1,88 @@
+version: 1
+tracker: github
+
+work_item:
+  native_entity: issue
+
+types:
+  epic:
+    label: type:epic
+  feature:
+    label: type:feature
+  story:
+    label: type:story
+  task:
+    label: type:task
+  bug:
+    label: type:bug
+  spike:
+    label: type:spike
+
+execution_mode:
+  agent:
+    label: exec:agent
+  human:
+    label: exec:human
+
+readiness:
+  ready_for_agent:
+    label: ready:agent
+  not_ready:
+    absent_label: ready:agent
+
+protocol_states:
+  draft:
+    label: state:draft
+  ready:
+    label: state:ready
+  claimed:
+    label: state:claimed
+  implementing:
+    label: state:implementing
+  blocked:
+    label: state:blocked
+  pr-open:
+    label: state:pr-open
+  in-review:
+    label: state:in-review
+  done:
+    label: state:done
+  abandoned:
+    label: state:abandoned
+
+priority:
+  p0:
+    label: priority:p0
+    value: 0
+  p1:
+    label: priority:p1
+    value: 1
+  p2:
+    label: priority:p2
+    value: 2
+  p3:
+    label: priority:p3
+    value: 3
+
+relations:
+  parent:
+    native: sub-issues
+  child:
+    native: sub-issues
+  blocked-by:
+    native: issue-dependencies
+  blocks:
+    native: issue-dependencies
+  related:
+    native: issue-links-or-comments
+
+agent_assignment:
+  mode: label
+  label_prefix: 'agent:'
+
+claim:
+  storage:
+    - issue-comment
+    - label
+  claim_label_prefix: 'claimed-by:'
+  claim_comment_marker: '<!-- agentstack-protocol:claim -->'

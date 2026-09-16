@@ -1,0 +1,88 @@
+version: 1
+
+language:
+  work_item:
+    description: >
+      A unit of backlog work that may be planned, assigned, implemented,
+      reviewed, and completed.
+
+  executable_work_item:
+    description: >
+      A work item that an AI agent is allowed to claim and implement after
+      human readiness and dependency checks pass.
+
+  ready_for_agent:
+    description: >
+      Human-controlled signal that the work item has enough clarity,
+      acceptance criteria, priority, and dependency readiness for an agent
+      to start.
+
+  claim:
+    description: >
+      Exclusive temporary ownership of a work item by one agent.
+
+  blocker:
+    description: >
+      A condition that prevents safe progress and requires dependency
+      resolution, human decision, or external input.
+
+  submit_review:
+    description: >
+      Submission of completed agent work for human review, usually through
+      a pull request and a tracker update.
+
+canonical_types:
+  epic:
+    description: Large outcome decomposed into features, stories, or tasks.
+  feature:
+    description: Deliverable capability decomposed into stories or tasks.
+  story:
+    description: User- or business-facing slice of value.
+  task:
+    description: Technical or implementation work.
+  bug:
+    description: Defect or regression.
+  spike:
+    description: Time-boxed investigation.
+
+canonical_states:
+  draft:
+    description: Not ready for execution.
+  ready:
+    description: Human-approved for agent intake.
+  claimed:
+    description: Exclusively claimed by an agent.
+  implementing:
+    description: Agent is actively working.
+  blocked:
+    description: Cannot proceed safely.
+  pr-open:
+    description: Pull request has been opened.
+  in-review:
+    description: Human review is active.
+  done:
+    description: Human-approved completion.
+  abandoned:
+    description: Work was stopped without completion.
+
+canonical_relations:
+  parent:
+    inverse: child
+  child:
+    inverse: parent
+  blocks:
+    inverse: blocked-by
+  blocked-by:
+    inverse: blocks
+  related:
+    inverse: related
+
+readiness_terms:
+  ready_for_planning:
+    description: Ready for clarification, design, or technical planning.
+  ready_for_agent:
+    description: Ready for an agent to claim and implement.
+  ready_for_review:
+    description: Ready for human review after implementation.
+  ready_for_merge:
+    description: Ready for a human-controlled merge decision.

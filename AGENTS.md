@@ -21,6 +21,7 @@ Test: would a senior engineer say this is overcomplicated? If yes, simplify.
 Touch only what you must. Clean up only your own mess.
 Don't "improve" adjacent code, comments, or formatting.
 Don't refactor what isn't broken. Match existing style.
+Preserve existing encoding and line endings when practical, don't normalize LF/CRLF unless build/test is affected or explicitly requested.
 
 ## Rule 4 — Goal-Driven Execution
 Define success criteria. Loop until verified.
@@ -235,3 +236,27 @@ Milestone 15 sample and benchmark validation uses:
 * `dotnet run --project samples\Mammoth.LiteMapper.Samples.Collections\Mammoth.LiteMapper.Samples.Collections.csproj --no-restore`
 * `dotnet run --project samples\Mammoth.LiteMapper.Samples.AspNetCore\Mammoth.LiteMapper.Samples.AspNetCore.csproj --no-restore -- --smoke`
 * `dotnet run --project benchmarks\Mammoth.LiteMapper.Benchmarks\Mammoth.LiteMapper.Benchmarks.csproj -c Release --no-restore -- --filter *FlatObjectBenchmarks* --job Dry --warmupCount 1 --iterationCount 1`
+
+<!-- agentstack-protocol:start -->
+## AgentStack Protocol Instructions
+
+This repository uses AgentStack Protocol.
+
+Read in this order:
+
+1. `.agent-stack/modules/protocol/README.md`
+2. `.agent-stack/modules/protocol/protocol/AGENT-PROTOCOL.md`
+3. `.agent-stack/modules/protocol/language/backlog-language.yaml`
+4. `.agent-stack/modules/protocol/policy/AGENT-POLICY.json`
+5. `.agent-stack/modules/protocol/active-tracker.json`
+6. `.agent-stack/modules/protocol/templates/markdown-style.md`
+7. the active tracker mapping/config in `.agent-stack/modules/protocol/trackers/`
+8. `.agents/skills/agentstack-protocol-*/SKILL.md`
+9. `.agents/skills/git-worktree-ops/SKILL.md`
+
+Active tracker: `github`.
+
+Use the `agentstack` CLI for tracker-backed work. Do not call tracker-native CLIs directly for normal protocol operations unless the AgentStack CLI cannot perform the required operation.
+
+Do not process inactive tracker files. Write tracker comments, plans, blockers, review summaries, and child work item descriptions using the Markdown style template. Skills live only under `.agents/skills`. AgentStack protocol skills start with `agentstack-protocol-`; `git-worktree-ops` is the supporting skill for isolated git worktree operations.
+<!-- agentstack-protocol:end -->

@@ -1,0 +1,5 @@
+{
+  "tracker": "github",
+  "mapping": ".agent-stack/modules/protocol/trackers/github.mapping.yaml",
+  "config": ".agent-stack/modules/protocol/trackers/github.config.json"
+}

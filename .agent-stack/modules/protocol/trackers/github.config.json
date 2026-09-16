@@ -1,0 +1,14 @@
+{
+  "platform": "github",
+  "owner": "PrimordialCode",
+  "repo": "Mammoth.LiteMapper",
+  "labels": {
+    "executionAgentLabel": "exec:agent",
+    "executionHumanLabel": "exec:human",
+    "readyForAgentLabel": "ready:agent",
+    "claimActiveLabel": "claim:active",
+    "protocolStatePrefix": "state:",
+    "assignedAgentPrefix": "agent:",
+    "priorityPrefix": "priority:p"
+  }
+}

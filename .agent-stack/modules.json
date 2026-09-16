@@ -1,8 +1,13 @@
 {
   "modules": {
     "rules": {
-      "installedAt": "2026-06-17T09:17:26.256Z",
+      "installedAt": "2026-09-16T12:46:19.749Z",
       "version": "0.1.0"
+    },
+    "protocol": {
+      "installedAt": "2026-09-16T12:53:41.974Z",
+      "version": "0.1.0",
+      "activeTracker": "github"
     }
   }
 }
