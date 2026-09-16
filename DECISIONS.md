@@ -492,6 +492,17 @@ No semantic decision was required. Sections7.2/10.6 and the configuration contra
 - Specification references: 6.2, 6.4, 6.5, 20.1, 20.2.
 - Consequences: No public API, diagnostic ID, or semantic behavior is introduced. Consumer documentation may recommend CI configuration, but must not claim that LiteMapper can prevent an intentional editorconfig or other compiler severity override.
 
+### PENDING-0008
+
+- Date: 2026-09-16
+- Milestone: Post-Milestone 13 documentation synchronization, GitHub issue #5
+- Status: Blocked pending an explicit specification decision
+- Context: Issue #5 acceptance criteria require registration tests for valid generic containers. The current implementation and `ExternalRegistrationTests` reject generic registered types, including closed constructed static containers.
+- Conflict: Sections 5.5 and 11.5 require an external registered type to be static, to exist, and to expose usable methods, but do not prohibit generic external containers. Section 8.4 rejects open generic source or destination declarations, and section 14.2 permits closed constructed mapping models while prohibiting reusable open generic templates; neither section defines whether a generic external registration container is valid.
+- Question: Should a closed constructed static external container such as `typeof(External<int>)` be accepted when it exposes usable closed methods, or should all generic external registration containers remain rejected and issue #5's acceptance wording be narrowed? The specification must be updated before adding competing tests or changing implementation behavior.
+- Specification references: 5.5, 7.1, 8.4, 11.3, 11.4, 11.5, 14.2, 22.9.
+- Consequences: Issue #5 implementation is stopped without changing production code or adding tests that choose an unstated semantic. Declaration, constructor, accessibility, and non-generic registration gaps remain unimplemented until the decision is resolved because repository policy requires stopping on a normative ambiguity.
+
 ### Package validation repair (2026-09-08)
 
 - Sections 22.19/24.6: compare SHA-256 hashes of every uncompressed entry in all three nupkg and all three snupkg artifacts. Normalize only NuGet-generated relationship IDs and core-property filenames; retain metadata content and relationship targets in the comparison. ZIP envelope/compression details are outside the payload comparison. This does not relax the ban on content-changing timestamps or machine-specific paths.
