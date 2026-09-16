@@ -5,21 +5,21 @@ Latest completed work: GitHub issue #6 existing-target update atomicity was comm
 - Current scope: issue #7 strict source-member completeness adoption evidence and synchronized documentation; remote CI remains unexecuted.
 - Current state: issue #7 is claimed and planned in AgentStack. The existing `UnmappedSourceMembers` API and `LITEMAPPER1003` behavior already provide mapper, method, assembly, severity, and editorconfig support; this issue documents the boundary and adds generator-only adoption regressions.
 - Completed milestones: Milestone 1; Milestone 2; Milestone 3; Milestone 4; Milestone 5; Milestone 6; Milestone 7; Milestone 8; Milestone 9; Milestone 10; Milestone 11; Milestone 12; Milestone 13; Milestone 14; Milestone 15; Milestone 16.
-- Current work: issue #7 implementation and coverage are complete locally; broader validation remains.
+- Current work: issue #7 implementation and coverage are complete locally; PR [#10](https://github.com/PrimordialCode/Mammoth.LiteMapper/pull/10) is open and awaiting human review through AgentStack.
 - Evidence: `UnmappedDiagnosticSeverityTests` now covers strict source completeness at mapper, method, and assembly scopes, while existing source-policy and editorconfig rows cover Error, Warning, Info, Ignore, and severity overrides without consumer DTO tests.
 - Focused validation: the strict-source generator subset passes 27/27; `Milestone16UsageDocumentationTests` passes 1/1; consumer skill validation passes; `git diff --check` passes.
 - Completed prior issue evidence: issue #5 focused tests passed 86/86; generator tests passed 558/558 on Roslyn 4.8.0, 4.14.0, and 5.9.0; solution build passed with 0 warnings/errors; solution tests passed 624/625 with one Native AOT linker-prerequisite skip.
 - Skipped validation: one Windows Native AOT packaging case skipped because linker prerequisites are unavailable. Remote CI was not executed.
 - Blockers: none for the approved issue #7 scope; remote CI remains unexecuted.
 - Known issues: exact generated helper names remain intentionally non-public and must not be used as consumer dependencies.
-- Next permitted action: run the issue #7 full validation suite, then submit the branch for review through AgentStack. Do not start issue #8 before issue #7 is reviewed, merged, and closed.
+- Next permitted action: await human review of PR #10. After explicit approval, complete the AgentStack merge/closure protocol. Do not start issue #8 before issue #7 is reviewed, merged, and closed.
 
 ## GitHub issue #7 strict source-member completeness checkpoint (2026-09-16)
 
 - AgentStack claim and implementation plan are recorded for issue #7 on `codex/issue-7-strict-source-completeness`.
 - Red-first evidence: mapper, method, and assembly strict-source configuration cases were added to the generator suite; the usage-guide contract initially failed because no first-class strict-source section existed.
 - Implementation: synchronized the usage guide, consumer skill, and mapping-rules reference to explain opt-in `UnmappedSourceMembers`, `LITEMAPPER1003`, staged severities, `IgnoreSource`, the `Ignore` default rationale, and the independent target-completeness boundary. No public API or production generator behavior changed.
-- Focused validation: strict-source generator coverage passes 27/27; usage documentation passes 1/1; skill validation passes; CRLF-aware diff check passes. Full generator/solution validation and review remain.
+- Validation: strict-source generator coverage passes 27/27; full generator suite passes 564/564; solution build passes with 0 warnings/errors; solution tests pass 629 with 1 expected Windows Native AOT linker-prerequisite skip; usage documentation passes 1/1; skill validation and CRLF-aware diff check pass. PR #10 is open and human review is required.
 
 ## GitHub issue #6 atomicity checkpoint (2026-09-16)
 
