@@ -503,6 +503,18 @@ No semantic decision was required. Sections7.2/10.6 and the configuration contra
 - Specification references: 5.5, 7.1, 8.4, 11.3, 11.4, 11.5, 14.2, 22.9.
 - Consequences: Issue #5 implementation may add red-first coverage for closed constructed generic registrations and unbound-type rejection. No open generic template or runtime type resolution is introduced. Declaration, constructor, accessibility, and remaining registration gaps remain in scope for issue #5.
 
+### PENDING-0009
+
+- Date: 2026-09-16
+- Milestone: Post-Milestone 13 hardening, GitHub issue #6
+- Status: Option A approved by the user on 2026-09-16 and incorporated into `SPECIFICATION.md`; implementation resumed
+- Specification references: 9.4, 15.5, 16.1, 16.3, 16.4, 19.7, 22.13, 25.3
+- Context: Existing-target mapping currently emits each destination assignment in deterministic target-member name order. A source getter or converter for a later member can throw after earlier assignments have already changed the destination. The specification requires stable single evaluation and distinct update semantics but does not define whether updates are transactional with respect to value evaluation.
+- Options considered: (A) document non-transactional updates with deterministic target-member evaluation and assignment order, preserving the current direct generated behavior; or (B) evaluate all mapped values into temporaries in deterministic order before committing destination assignments.
+- Decision: choose Option A. For a non-null destination, each member's selected source path and conversion are evaluated and assigned before the next member. Earlier assignments remain when a later getter, converter, nested mapping, collection operation, or setter throws; later members are not attempted. A per-member capture is allowed to prevent repeated getter/path evaluation but does not make the update transactional. New-object construction remains distinct.
+- Rationale: this preserves the current direct generated behavior, avoids staging complexity, keeps getter/converter evaluation adjacent to its assignment, and does not claim transactional setter side effects.
+- Consequence: add failing getter/converter failure, deterministic-order, and single-evaluation regressions, implement the minimal per-member capture needed for patch guards, and synchronize project/consumer documentation.
+
 ### Package validation repair (2026-09-08)
 
 - Sections 22.19/24.6: compare SHA-256 hashes of every uncompressed entry in all three nupkg and all three snupkg artifacts. Normalize only NuGet-generated relationship IDs and core-property filenames; retain metadata content and relationship targets in the comparison. ZIP envelope/compression details are outside the payload comparison. This does not relax the ban on content-changing timestamps or machine-specific paths.

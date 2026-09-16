@@ -718,8 +718,7 @@ namespace Mammoth.LiteMapper.Generator
                     sourcePathCaptureGuard = BuildNullSafeSourcePathExpression(source.Name, selected) + " is { } " + sourcePathCaptureName;
                 }
                 else if (options.IgnoreNullSourceMembers && selected == null && !(match.Member is IParameterSymbol) &&
-                    GetMemberType(match.Member) is INamedTypeSymbol nullableMemberType &&
-                    nullableMemberType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+                    SourceMayBeNull(match.Member))
                 {
                     var directExpression = EscapeIdentifier(source.Name) + "." + EscapeIdentifier(match.Member.Name);
                     sourcePathCaptureName = CreateExpressionCaptureName(method, targetMember.Name, match.Member.Name);

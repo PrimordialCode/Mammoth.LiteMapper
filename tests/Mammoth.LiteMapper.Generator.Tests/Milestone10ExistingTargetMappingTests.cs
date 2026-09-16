@@ -113,11 +113,12 @@ public sealed class ItemDto { public int Id { get; set; } }
 
             AssertNoLiteMapperDiagnostics(result.RunResult);
             var generated = SingleGeneratedSource(result.RunResult);
-            StringAssert.Contains(generated, "if (source.Name != null)");
+            StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
+                "if \\(source\\.Name is \\{ \\} __sourcePath_Name_[0-9A-F]{8}\\)"));
             StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
                 "if \\(source\\.Child\\?\\.Name is \\{ \\} __sourcePath_ChildName_[0-9A-F]{8}\\)"));
             StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
-                "target\\.Items = MapCollection_List_Item_To_List_ItemDto_[0-9A-F]{8}\\(source\\.Items\\);"));
+                "target\\.Items = MapCollection_List_Item_To_List_ItemDto_[0-9A-F]{8}\\(__sourcePath_Items_[0-9A-F]{8}\\);"));
 
             var assembly = Emit(result.Compilation);
             var source = assembly.CreateInstance("Source")!;
@@ -125,6 +126,150 @@ public sealed class ItemDto { public int Id { get; set; } }
             assembly.GetType("Mapper")!.GetMethod("Apply")!.Invoke(null, new[] { source, target });
             Assert.AreEqual("keep", target.GetType().GetProperty("Name")!.GetValue(target));
             Assert.AreEqual("child", target.GetType().GetProperty("ChildName")!.GetValue(target));
+        }
+
+        [TestMethod]
+        public void NonTransactionalUpdateRetainsEarlierAssignmentWhenLaterGetterThrows()
+        {
+            var result = RunGenerator(@"
+using System;
+using Mammoth.LiteMapper;
+
+[LiteMapper]
+public static partial class Mapper
+{
+    public static partial void Apply(Source source, Target target);
+}
+
+public sealed class Source
+{
+    public int First => 7;
+    public int Second => throw new InvalidOperationException(""later getter failed"");
+}
+
+public sealed class Target
+{
+    public int First { get; set; } = 1;
+    public int Second { get; set; } = 2;
+}
+");
+
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var assembly = Emit(result.Compilation);
+            var source = assembly.CreateInstance("Source")!;
+            var target = assembly.CreateInstance("Target")!;
+            var exception = Assert.ThrowsExactly<TargetInvocationException>(() =>
+                assembly.GetType("Mapper")!.GetMethod("Apply")!.Invoke(null, new[] { source, target }));
+
+            Assert.IsInstanceOfType(exception.InnerException, typeof(InvalidOperationException));
+            Assert.AreEqual(7, target.GetType().GetProperty("First")!.GetValue(target));
+            Assert.AreEqual(2, target.GetType().GetProperty("Second")!.GetValue(target));
+        }
+
+        [TestMethod]
+        public void UpdateGetterConverterAndAssignmentOrderIsDeterministic()
+        {
+            var result = RunGenerator(@"
+using System;
+using Mammoth.LiteMapper;
+
+public static class Trace
+{
+    public static string Events = string.Empty;
+    public static void Add(string value) => Events += value;
+}
+
+[LiteMapper]
+public static partial class Mapper
+{
+    [MapProperty(Source = nameof(Source.First), Target = nameof(Target.First), Use = nameof(ConvertFirst))]
+    [MapProperty(Source = nameof(Source.Second), Target = nameof(Target.Second), Use = nameof(ConvertSecond))]
+    public static partial void Apply(Source source, Target target);
+
+    private static string ConvertFirst(int value)
+    {
+        Trace.Add(""c1"");
+        return value.ToString();
+    }
+
+    private static string ConvertSecond(int value)
+    {
+        Trace.Add(""c2"");
+        throw new InvalidOperationException(""later converter failed"");
+    }
+}
+
+public sealed class Source
+{
+    public int First { get { Trace.Add(""g1""); return 3; } }
+    public int Second { get { Trace.Add(""g2""); return 4; } }
+}
+
+public sealed class Target
+{
+    private string _first = ""old1"";
+    private string _second = ""old2"";
+    public string First { get { return _first; } set { Trace.Add(""s1""); _first = value; } }
+    public string Second { get { return _second; } set { Trace.Add(""s2""); _second = value; } }
+}
+");
+
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var assembly = Emit(result.Compilation);
+            var source = assembly.CreateInstance("Source")!;
+            var target = assembly.CreateInstance("Target")!;
+            var exception = Assert.ThrowsExactly<TargetInvocationException>(() =>
+                assembly.GetType("Mapper")!.GetMethod("Apply")!.Invoke(null, new[] { source, target }));
+
+            Assert.IsInstanceOfType(exception.InnerException, typeof(InvalidOperationException));
+            Assert.AreEqual("g1c1s1g2c2", assembly.GetType("Trace")!.GetField("Events")!.GetValue(null));
+            Assert.AreEqual("3", target.GetType().GetProperty("First")!.GetValue(target));
+            Assert.AreEqual("old2", target.GetType().GetProperty("Second")!.GetValue(target));
+        }
+
+        [TestMethod]
+        public void PatchUpdateCapturesNullableGetterOnceBeforeAssignment()
+        {
+            var result = RunGenerator(@"
+#nullable enable
+using System;
+using Mammoth.LiteMapper;
+
+[LiteMapper(IgnoreNullSourceMembers = true)]
+public static partial class Mapper
+{
+    public static partial void Apply(Source source, Target target);
+}
+
+public sealed class Source
+{
+    private int _reads;
+    public string? First
+    {
+        get
+        {
+            _reads++;
+            if (_reads > 1) throw new InvalidOperationException(""getter evaluated twice"");
+            return ""new"";
+        }
+    }
+    public int Reads => _reads;
+}
+
+public sealed class Target
+{
+    public string First { get; set; } = ""old"";
+}
+");
+
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var assembly = Emit(result.Compilation);
+            var source = assembly.CreateInstance("Source")!;
+            var target = assembly.CreateInstance("Target")!;
+            assembly.GetType("Mapper")!.GetMethod("Apply")!.Invoke(null, new[] { source, target });
+
+            Assert.AreEqual("new", target.GetType().GetProperty("First")!.GetValue(target));
+            Assert.AreEqual(1, source.GetType().GetProperty("Reads")!.GetValue(source));
         }
 
         [TestMethod]

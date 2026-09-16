@@ -18,6 +18,10 @@ The documentation now preserves the issue #1 default of `Error` for ordinary unm
 
 PENDING-0008 was approved and incorporated into sections 5.5 and 11.5. Closed constructed static external containers, such as `typeof(External<int>)`, are valid when they expose usable non-generic methods after type substitution. Unbound generic registrations and generic methods remain rejected. Issue #5 red-first coverage and host-matrix validation are complete locally: the affected suite passes 86/86 and the full generator suite passes 558/558 on Roslyn 4.8.0, 4.14.0, and 5.9.0. The complete solution run passes 624/625 with one expected Windows Native AOT linker-prerequisite skip.
 
+### GitHub issue #6 existing-target atomicity (2026-09-16)
+
+PENDING-0009 was approved as Option A and incorporated into section 16.1. Existing-target updates are non-transactional: target members are evaluated and assigned in deterministic target-member order, earlier assignments remain after a later failure, and later members are not attempted. Per-member captures may prevent repeated source getter/path evaluation without providing rollback. Red-first coverage first failed on a duplicated nullable patch getter and now passes alongside getter/converter ordering and earlier-assignment retention cases. The focused update suite passes 82/82, the complete default-host generator suite passes 561/561, the complete solution passes 629/629 executed tests with one expected Windows Native AOT linker-prerequisite skip, and the usage documentation check passes 1/1.
+
 ## Final implementation findings
 
 ### GitHub issue #3 helper-name hardening (2026-09-16)
