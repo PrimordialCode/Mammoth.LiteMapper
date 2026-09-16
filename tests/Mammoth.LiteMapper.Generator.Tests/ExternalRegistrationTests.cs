@@ -26,6 +26,21 @@ namespace Mammoth.LiteMapper.Generator.Tests
         }
 
         [TestMethod]
+        public void MissingRegistrationDiagnosticHasStableContractDetails()
+        {
+            var source = "using Mammoth.LiteMapper; [LiteMapper, UseMapper(typeof(Missing))] public static partial class Mapper { public static partial Target Map(Source source); } " +
+                "public class Source { } public class Target { }";
+            var result = Run(source, allowMissingType: true);
+            var diagnostic = result.RunResult.Diagnostics.Single(d => d.Id == "LITEMAPPER0010");
+
+            Assert.AreEqual(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.IsTrue(diagnostic.Descriptor.CustomTags.Contains(WellKnownDiagnosticTags.NotConfigurable));
+            Assert.AreEqual("Registered mapper type 'UseMapper' is invalid", diagnostic.GetMessage());
+            Assert.IsTrue(diagnostic.Location.IsInSource);
+            Assert.AreEqual(source.IndexOf("UseMapper", StringComparison.Ordinal), diagnostic.Location.SourceSpan.Start);
+        }
+
+        [TestMethod]
         [DataRow(false)]
         [DataRow(true)]
         public void ExistingNonStaticRegistrationRetainsItsSpecificDiagnostic(bool assemblyScope)
@@ -54,12 +69,24 @@ namespace Mammoth.LiteMapper.Generator.Tests
         }
 
         [TestMethod]
-        [DataRow("External<>", "public static class External<T> { public static int Convert(int value) => value + 10; }")]
-        [DataRow("External<int>", "public static class External<T> { public static int Convert(int value) => value + 10; }")]
-        [DataRow("Outer<int>.External", "public class Outer<T> { public static class External { public static int Convert(int value) => value + 10; } }")]
-        public void GenericRegisteredContainersRemainDeferredEvenWhenTypeArgumentsAreClosed(string registeredType, string container)
+        [DataRow("External<int>", "public static class External<T> { public static int Convert(int value) => value + 10; }", false)]
+        [DataRow("Outer<int>.External", "public class Outer<T> { public static class External { public static int Convert(int value) => value + 10; } }", false)]
+        [DataRow("External<int>", "public static class External<T> { public static int Convert(int value) => value + 10; }", true)]
+        [DataRow("Outer<int>.External", "public class Outer<T> { public static class External { public static int Convert(int value) => value + 10; } }", true)]
+        public void ClosedConstructedGenericRegisteredContainersAreUsable(string registeredType, string container, bool assemblyScope)
         {
-            AssertInvalidRegistration(Run(RegistrationSource(registeredType, container, false)), "LITEMAPPER0010", false);
+            var source = RegistrationSource(registeredType, container, assemblyScope) +
+                "public static class Probe { public static int Run() => RegisteredMapper.Map(new Source { Value = 3 }).Value; }";
+
+            Assert.AreEqual(13, Execute(Run(source)), "A closed constructed generic external container must participate as an ordinary static registration.");
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void UnboundGenericRegisteredContainersRemainRejected(bool assemblyScope)
+        {
+            AssertInvalidRegistration(Run(RegistrationSource("External<>", "public static class External<T> { public static int Convert(int value) => value + 10; }", assemblyScope)), "LITEMAPPER0010", assemblyScope);
         }
 
         [TestMethod]

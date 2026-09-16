@@ -3709,7 +3709,7 @@ namespace Mammoth.LiteMapper.Generator
             {
                 diagnostics.Add(Diagnostic.Create(Diagnostics.ExternalMapperMustBeStatic, location, namedMapperType.Name));
             }
-            else if (namedMapperType.IsGenericType || ContainingTypes(namedMapperType).Any(static t => t.IsGenericType) ||
+            else if (namedMapperType.IsUnboundGenericType || ContainingTypes(namedMapperType).Any(static t => t.IsUnboundGenericType) ||
                 !namedMapperType.GetMembers().OfType<IMethodSymbol>().Any(method =>
                     IsUsableRegisteredMethod(method) &&
                     (compilation == null || mapper == null || compilation.IsSymbolAccessibleWithin(method, mapper))))

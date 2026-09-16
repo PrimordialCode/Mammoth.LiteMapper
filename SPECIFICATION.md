@@ -507,6 +507,8 @@ A referenced type MAY contain generated mapping methods, handwritten mapping met
 
 Externally registered mapper or converter-container types MUST be static in 1.0.
 
+An externally registered static type MAY be a closed constructed generic type, such as `typeof(External<int>)` or `typeof(Outer<int>.External)`. An unbound generic type, such as `typeof(External<>)`, MUST be rejected. The closed type MUST expose at least one usable method after type arguments are applied; generic methods remain subject to section 11.4.
+
 ### 5.6 Mapping-selection attributes
 
 ```csharp
@@ -1206,6 +1208,8 @@ Class-level `[UseMapper]` registrations take precedence over assembly-level regi
 Every external registered type MUST be static.
 
 LiteMapper MUST validate that a referenced type exists and exposes usable methods. It MUST NOT instantiate an external mapper or resolve it from dependency injection.
+
+Closed constructed generic external types are treated as ordinary concrete registration containers. Unbound generic external types and generic methods are not eligible registrations; this does not introduce open generic templates or runtime type resolution.
 
 ### 11.6 Identical reference types
 

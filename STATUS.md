@@ -1,18 +1,28 @@
 # Mammoth.LiteMapper Status
 
-Latest completed work: GitHub issue #4 unmapped-diagnostic suppression documentation and regression coverage were committed as `5ea413f`, merged into `develop`, and pushed. Issue #4 is closed; issue #3 helper-name hardening remains implemented and documented.
+Latest completed work: GitHub issue #4 unmapped-diagnostic suppression documentation and regression coverage were committed as `5ea413f`, merged into `develop`, and pushed. Issue #4 is closed; issue #3 helper-name hardening remains implemented and documented. GitHub issue #5 is claimed on `codex/issue-5-declaration-coverage` and implementing after PENDING-0008 was approved.
 
-- Current scope: no active issue #4 work; remote CI remains unexecuted.
-- Current state: documentation synchronization and the focused `UnmappedDiagnosticSeverityTests` regression are committed and merged into `develop`; DEC-0042 records the accepted decision. Issue #3 remains complete and historical/current context is retained below.
+- Current scope: issue #5 declaration, registration, constructor, and accessibility coverage audit; remote CI remains unexecuted.
+- Current state: issue #5 plan is recorded in AgentStack and its claim is active. PENDING-0008 is approved and incorporated into the specification: closed constructed generic static registration containers are valid; unbound generic registrations and generic methods remain rejected.
 - Completed milestones: Milestone 1; Milestone 2; Milestone 3; Milestone 4; Milestone 5; Milestone 6; Milestone 7; Milestone 8; Milestone 9; Milestone 10; Milestone 11; Milestone 12; Milestone 13; Milestone 14; Milestone 15; Milestone 16.
-- Current work: issue #4 completion is verified; no further local action is pending.
+- Current work: issue #5 implementation and coverage are complete locally on the claimed branch; specification and usage guidance record the approved generic-registration rule.
 - Work completed: shared one registry across declared mappings; reserved handwritten names; reused identical closed pairs; added deterministic suffixes for preferred-name collisions; synchronized the specification, usage, README, changelog, conformance review, handoff, work ledger, and consumer skill/reference text.
-- Tests added or updated: `HelperNameCollisionTests` covers nested and collection handwritten signature collisions, preferred hash collision, syntax-tree order, cross-mapping helper reuse, and rollback after rejected planning.
-- Validation evidence: focused helper-collision tests pass 7/7; full generator suite passes 551/551; solution build passes with 0 warnings/errors; solution tests pass 619 total with 618 passed and 1 known Windows Native AOT prerequisite skip; usage documentation test passes 1/1; skill validator passes.
+- Tests added or updated: issue #5 adds legal declaration-signature fixtures and exact diagnostic-contract assertions, closed and unbound generic registration cases at class and assembly scope, and exact constructor/registration diagnostic checks. Existing constructor and containing-type runtime coverage remains green.
+- Validation evidence: affected focused tests pass 86/86; complete generator suite passes 558/558 on Roslyn 4.8.0, 4.14.0, and 5.9.0; solution build passes with 0 warnings/errors; complete solution tests pass 624/625 with one Native AOT linker-prerequisite skip; usage documentation test passes 1/1; skill validator passes.
 - Skipped validation: one Windows Native AOT packaging case skipped because linker prerequisites are unavailable. Remote CI was not executed.
-- Blockers: none known for issue #4.
+- Blockers: none for the approved issue #5 scope; remote CI remains unexecuted.
 - Known issues: exact generated helper names remain intentionally non-public and must not be used as consumer dependencies.
-- Next permitted action: none for issue #4; begin a separately scoped task when requested.
+- Next permitted action: commit, push, open the issue #5 pull request, and submit it for human review through AgentStack.
+
+## GitHub issue #5 generic-registration decision (2026-09-16)
+
+- AgentStack claim and execution plan are recorded for issue #5 on `codex/issue-5-declaration-coverage`.
+- Red-first evidence: closed constructed generic registration cases first failed with `LITEMAPPER0010` under the previous generic-type guard; after the guard was limited to unbound generic types, four closed cases and two unbound rejection cases pass at class and assembly scope.
+- Fixture evidence: valid `protected`, `in`, `out`, and extra-parameter declarations now assert clean input compilation apart from deliberate partial declarations, preserve a healthy generated mapping, and verify diagnostic ID, severity, message, and source location. Constructor and missing-registration diagnostics have the same contract checks.
+- Decision: closed constructed static external containers such as `typeof(External<int>)` are valid when they expose usable non-generic methods after substitution. Unbound generic containers and generic methods remain rejected.
+- Validation: focused issue #5 coverage passes 86/86; the full generator suite passes 558/558 on each Roslyn 4.8.0, 4.14.0, and 5.9.0 host; the solution build has zero warnings/errors.
+- Integration: the complete solution test run passes 624/625 with one expected Windows Native AOT linker-prerequisite skip; no test failures or other skips occurred.
+- Decision record: `DECISIONS.md` PENDING-0008. The specification, usage guide, changelog, skill, and mapping rules reflect the approved behavior. Implementation is ready for review.
 
 ## GitHub issue #4 documentation checkpoint (2026-09-16)
 

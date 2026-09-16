@@ -14,6 +14,10 @@
 
 The documentation now preserves the issue #1 default of `Error` for ordinary unmapped target members while explicitly stating that `LITEMAPPER1001` remains configurable for intentional mapper/method policy and standard compiler severity configuration. Ordinary suppression or downgrade preserves valid generation but is not proof of complete mapping. Required, non-nullable, inaccessible, invalid, and otherwise mandatory target obligations remain hard non-configurable errors, and `IgnoreTarget`/`UseTargetDefault` validation remains required. CI guidance recommends treating `LITEMAPPER1001` as an error and auditing or avoiding project-wide suppression when mandatory coverage is required. No public API, diagnostic, or semantic behavior was introduced; issue #3 remains a completed prior checkpoint.
 
+### GitHub issue #5 generic registration decision (2026-09-16)
+
+PENDING-0008 was approved and incorporated into sections 5.5 and 11.5. Closed constructed static external containers, such as `typeof(External<int>)`, are valid when they expose usable non-generic methods after type substitution. Unbound generic registrations and generic methods remain rejected. Issue #5 red-first coverage and host-matrix validation are complete locally: the affected suite passes 86/86 and the full generator suite passes 558/558 on Roslyn 4.8.0, 4.14.0, and 5.9.0. The complete solution run passes 624/625 with one expected Windows Native AOT linker-prerequisite skip.
+
 ## Final implementation findings
 
 ### GitHub issue #3 helper-name hardening (2026-09-16)
