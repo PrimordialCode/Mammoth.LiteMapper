@@ -1,6 +1,6 @@
 # Mammoth.LiteMapper Implementation Plan
 
-Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1 through #5 are implemented and documented; issue #5 was committed as `bd532f0`, merged into `develop`, pushed, and closed. Issue #6 was committed as `c428e90`, pushed on `codex/issue-6-existing-target-atomicity`, and submitted as PR #9 after Option A in PENDING-0009 was approved and incorporated into the specification. AgentStack issue #6 is `pr-open` and awaiting human review. Remote CI remains unexecuted.
+Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1 through #5 are implemented and documented; issue #5 was committed as `bd532f0`, merged into `develop`, pushed, and closed. Issue #6 was committed as `c428e90`, merged into `develop` via PR #9 as `f2f071c`, and closed after Option A in PENDING-0009 was approved and incorporated into the specification. AgentStack issue #6 is `done` and its claim is released. Remote CI remains unexecuted.
 
 PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, and regression-tested. All milestone and dated checkpoint sections below are historical planning and revision-specific evidence; their pending-work statements are superseded by the current execution state above.
 
@@ -12,7 +12,7 @@ PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, 
 - Current implementation: assignments are emitted in deterministic target-member name order, with each source getter/converter evaluated immediately before its destination assignment.
 - Ambiguity: the specification requires stable evaluation and distinct update behavior but does not choose between non-transactional sequential commits and staging all mapped values before assignments. See `DECISIONS.md` PENDING-0009.
 - Recommendation: document the current non-transactional order unless the user requires stronger failure isolation. Staging values would change the getter/converter-versus-setter event order and add implementation complexity; neither option would make destination setters transactional.
-- Status: Option A was approved by the user and incorporated into `SPECIFICATION.md`; red-first regression coverage, minimal implementation, focused validation, and integrated local validation are complete. PR #9 is open and awaiting human review.
+- Status: Option A was approved by the user and incorporated into `SPECIFICATION.md`; red-first regression coverage, minimal implementation, focused validation, integrated local validation, review, merge, and issue closure are complete through PR #9.
 
 ## GitHub issue #4 unmapped-diagnostic suppression checkpoint (2026-09-16)
 
