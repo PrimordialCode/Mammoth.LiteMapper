@@ -1,10 +1,18 @@
 # Mammoth.LiteMapper Implementation Plan
 
-Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1 through #5 are implemented and documented; issue #5 was committed as `bd532f0`, merged into `develop`, pushed, and closed. Issue #6 was committed as `c428e90`, merged into `develop` via PR #9 as `f2f071c`, and closed after Option A in PENDING-0009 was approved and incorporated into the specification. AgentStack issue #6 is `done` and its claim is released. Remote CI remains unexecuted.
+Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1 through #6 are implemented, documented, merged, and closed. Issue #7 is claimed on `codex/issue-7-strict-source-completeness` and is in implementation. Existing source-policy behavior already satisfies the requested mapper, method, assembly, severity, and editorconfig boundaries; this scope adds adoption evidence and synchronized guidance without a public API or semantic change. Remote CI remains unexecuted.
 
 PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, and regression-tested. All milestone and dated checkpoint sections below are historical planning and revision-specific evidence; their pending-work statements are superseded by the current execution state above.
 
 `SPECIFICATION.md` is authoritative. This plan explains execution order and validation only; it does not redefine product semantics.
+
+## GitHub issue #7 strict source-member completeness checkpoint (2026-09-16)
+
+- Objective: make the existing opt-in `UnmappedSourceMembers` policy a documented strict source-completeness guardrail with adoption evidence.
+- Contract boundary: mapper, method, and assembly configuration already resolve through the specified precedence. `LITEMAPPER1003` already supports `Ignore`, `Info`, `Warning`, `Error`, and standard editorconfig severity overrides; target completeness and mandatory diagnostics remain independent.
+- Red-first evidence: the new generator regression passes for mapper, method, and assembly strict-source configuration, while the new usage-guide assertions fail until the first-class guidance is added.
+- Scope: generator regression coverage, `docs/USAGE.md`, the consumer skill and mapping-rules reference, changelog, status, and conformance ledger. No public API, production generator behavior, or consumer DTO test is required.
+- Status: implementation and focused documentation validation are complete locally; focused and full validation, review, merge, and issue closure remain.
 
 ## GitHub issue #6 existing-target atomicity checkpoint (2026-09-16)
 

@@ -78,6 +78,19 @@ public sealed class Target { public int Value { get; set; } public int Extra { g
         }
 
         [TestMethod]
+        [DataRow("mapper")]
+        [DataRow("method")]
+        [DataRow("assembly")]
+        public void StrictSourceCompletenessCanBeEnabledAtSupportedConfigurationScopes(string scope)
+        {
+            var result = RunGenerator(StrictSource(scope));
+
+            AssertSeverity(result.RunResult, "LITEMAPPER1003", (int)DiagnosticSeverity.Error);
+            AssertUnmappedMessage(result.RunResult, "LITEMAPPER1003", "Source member 'LegacyCode' is not mapped");
+            AssertValidImplementation(result.Compilation);
+        }
+
+        [TestMethod]
         [DataRow(true, "Error", ReportDiagnostic.Warn, (int)DiagnosticSeverity.Warning)]
         [DataRow(false, "Error", ReportDiagnostic.Warn, (int)DiagnosticSeverity.Warning)]
         [DataRow(true, "Error", ReportDiagnostic.Suppress, -1)]
@@ -161,6 +174,30 @@ using Mammoth.LiteMapper;
 public static partial class Mapper { public static partial Target Map(Source source); }
 public sealed class Source { public int Value { get; set; } " + (target ? string.Empty : "public int Extra { get; set; }") + @" }
 public sealed class Target { public int Value { get; set; } " + (target ? "public int Extra { get; set; }" : string.Empty) + @" }
+";
+        }
+
+        private static string StrictSource(string scope)
+        {
+            var assembly = scope == "assembly"
+                ? "[assembly: LiteMapperDefaults(UnmappedSourceMembers = UnmappedMemberPolicy.Error)]\n"
+                : string.Empty;
+            var mapper = scope == "mapper"
+                ? "[LiteMapper(UnmappedSourceMembers = UnmappedMemberPolicy.Error)]"
+                : "[LiteMapper]";
+            var method = scope == "method"
+                ? "    [MappingOptions(UnmappedSourceMembers = UnmappedMemberPolicy.Error)]\n"
+                : string.Empty;
+
+            return @"
+using Mammoth.LiteMapper;
+" + assembly + mapper + @"
+public static partial class Mapper
+{
+" + method + @"    public static partial Target Map(Source source);
+}
+public sealed class Source { public int Value { get; set; } public int LegacyCode { get; set; } }
+public sealed class Target { public int Value { get; set; } }
 ";
         }
 

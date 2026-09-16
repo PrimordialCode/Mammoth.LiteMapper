@@ -45,6 +45,9 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             StringAssert.Contains(usage, "## Member matching and unmapped members");
             StringAssert.Contains(usage, "NameMatching.ExactThenIgnoreCase");
             StringAssert.Contains(usage, "UnmappedMemberPolicy.Error");
+            StringAssert.Contains(usage, "Strict source-member completeness");
+            StringAssert.Contains(usage, "LITEMAPPER1003");
+            StringAssert.Contains(usage, "default remains Ignore");
             StringAssert.Contains(usage, "Hidden members");
             StringAssert.Contains(usage, "Source paths");
             StringAssert.Contains(usage, "Target paths");

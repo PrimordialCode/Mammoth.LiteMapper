@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Issue #7: documented opt-in strict source-member completeness across mapper, method, and assembly scopes, including staged `LITEMAPPER1003` severities, editorconfig overrides, intentional `IgnoreSource` exceptions, and the rationale for the default `Ignore` policy. [#7](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/7)
 - Issue #6: existing-target updates now have documented non-transactional semantics with deterministic target-member evaluation and assignment order. Earlier assignments remain when a later mapping operation fails, while per-member captures prevent repeated source getter/path evaluation where guards and assignments both need the value. [#6](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/6)
 - Issue #5: closed constructed static generic external registration containers are now supported; unbound generic registrations and generic methods remain rejected. Declaration, registration, constructor, accessibility, and diagnostic-contract coverage was expanded across the Roslyn host matrix. [#5](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/5)
 - Issue #4: clarified that ordinary unmapped-target suppression or downgrade does not suppress valid generation or prove complete mapping; mandatory target obligations remain hard errors, and CI guidance recommends treating configurable `LITEMAPPER1001` as an error when full coverage is required. [#4](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/4)

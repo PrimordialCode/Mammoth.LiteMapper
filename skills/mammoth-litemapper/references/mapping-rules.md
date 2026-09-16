@@ -79,6 +79,8 @@ Nullable boxing follows the target annotation: `int?` to non-null `object` repor
 
 Options resolve method `[MappingOptions]`, mapper `[LiteMapper]`, assembly `[LiteMapperDefaults]`, then library defaults. `Unspecified` inherits. Mapper Boolean options use `true`/`false`; method Boolean overrides use `OptionState.Enabled`/`Disabled`. Assembly defaults expose only name matching, unmapped source/target policies, nullable mismatch, and null collections. The library default for ordinary unmapped target members is `Error`; explicit `Ignore`, `Info`, `Warning`, or `Error` target policy overrides it. Unmapped source members remain `Ignore` by default.
 
+For an opt-in strict source-completeness boundary, set `UnmappedSourceMembers` to `Error` at mapper, method, or assembly scope. This reports unused readable source members as configurable `LITEMAPPER1003` diagnostics naming the member; use `Warning` or `Info` to stage adoption and `IgnoreSource` for intentional exclusions. The default remains `Ignore` because source models can contain fields that are not part of a given destination contract. Source completeness does not weaken target completeness or mandatory target errors.
+
 ## Nulls and updates
 
 - Nullable-to-non-null values default to a compile-time error. `NullableMismatchPolicy.Throw` requests runtime validation. Nullable source and nullable result preserve root null.
