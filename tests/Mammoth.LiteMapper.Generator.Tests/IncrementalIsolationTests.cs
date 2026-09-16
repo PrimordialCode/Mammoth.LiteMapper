@@ -216,6 +216,53 @@ namespace Mammoth.LiteMapper.Generator.Tests
         }
 
         [TestMethod]
+        public void AssemblyDefaultsChangeInvalidatesAffectedMapperPlanning()
+        {
+            var compilation = ReplaceTree(ReplaceTree(ReplaceTree(CreateCompilation(), "A.cs",
+                "using Mammoth.LiteMapper; [LiteMapper] public static partial class A { public static partial AT Map(AS source); }"), "B.cs",
+                "using Mammoth.LiteMapper; [LiteMapper] public static partial class B { public static partial BT Map(BS source); }"), "Models.cs",
+                "public sealed class AS { public int Value { get; set; } } public sealed class AT { public int value { get; set; } } public sealed class BS { public int Value { get; set; } } public sealed class BT { public int Value { get; set; } }")
+                .AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+                "using Mammoth.LiteMapper; [assembly: LiteMapperDefaults(NameMatching = NameMatching.Exact)]", ParseOptions(), "Defaults.cs"));
+            var first = CreateDriver().RunGenerators(compilation);
+            Assert.IsTrue(first.GetRunResult().Diagnostics.Any(static diagnostic => diagnostic.Id == "LITEMAPPER1001"));
+            var changed = ReplaceTree(compilation, "Defaults.cs",
+                "using Mammoth.LiteMapper; [assembly: LiteMapperDefaults(NameMatching = NameMatching.IgnoreCase)]");
+            var second = first.RunGenerators(changed);
+            var source = second.GetRunResult().Results.Single().GeneratedSources.Single(static item => item.HintName.StartsWith("A.", StringComparison.Ordinal)).SourceText.ToString();
+            StringAssert.Contains(source, "value = source.Value");
+            Assert.IsFalse(second.GetRunResult().Diagnostics.Any(static diagnostic => diagnostic.Id == "LITEMAPPER1001"));
+            AssertOutputReason(second, "A", IncrementalStepRunReason.Modified);
+            AssertOutputReason(second, "B", IncrementalStepRunReason.Cached);
+            AssertCompiles(second, changed);
+        }
+
+        [TestMethod]
+        public void AssemblyUseMapperChangeInvalidatesAffectedMapperPlanning()
+        {
+            const string external = "using Mammoth.LiteMapper; public static class External { [DefaultMapping] public static string Convert(int source) => source.ToString(); }";
+            var compilation = ReplaceTree(CreateCompilation(), "A.cs",
+                "using Mammoth.LiteMapper; [LiteMapper] public static partial class A { public static partial AText Map(AValue source); } public sealed class AValue { public int Value { get; set; } } public sealed class AText { public string Value { get; set; } = string.Empty; }")
+                .AddSyntaxTrees(CSharpSyntaxTree.ParseText(external, ParseOptions(), "External.cs"))
+                .AddSyntaxTrees(CSharpSyntaxTree.ParseText("using Mammoth.LiteMapper;", ParseOptions(), "Registration.cs"));
+            var first = CreateDriver().RunGenerators(compilation);
+            var firstDiagnostic = first.GetRunResult().Diagnostics.Single(static diagnostic => diagnostic.Id == "LITEMAPPER2004");
+            Assert.AreEqual("A.cs", Path.GetFileName(firstDiagnostic.Location.GetLineSpan().Path));
+            StringAssert.Contains(firstDiagnostic.GetMessage(), "int");
+            StringAssert.Contains(firstDiagnostic.GetMessage(), "string");
+            var changed = ReplaceTree(compilation,
+                "Registration.cs",
+                "using Mammoth.LiteMapper; [assembly: UseMapper(typeof(External))]");
+            var second = first.RunGenerators(changed);
+            var source = second.GetRunResult().Results.Single().GeneratedSources.Single(static item => item.HintName.StartsWith("A.", StringComparison.Ordinal)).SourceText.ToString();
+            StringAssert.Contains(source, "External.Convert");
+            Assert.IsFalse(second.GetRunResult().Diagnostics.Any(static diagnostic => diagnostic.Id == "LITEMAPPER2004"));
+            AssertOutputReason(second, "A", IncrementalStepRunReason.New);
+            AssertOutputReason(second, "B", IncrementalStepRunReason.Cached);
+            AssertCompiles(second, changed);
+        }
+
+        [TestMethod]
         public void CachedSourceDoesNotReuseStaleDiagnosticLocations()
         {
             var compilation = ReplaceTree(CreateCompilation(), "A.cs", MapperA.Replace("(UnmappedTargetMembers = UnmappedMemberPolicy.Ignore)", string.Empty));

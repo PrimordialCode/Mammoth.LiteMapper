@@ -1687,6 +1687,8 @@ The pipeline MUST be partitioned so changing one mapper regenerates only that ma
 
 A change to assembly-wide defaults or assembly-wide external mapper registrations MAY invalidate all affected mappers.
 
+Assembly-level `LiteMapperDefaultsAttribute` values and assembly-level `UseMapperAttribute` registrations MUST be explicit incremental inputs to mapper planning and source emission. Their structural equality MUST include every relevant configuration value and registered mapper identity, while excluding unrelated compilation or source-location state. A change MUST invalidate affected mapper output and diagnostics, while unrelated output remains cached where the host preserves the relevant candidate identity.
+
 Incrementality MUST be tested through observable tracked generator steps, not assumed from the interface name.
 
 ### 19.3 Discovery
@@ -1982,6 +1984,7 @@ Tests MUST prove:
 - changing one mapper does not regenerate unrelated mappers;
 - changing a relevant model symbol regenerates affected mappings;
 - changing an unrelated model does not regenerate unaffected mappings;
+- changing assembly-level defaults or external mapper registrations invalidates affected output and diagnostics in a same-driver run, while unrelated output remains cached where the host preserves candidate identity;
 - language-version changes invalidate emitted source when capability selection changes;
 - relevant analyzer-option changes invalidate only affected outputs;
 - output ordering remains deterministic.

@@ -465,6 +465,15 @@ No semantic decision was required. Sections7.2/10.6 and the configuration contra
 - Section 19.2 explicitly qualifies isolation with "where possible". Minimal stateless probes using both CreateSyntaxProvider and ForAttributeWithMetadataName reproduce Roslyn candidate identity loss when a mapper is inserted/removed before another mapper in the same file. Roslyn compares modified items but does not compare new/removed inputs: https://github.com/dotnet/roslyn/blob/main/docs/features/incremental-generators.md#comparing-items . No public keyed output registration can recover this identity without stateful workarounds.
 - Decision: retain strict tracked caching assertions for ordinary edits, cross-file population changes, same-file mapper invalidation, unrelated model/location changes, and unaffected capability changes. For the demonstrated same-file population boundary, verify observable re-emission plus identical hint/source content. These host-limit tests replace newly introduced unconditional caching assumptions; the product specification and mapping semantics are unchanged. The older declaration test now finds files by stable path instead of asserting a global array order not prescribed by section 19.8.
 
+### DEC-0040 Assembly-wide configuration as an incremental input (2026-09-16)
+
+- Milestone: Post-Milestone 13 incremental hardening, GitHub issue #2
+- Status: Accepted
+- Context: Mapper planning reads assembly-wide `LiteMapperDefaultsAttribute` and `UseMapperAttribute` values through the current compilation, but the incremental mapper pipeline did not carry those values as an explicit dependency. A same-driver assembly configuration change could therefore leave affected generated output or diagnostics stale.
+- Decision: Carry a deterministic, structurally comparable assembly configuration fingerprint into every mapper planning input. The fingerprint includes every relevant assembly-default value and registered external mapper identity, excludes source locations and unrelated compilation state, and is sorted independently of declaration order. Keep assembly validation diagnostics as a separate publication concern and preserve per-mapper emission equality so unchanged unrelated output remains cached where Roslyn preserves candidate identity.
+- Specification references: 19.2, 21.1, 21.2, 21.4.
+- Consequences: Same-driver regressions must prove assembly-default and external-registration changes replan affected mappings, update generated content and diagnostics where applicable, and preserve unrelated output caching where the host permits. No public API, runtime registry, or mapping-selection semantic change is introduced.
+
 ### Package validation repair (2026-09-08)
 
 - Sections 22.19/24.6: compare SHA-256 hashes of every uncompressed entry in all three nupkg and all three snupkg artifacts. Normalize only NuGet-generated relationship IDs and core-property filenames; retain metadata content and relationship targets in the comparison. ZIP envelope/compression details are outside the payload comparison. This does not relax the ban on content-changing timestamps or machine-specific paths.

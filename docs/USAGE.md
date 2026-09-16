@@ -152,6 +152,8 @@ Configuration resolves from the most specific scope to the least specific scope:
 3. `[assembly: LiteMapperDefaults(...)]` for assembly-level defaults.
 4. Library defaults.
 
+Assembly-level defaults and external mapper registrations are compile-time configuration inputs. When either changes during an incremental build, LiteMapper reevaluates affected generated mappings and diagnostics; unrelated output can remain cached where Roslyn preserves the relevant candidate identity. This affects build invalidation only and does not create a runtime mapper registry.
+
 ```csharp
 [assembly: LiteMapperDefaults(
     NameMatching = NameMatching.ExactThenIgnoreCase,

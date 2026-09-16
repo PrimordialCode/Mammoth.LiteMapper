@@ -1,6 +1,6 @@
 # Mammoth.LiteMapper Implementation Plan
 
-Current execution state (2026-09-10): W01 through W10 remain complete for local review and validation. The approved Milestone 13 flat-mapping optimization is also complete: all three Roslyn hosts pass 540 tests, the Windows solution passes 607 tests with one linker-prerequisite AOT skip, and required Linux Native AOT passes 1/1. Current paired disassembly shows generated LiteMapper code inlined into one 70-byte method versus 73 bytes for manual code, with means of 4.465 ns and 4.307 ns and identical 40-byte allocation. Remote CI remains unexecuted.
+Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete for local review and validation. GitHub issue #2 incremental invalidation is also implemented and validated on `codex/issue-2`: 544 generator tests and 611 solution tests pass, with no skipped tests in the issue #2 validation run. Remote CI remains unexecuted.
 
 PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, and regression-tested. All milestone and dated checkpoint sections below are historical planning and revision-specific evidence; their pending-work statements are superseded by the current execution state above.
 
@@ -9,6 +9,16 @@ PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, 
 Performance evidence (CV-007): the17 existing cases were extended with three acyclic nested-graph cases (manual/default/ThrowOnCycle) and12 recursive cases (manual/generated, tracking off/on, depths1/16/128). Setup verifies equivalent outputs before timing. Baseline and candidate were compared on the same machine with the same affinity-pinned harness and pinned dependencies. Local release tag1.0.0 resolves to2df99925bc38638acc8352f904f8cc69facbad96. Different or invalid behavior is not treated as a comparable performance baseline.
 
 Comparison handling covers missing cases, environment/configuration mismatch, allocations, and statistical throughput loss. Section23.4 uses throughput:100ns to121ns is a17.36% loss, requiring review if significant; it is not a greater-than20% blocking result. Any allocation increase blocks unless explicitly approved/documented. The accepted affinity-pinned Medium artifacts are under `artifacts/performance/controlled-20260909`; the comparison script reports five passing scenarios.
+
+## GitHub issue #2 incremental invalidation follow-up (2026-09-16)
+
+- Objective: make assembly-wide `LiteMapperDefaultsAttribute` values and `UseMapperAttribute` registrations explicit incremental inputs to mapper planning and source emission, while preserving unrelated emitted output where Roslyn permits.
+- Contract: `SPECIFICATION.md` sections 19.2, 21.1, 21.2, and 21.4 require structural semantic equality for relevant assembly configuration and same-driver coverage of affected output, diagnostics, and unrelated caching.
+- Test-first: `IncrementalIsolationTests.AssemblyDefaultsChangeInvalidatesAffectedMapperPlanning` and `AssemblyUseMapperChangeInvalidatesAffectedMapperPlanning` were added before the generator dependency was implemented; the initial focused run failed both expected cases.
+- Implementation: the compilation-derived assembly configuration now carries a deterministic fingerprint of relevant attribute values and registered mapper identities into each mapper model, while per-mapper emission equality preserves unchanged output.
+- Documentation: synchronize `SPECIFICATION.md`, `docs/USAGE.md`, `README.md`, `CHANGELOG.md`, the consumer skill, mapping-rules reference, `DECISIONS.md`, `STATUS.md`, `docs/CONFORMANCE_REVIEW.md`, `docs/HANDOFF.md`, and `docs/WORK_LEDGER.md`.
+- Validation: `IncrementalIsolationTests` passes 23/23; the full generator suite passes 544/544; solution build passes for 13 projects with 0 warnings and 0 errors; the full solution test run passes 611/611 with 0 skipped; `Milestone16UsageDocumentationTests` passes 1/1; `quick_validate.py skills/mammoth-litemapper` reports `Skill is valid!`.
+- Status: implementation, documentation, and integrated validation are complete locally. The branch remains uncommitted for user review; remote CI was not executed.
 
 ## GitHub issue #1 follow-up (2026-09-16)
 

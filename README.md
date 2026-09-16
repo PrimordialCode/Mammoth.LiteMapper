@@ -4,6 +4,8 @@ Mammoth.LiteMapper is a convention-first, compile-time object mapping library fo
 
 Consumers declare partial mapping methods on classes marked with `[LiteMapper]`. A Roslyn incremental source generator emits direct C# implementations using constructors, assignments, loops, casts, and ordinary method calls. LiteMapper is not a runtime mapping container and does not provide runtime mapper registration, assembly scanning, reflection fallback, or dynamic dispatch.
 
+Assembly-wide defaults and external mapper registrations are compile-time inputs. When they change, the incremental generator reevaluates affected generated mappings and diagnostics while preserving unrelated output where Roslyn can preserve its candidate identity.
+
 ## Compilation Status
 
 - main [![CI](https://github.com/PrimordialCode/Mammoth.LiteMapper/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PrimordialCode/Mammoth.LiteMapper/actions/workflows/ci.yml)

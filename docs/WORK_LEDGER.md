@@ -21,6 +21,17 @@ Each repair requires valid-input failing tests, minimal implementation, focused 
 
 Final integrated checkpoint: 540 generator tests pass on each Roslyn 4.8/4.14/5.9 host. The Windows solution passes 607 with one Native AOT prerequisite skip; Linux Native AOT passes 1/1. The controlled five-scenario comparison remains accepted, and the current flat pair confirms the inline optimization. Final read-only subagent checks found no remaining configured-path/nested defect and accepted the exact/fallback default-pair correction.
 
+## GitHub issue #2 delegation (2026-09-16)
+
+Root retained the shared generator integration, all documentation, validation, and review handoff. Delegated ownership was disjoint: Bohr owned only `LiteMapperGenerator.cs` and `IncrementalIsolationTests.cs`; Herschel performed a read-only specification and documentation audit. Neither agent committed or pushed.
+
+| Agent | Class | Model/effort/fork | Ownership and result |
+|---|---|---|---|
+| Bohr | scoped | gpt-5.6-luna / medium / none | Added the explicit assembly configuration dependency and two red-first same-driver regressions; focused `IncrementalIsolationTests` passes 23/23. |
+| Herschel | scan | gpt-5.6-luna / low / none | Read-only audit confirmed the governing specification sections and identified the documentation synchronization set. |
+
+Acceptance is complete locally: focused 23/23 and full generator 544/544 tests pass; the solution build and 611/611 solution tests pass with no skips; usage documentation and skill validation pass. User review of the uncommitted diff remains.
+
 ## Inline optimization delegation (2026-09-10)
 
 Three agents were sufficient because contract verification, regression authoring, and consumer-skill alignment were independent. Root retained `LiteMapperGenerator.cs`, existing snapshots, all commands, integration, and documentation.

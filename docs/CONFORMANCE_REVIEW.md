@@ -12,6 +12,10 @@
 
 ## Final implementation findings
 
+### GitHub issue #2 incremental invalidation hardening (2026-09-16)
+
+Issue #2 is addressed under sections 19.2, 21.1, 21.2, and 21.4. Assembly-level defaults and external mapper registrations now flow through an explicit deterministic configuration fingerprint into mapper planning. `IncrementalIsolationTests` covers same-driver generated-content and diagnostic changes for affected mappings, plus cached output for an unrelated mapper. Focused 23/23 and full generator 544/544 tests pass; the solution build and 611/611 solution tests pass with no skips. Roslyn candidate-identity limitations remain governed by the existing incremental-host decision.
+
 PENDING-0004 was approved and incorporated into sections 11.1/11.2/28.4: defaults select within the current mapping-method stage, so local mappings precede external converters. Implementation resumed with competing-method regressions. The usage guide contains consumer guidance only; this ledger owns implementation tracking.
 
 | ID | Contract | Evidence and required correction |

@@ -67,13 +67,15 @@ namespace Mammoth.LiteMapper.Generator
             });
             var generatorOptions = context.AnalyzerConfigOptionsProvider.Select(static (options, _) => GeneratorOptions.From(options.GlobalOptions));
 
-            var assemblyConfiguration = context.CompilationProvider.Select(static (compilation, _) => ValidateAssemblyConfiguration(compilation));
-            var canGenerateFromAssembly = assemblyConfiguration.Select(static (diagnostics, _) => !diagnostics.Any(IsFatalDiagnostic));
+            var assemblyConfiguration = context.CompilationProvider.Select(static (compilation, _) => CreateAssemblyConfiguration(compilation));
+            var assemblyDiagnostics = context.CompilationProvider.Select(static (compilation, _) => ValidateAssemblyConfiguration(compilation));
+            var canGenerateFromAssembly = assemblyConfiguration.Select(static (configuration, _) => configuration.CanGenerate);
 
             var mappers = context.SyntaxProvider
                 .CreateSyntaxProvider(static (node, _) => IsTypeWithAttributes(node), static (ctx, _) => ctx)
                 .Combine(generatorOptions)
-                .Select((input, cancellationToken) => CreateMapperModel(input.Left, input.Right, beforePlanning, cancellationToken))
+                .Combine(assemblyConfiguration)
+                .Select((input, cancellationToken) => CreateMapperModel(input.Left.Left, input.Left.Right, input.Right, beforePlanning, cancellationToken))
                 .Where(static model => model != null)
                 .Select(static (model, _) => model!);
             var sortedMappers = mappers.Collect().Select(static (items, _) => items.OrderBy(static item => item.DisplayName, StringComparer.Ordinal).ToImmutableArray());
@@ -92,7 +94,7 @@ namespace Mammoth.LiteMapper.Generator
                 }
             });
 
-            context.RegisterSourceOutput(assemblyConfiguration, static (production, diagnostics) =>
+            context.RegisterSourceOutput(assemblyDiagnostics, static (production, diagnostics) =>
             {
                 foreach (var diagnostic in diagnostics)
                 {
@@ -219,7 +221,7 @@ namespace Mammoth.LiteMapper.Generator
             return node is TypeDeclarationSyntax type && type.AttributeLists.Count > 0;
         }
 
-        private static MapperModel? CreateMapperModel(GeneratorSyntaxContext context, GeneratorOptions options, Action<INamedTypeSymbol>? beforePlanning, CancellationToken cancellationToken)
+        private static MapperModel? CreateMapperModel(GeneratorSyntaxContext context, GeneratorOptions options, AssemblyConfiguration assemblyConfiguration, Action<INamedTypeSymbol>? beforePlanning, CancellationToken cancellationToken)
         {
             var typeSyntax = (TypeDeclarationSyntax)context.Node;
             var symbol = context.SemanticModel.GetDeclaredSymbol(typeSyntax, cancellationToken) as INamedTypeSymbol;
@@ -231,7 +233,7 @@ namespace Mammoth.LiteMapper.Generator
             try
             {
                 beforePlanning?.Invoke(symbol);
-                return PlanMapper(symbol, typeSyntax, context.SemanticModel.Compilation);
+                return PlanMapper(symbol, typeSyntax, context.SemanticModel.Compilation, assemblyConfiguration);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -246,8 +248,9 @@ namespace Mammoth.LiteMapper.Generator
             }
         }
 
-        private static MapperModel PlanMapper(INamedTypeSymbol symbol, TypeDeclarationSyntax typeSyntax, Compilation compilation)
+        private static MapperModel PlanMapper(INamedTypeSymbol symbol, TypeDeclarationSyntax typeSyntax, Compilation compilation, AssemblyConfiguration assemblyConfiguration)
         {
+            _ = assemblyConfiguration.Fingerprint;
             var diagnostics = new List<Diagnostic>();
             ValidateMapper(symbol, typeSyntax, compilation, diagnostics);
             var hasMapperErrors = diagnostics.Any(IsFatalDiagnostic);
@@ -3524,6 +3527,15 @@ namespace Mammoth.LiteMapper.Generator
                 name == "global::System.Threading.Tasks.ValueTask<TResult>";
         }
 
+        private static AssemblyConfiguration CreateAssemblyConfiguration(Compilation compilation)
+        {
+            var fingerprint = string.Join("|", compilation.Assembly.GetAttributes()
+                .Where(static attribute => IsAttribute(attribute, LiteMapperDefaultsAttributeName) || IsAttribute(attribute, UseMapperAttributeName))
+                .Select(GetAssemblyAttributeFingerprint)
+                .OrderBy(static value => value, StringComparer.Ordinal));
+            return new AssemblyConfiguration(fingerprint, !ValidateAssemblyConfiguration(compilation).Any(IsFatalDiagnostic));
+        }
+
         private static ImmutableArray<Diagnostic> ValidateAssemblyConfiguration(Compilation compilation)
         {
             var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
@@ -3541,6 +3553,60 @@ namespace Mammoth.LiteMapper.Generator
             }
 
             return diagnostics.ToImmutable();
+        }
+
+        private static string GetAssemblyAttributeFingerprint(AttributeData attribute)
+        {
+            var builder = new StringBuilder(attribute.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            builder.Append('|');
+            foreach (var argument in attribute.ConstructorArguments)
+            {
+                AppendTypedConstant(builder, argument);
+                builder.Append(';');
+            }
+
+            foreach (var argument in attribute.NamedArguments.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
+            {
+                builder.Append(argument.Key);
+                builder.Append('=');
+                AppendTypedConstant(builder, argument.Value);
+                builder.Append(';');
+            }
+
+            return builder.ToString();
+        }
+
+        private static void AppendTypedConstant(StringBuilder builder, TypedConstant constant)
+        {
+            builder.Append(constant.Kind);
+            builder.Append(':');
+            builder.Append(constant.Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            builder.Append(':');
+            if (constant.Kind == TypedConstantKind.Array)
+            {
+                builder.Append('[');
+                foreach (var value in constant.Values)
+                {
+                    AppendTypedConstant(builder, value);
+                    builder.Append(',');
+                }
+                builder.Append(']');
+            }
+            else
+            {
+                if (constant.Value is ISymbol symbol)
+                {
+                    builder.Append(symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                }
+                else if (constant.Value == null)
+                {
+                    builder.Append("<null>");
+                }
+                else
+                {
+                    builder.Append(constant.Value);
+                }
+            }
         }
 
         private static bool EnumValueIsDefined(ITypeSymbol? type, object value)
@@ -4288,6 +4354,25 @@ namespace Mammoth.LiteMapper.Generator
                 var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(value));
                 return string.Concat(hash.Take(4).Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
             }
+        }
+
+        private sealed class AssemblyConfiguration : IEquatable<AssemblyConfiguration>
+        {
+            public AssemblyConfiguration(string fingerprint, bool canGenerate)
+            {
+                Fingerprint = fingerprint;
+                CanGenerate = canGenerate;
+            }
+
+            public string Fingerprint { get; }
+
+            public bool CanGenerate { get; }
+
+            public bool Equals(AssemblyConfiguration? other) => other != null && Fingerprint == other.Fingerprint && CanGenerate == other.CanGenerate;
+
+            public override bool Equals(object? obj) => Equals(obj as AssemblyConfiguration);
+
+            public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Fingerprint);
         }
 
         private sealed class MapperModel

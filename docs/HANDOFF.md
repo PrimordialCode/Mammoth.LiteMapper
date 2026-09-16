@@ -1,5 +1,9 @@
 # Mammoth.LiteMapper handoff
 
+## Latest: GitHub issue #2 incremental invalidation, 2026-09-16
+
+The `codex/issue-2` feature branch carries the issue #2 hardening. Assembly-wide defaults and external mapper registrations are explicit incremental inputs to mapper planning and source emission. The two new same-driver regressions cover affected generated content, diagnostics, compilation, and cached unrelated output. Focused and integrated validation pass: 544 generator tests, 611 solution tests, the usage-documentation test, and the skill validator. No commit, push, remote CI, or publication occurred. Review the dirty diff before any user-authorized commit.
+
 ## Latest: inline optimization locally complete, 2026-09-10
 
 The authorized whole-project review remains complete locally. The approved follow-up removes the extra call in small direct flat mappings by emitting a capability-checked `MethodImplOptions.AggressiveInlining` hint. For example, a direct `Source { Id, Name, Age, IsActive }` to `Target` mapping now compiles into the benchmark wrapper as one 70-byte method; guarded, nullable, collection, recursive, constructor-bound, helper-based, and update mappings stay outside this optimization.

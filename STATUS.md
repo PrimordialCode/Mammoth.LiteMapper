@@ -1,19 +1,19 @@
 # Mammoth.LiteMapper Status
 
-Latest active work: GitHub issue #1 is implemented on `codex/issue-1-defensive-unmapped-targets`. Ordinary unmapped target properties and fields now default to compilation errors, with explicit policies and member-level opt-outs preserved. No commit, push, or publication occurred.
+Latest active work: GitHub issue #2 is implemented on `codex/issue-2`. Assembly-wide defaults and external mapper registrations are explicit incremental inputs to mapper planning and emission. No commit, push, or publication occurred.
 
-- Current scope: GitHub issue #1 defensive unmapped-target diagnostics, documentation synchronization, and regression validation.
-- Current state: implementation, documentation, and validation are complete on `codex/issue-1-defensive-unmapped-targets`; the branch is ready for user review and remains uncommitted. DEC-0038 and DEC-0039 record the semantic decisions.
+- Current scope: GitHub issue #2 incremental invalidation, documentation synchronization, and regression validation.
+- Current state: implementation, documentation, focused validation, and integrated validation are complete on `codex/issue-2`; the branch is ready for user review and remains uncommitted. DEC-0040 records the implementation decision.
 - Completed milestones: Milestone 1; Milestone 2; Milestone 3; Milestone 4; Milestone 5; Milestone 6; Milestone 7; Milestone 8; Milestone 9; Milestone 10; Milestone 11; Milestone 12; Milestone 13; Milestone 14; Milestone 15; Milestone 16.
-- Current work: generator fallback is changed from `Warning` to `Error`; explicit `UnmappedMemberPolicy` settings, `IgnoreTarget`, `UseTargetDefault`, and source-member defaults remain unchanged.
-- Work completed: added red-first generator regressions for the new default error and explicit ignore opt-out, locked the exact source and target member names into unmapped diagnostic tests, updated the packaging expectation, synchronized the authoritative specification and consumer-facing documentation, and recorded `DEC-0038` and `DEC-0039`.
-- Tests added or updated: `UnmappedDiagnosticSeverityTests` now covers the default error, explicit ignore behavior, and exact member names for every reported configured severity. No consumer DTO mapping test is required for this library-default change.
-- Diagnostics added: no new diagnostic ID; `LITEMAPPER1001` remains configurable and now defaults to Error for ordinary unmapped target members.
-- Generated-source review: explicit `Ignore` still produces a valid mapper implementation without `LITEMAPPER1001`; no runtime DTO test is needed to verify the policy fallback.
-- Validation evidence: focused issue-related and flat-mapping tests pass 29/29; the full generator suite passes 542/542; `dotnet build Mammoth.LiteMapper.sln --no-restore` passes with 0 warnings and 0 errors; the full solution test run passes 610 tests with 1 Native AOT prerequisite skip; the consumer skill validator passes.
-- Skipped validation: one existing Windows Native AOT packaging case was skipped because the local linker prerequisite was unavailable. Remote CI was not executed. Historical limitations remain recorded in the checkpoints below.
+- Current work: assembly configuration is fingerprinted from relevant defaults and registrations and is combined into each mapper planning input; per-mapper emission equality preserves unchanged output.
+- Work completed: added red-first same-driver regressions for assembly defaults and `UseMapper`, retaining valid affected and unaffected mapper fixtures; synchronized the specification and consumer/maintainer documentation.
+- Tests added or updated: `IncrementalIsolationTests.AssemblyDefaultsChangeInvalidatesAffectedMapperPlanning` and `AssemblyUseMapperChangeInvalidatesAffectedMapperPlanning` cover generated content, diagnostics, compilation, and output reasons.
+- Diagnostics added: no new diagnostic ID; the new regressions exercise existing `LITEMAPPER1001` and `LITEMAPPER2004` diagnostics across assembly configuration changes.
+- Generated-source review: the default-change case changes the affected A source and removes `LITEMAPPER1001`; the registration case adds `External.Convert` and removes `LITEMAPPER2004`; B remains cached in both same-driver runs.
+- Validation evidence: `IncrementalIsolationTests` passes 23/23; the full generator suite passes 544/544; `dotnet build Mammoth.LiteMapper.sln --no-restore` passes for 13 projects with 0 warnings and 0 errors; the full solution test run passes 611/611 with 0 skipped; `Milestone16UsageDocumentationTests` passes 1/1; the consumer skill validator passes.
+- Skipped validation: none in the current issue #2 validation commands. Remote CI was not executed. Historical limitations remain recorded in the checkpoints below.
 - Blockers: none known.
-- Known issues: none found for issue #1. Existing unrelated changes in `.agents/skills/subagent-orchestrator/references/routing.md` and `.tokensave/config.json` were preserved.
+- Known issues: none found for issue #2 at focused scope. Existing unrelated changes in `.agents/skills/subagent-orchestrator/references/routing.md` and `.tokensave/config.json` were preserved.
 - Next permitted action: review the dirty diff. Commit only if explicitly requested.
 
 ## GitHub issue #1 implementation checkpoint (2026-09-16)
