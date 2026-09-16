@@ -206,6 +206,20 @@ public static partial class CustomerMapper
 }
 ```
 
+### Strict source-member completeness
+
+Strict source-member completeness is an opt-in boundary-mapping guardrail. Set `UnmappedSourceMembers = UnmappedMemberPolicy.Error` on a mapper, on one method with `[MappingOptions]`, or in `[assembly: LiteMapperDefaults(...)]` to report every readable source member that is not used by that mapping. Each report is the configurable `LITEMAPPER1003` diagnostic and names the exact source member. Use `Warning` or `Info` to stage adoption, or `Ignore` to disable the check for a scope. `[IgnoreSource(nameof(Source.LegacyCode))]` records an intentional exception when a source member is known not to belong in the boundary.
+
+```csharp
+[LiteMapper(UnmappedSourceMembers = UnmappedMemberPolicy.Error)]
+public static partial class BoundaryMapper
+{
+    public static partial CustomerDto Map(Customer source);
+}
+```
+
+The same option is available on `[MappingOptions]` for a method-specific boundary and on `[LiteMapperDefaults]` for an assembly-wide default; normal method, mapper, assembly, and library precedence applies. The default remains Ignore because source models commonly contain metadata or fields that are intentionally absent from a particular DTO. Strict source checking does not relax target completeness or mandatory target diagnostics.
+
 Useful options:
 
 - `NameMatching.Exact`: ordinal exact member names only.
