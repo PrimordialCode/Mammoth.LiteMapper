@@ -594,6 +594,8 @@ Visible handwritten or generated mapping methods for the same nested pair are re
 
 Nested helpers are closed over the concrete source/destination type pair. Closed generic model types can be mapped when the containing mapper and mapping method are not generic. Nullable nested objects follow the same nullability policy as other members.
 
+Nested and collection helpers are private implementation details within the generated mapper. Helper names are allocated deterministically per mapper: handwritten members and other generated helper signatures are reserved, identical closed source/destination pairs reuse one name, and distinct pairs are disambiguated even when their preferred shape-plus-hash names collide. Allocation does not depend on syntax-tree order or equivalent compilation order. Consumer code must not reference or depend on helper names or signatures.
+
 For existing-target nested objects, LiteMapper replaces writable nested targets by default. Mutation of an existing nested object requires an explicit compatible existing-target nested mapping method.
 
 For a non-null get-only child, declare its updater alongside the parent update:

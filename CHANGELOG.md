@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Issue #3: generated nested and collection helper names are allocated deterministically within each mapper, reserve handwritten/generated helper signatures, reuse identical closed identities, and disambiguate preferred-name collisions independently of syntax-tree or equivalent compilation order. [#3](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/3)
 - Issue #1: ordinary unmapped target properties and fields now default to errors; explicit target policies and `IgnoreTarget`/`UseTargetDefault` opt-outs remain supported, while unmapped source members remain ignored by default. Unmapped-member diagnostics identify the exact source or target member. [#1](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/1)
 - Issue #2: assembly-wide `LiteMapperDefaultsAttribute` values and `UseMapperAttribute` registrations now participate explicitly in incremental mapper planning and emission invalidation. Same-driver regressions cover affected generated content and diagnostics while preserving unrelated cached output where Roslyn permits. [#2](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/2)
 

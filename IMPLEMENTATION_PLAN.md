@@ -6,6 +6,15 @@ PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, 
 
 `SPECIFICATION.md` is authoritative. This plan explains execution order and validation only; it does not redefine product semantics.
 
+## GitHub issue #3 helper-name hardening checkpoint (post-Milestone 13, 2026-09-16)
+
+- Objective: implement and document deterministic, mapper-scoped generated helper-name allocation.
+- Contract: generated nested and collection helpers are private implementation details; allocation is per generated mapper; handwritten members and other generated helper signatures are reserved; identical closed source/destination identities reuse one name; distinct identities remain distinct under preferred shape-plus-hash collisions; disambiguation is deterministic and independent of syntax-tree or equivalent compilation order; runtime reflection and dynamic dispatch remain forbidden.
+- Scope: `LiteMapperGenerator.cs`, focused compile-and-run regressions, and synchronized documentation. This is post-Milestone 13 hardening, not a new milestone and not a public API feature. No speculative consumer example is authorized by this checkpoint.
+- Documentation: synchronize `SPECIFICATION.md`, `docs/USAGE.md`, `README.md`, `CHANGELOG.md`, the consumer skill, mapping-rules reference, `DECISIONS.md`, `STATUS.md`, `docs/CONFORMANCE_REVIEW.md`, `docs/HANDOFF.md`, and `docs/WORK_LEDGER.md`.
+- Validation: focused helper-collision tests pass 7/7; full generator suite passes 551/551; solution build passes with 0 warnings/errors; solution tests pass 619 total with 618 passed and 1 known Windows Native AOT prerequisite skip; usage documentation test passes 1/1; skill validator passes.
+- Status: implemented locally, in review, and uncommitted.
+
 Performance evidence (CV-007): the17 existing cases were extended with three acyclic nested-graph cases (manual/default/ThrowOnCycle) and12 recursive cases (manual/generated, tracking off/on, depths1/16/128). Setup verifies equivalent outputs before timing. Baseline and candidate were compared on the same machine with the same affinity-pinned harness and pinned dependencies. Local release tag1.0.0 resolves to2df99925bc38638acc8352f904f8cc69facbad96. Different or invalid behavior is not treated as a comparable performance baseline.
 
 Comparison handling covers missing cases, environment/configuration mismatch, allocations, and statistical throughput loss. Section23.4 uses throughput:100ns to121ns is a17.36% loss, requiring review if significant; it is not a greater-than20% blocking result. Any allocation increase blocks unless explicitly approved/documented. The accepted affinity-pinned Medium artifacts are under `artifacts/performance/controlled-20260909`; the comparison script reports five passing scenarios.

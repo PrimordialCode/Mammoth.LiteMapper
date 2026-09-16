@@ -1356,6 +1356,8 @@ Automatic helpers MUST:
 - participate in recursive type analysis;
 - receive and forward cycle-tracking state only when required.
 
+Generated nested and collection helper names MUST be allocated within the generated mapper that owns them. Handwritten members and every other generated helper signature in that mapper reserve their signatures during allocation. Identical closed source/destination helper identities MUST reuse one allocated name. Distinct identities MUST remain distinct even when their preferred shape-plus-hash names collide; disambiguation MUST be deterministic and independent of syntax-tree order or equivalent compilation order. Helper names are private implementation details and MUST NOT be depended on by consumers.
+
 ### 14.2 Closed generic models
 
 A closed constructed type such as:
@@ -1430,6 +1432,8 @@ A public top-level collection mapping method MUST be explicitly declared.
 LiteMapper MUST NOT automatically generate public `ToList`, `ToArray`, or pluralized extension methods for every element mapping.
 
 Private collection helpers required by nested member mapping MAY be generated automatically.
+
+Collection helpers follow the mapper-scoped helper-name allocation rules in section 14.1. They remain private implementation details and MUST NOT become a public API or runtime dispatch surface.
 
 ### 15.3 Interface target defaults
 
@@ -1749,6 +1753,8 @@ The hash algorithm and normalized input MUST be stable within a generator versio
 ### 19.8 Source ordering
 
 Generated members, mappings, diagnostics, and helpers MUST be ordered deterministically by stable symbol identity rather than syntax-tree enumeration accidents.
+
+Names for generated nested and collection helpers MUST use a deterministic preferred shape-plus-hash form and a deterministic disambiguation suffix when needed. Allocation MUST be scoped to one generated mapper: handwritten members and other generated helper signatures are reserved, identical closed source/destination identities reuse one name, and distinct identities never share a name. The result MUST be independent of syntax-tree order and equivalent compilation order. Consumers MUST NOT depend on exact helper names or signatures.
 
 ### 19.9 Portable optimizations
 

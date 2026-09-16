@@ -6,6 +6,8 @@ Consumers declare partial mapping methods on classes marked with `[LiteMapper]`.
 
 Assembly-wide defaults and external mapper registrations are compile-time inputs. When they change, the incremental generator reevaluates affected generated mappings and diagnostics while preserving unrelated output where Roslyn can preserve its candidate identity.
 
+Generated nested and collection helpers are private implementation details of each generated mapper. Their names are allocated deterministically within that mapper, reserve handwritten and other generated helper signatures, reuse names for identical closed source/destination pairs, and disambiguate distinct pairs without depending on syntax-tree order. Consumers must not depend on generated helper names or signatures.
+
 ## Compilation Status
 
 - main [![CI](https://github.com/PrimordialCode/Mammoth.LiteMapper/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PrimordialCode/Mammoth.LiteMapper/actions/workflows/ci.yml)

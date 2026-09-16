@@ -474,6 +474,15 @@ No semantic decision was required. Sections7.2/10.6 and the configuration contra
 - Specification references: 19.2, 21.1, 21.2, 21.4.
 - Consequences: Same-driver regressions must prove assembly-default and external-registration changes replan affected mappings, update generated content and diagnostics where applicable, and preserve unrelated output caching where the host permits. No public API, runtime registry, or mapping-selection semantic change is introduced.
 
+### DEC-0041 Mapper-scoped generated helper-name allocation (2026-09-16)
+
+- Milestone: Post-Milestone 13 hardening, GitHub issue #3
+- Status: Accepted and implemented; no public API change.
+- Context: The specification required private closed-type helpers and deterministic generated output, but helper allocation was local to each mapping method and did not reserve mapper members or distinguish preferred-name hash collisions.
+- Decision: Allocate names through one registry per generated mapper. Reserve handwritten member names and allocated helper signatures; reuse a name for an identical closed source/destination identity; deterministically disambiguate distinct identities whose preferred shape-plus-hash names collide; make allocation independent of syntax-tree and equivalent compilation order. Exact helper names remain private implementation details and are not consumer dependencies.
+- Specification references: 14.1, 15.2, 19.8, 19.9, 24.4.
+- Consequences: Nested and collection helper planning shares mapper-scoped allocation state, while constructor candidates clone and merge only the selected state. No public API, runtime reflection, dynamic dispatch, or speculative consumer behavior is introduced. Focused and integrated validation are recorded in STATUS.
+
 ### Package validation repair (2026-09-08)
 
 - Sections 22.19/24.6: compare SHA-256 hashes of every uncompressed entry in all three nupkg and all three snupkg artifacts. Normalize only NuGet-generated relationship IDs and core-property filenames; retain metadata content and relationship targets in the comparison. ZIP envelope/compression details are outside the payload comparison. This does not relax the ban on content-changing timestamps or machine-specific paths.

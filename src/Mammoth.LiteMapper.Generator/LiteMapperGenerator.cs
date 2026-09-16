@@ -256,20 +256,23 @@ namespace Mammoth.LiteMapper.Generator
             var hasMapperErrors = diagnostics.Any(IsFatalDiagnostic);
 
             var mappings = ImmutableArray.CreateBuilder<MappingModel>();
+            var helperNames = new HelperNameRegistry(symbol.GetMembers().Select(static member => member.Name));
             foreach (var member in symbol.GetMembers().OfType<IMethodSymbol>().Where(static m => m.PartialDefinitionPart == null && IsPartialDeclaration(m)).OrderBy(static m => m.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), StringComparer.Ordinal))
             {
                 var methodDiagnostics = new List<Diagnostic>();
                 ValidateMappingMethod(member, methodDiagnostics);
                 MappingModel? mapping = null;
+                HelperNameRegistry? mappingHelperNames = null;
                 if (!hasMapperErrors && !methodDiagnostics.Any(IsFatalDiagnostic))
                 {
+                    mappingHelperNames = helperNames.Clone();
                     if (IsNewObjectMappingCandidate(member))
                     {
-                        mapping = CreateMappingModel(member, compilation, methodDiagnostics);
+                        mapping = CreateMappingModel(member, compilation, methodDiagnostics, mappingHelperNames);
                     }
                     else if (IsUpdateMappingCandidate(member))
                     {
-                        mapping = CreateUpdateMappingModel(member, compilation, methodDiagnostics);
+                        mapping = CreateUpdateMappingModel(member, compilation, methodDiagnostics, mappingHelperNames);
                     }
                 }
 
@@ -283,6 +286,10 @@ namespace Mammoth.LiteMapper.Generator
                     if (!methodDiagnostics.Any(IsFatalDiagnostic))
                     {
                         mappings.Add(mapping);
+                        if (mappingHelperNames != null)
+                        {
+                            helperNames.Merge(mappingHelperNames);
+                        }
                     }
                 }
 
@@ -394,7 +401,7 @@ namespace Mammoth.LiteMapper.Generator
                 (!method.ContainingType.IsStatic || method.IsStatic);
         }
 
-        private static MappingModel CreateMappingModel(IMethodSymbol method, Compilation compilation, List<Diagnostic> diagnostics)
+        private static MappingModel CreateMappingModel(IMethodSymbol method, Compilation compilation, List<Diagnostic> diagnostics, HelperNameRegistry helperNames)
         {
             var sourceType = method.Parameters[0].Type;
             var targetType = method.ReturnType;
@@ -422,7 +429,7 @@ namespace Mammoth.LiteMapper.Generator
                 return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, options.GuardNonNullSource, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, ImmutableArray<MappingModel>.Empty, null, null, null, string.Empty);
             }
 
-            var topLevelCollection = CreateCollectionMappingModel(method, sourceType, targetType, method.Parameters[0].Name, null, compilation, diagnostics, ImmutableArray.CreateBuilder<MappingModel>(), new HashSet<string>(StringComparer.Ordinal), options, helperName: null);
+            var topLevelCollection = CreateCollectionMappingModel(method, sourceType, targetType, method.Parameters[0].Name, null, compilation, diagnostics, ImmutableArray.CreateBuilder<MappingModel>(), helperNames, options, helperName: null);
             if (topLevelCollection != null)
             {
                 return topLevelCollection;
@@ -438,7 +445,6 @@ namespace Mammoth.LiteMapper.Generator
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
             var preconditions = ImmutableArray.CreateBuilder<PreconditionModel>();
             var helpers = ImmutableArray.CreateBuilder<MappingModel>();
-            var helperNames = new HashSet<string>(StringComparer.Ordinal);
             var usedSources = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
             var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
             var explicitConfigurations = ParseExplicitConfigurations(method, sourceType, targetType, sourceMembers, diagnostics);
@@ -613,7 +619,7 @@ namespace Mammoth.LiteMapper.Generator
             return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, options.GuardNonNullSource, construction, preconditions.ToImmutable(), assignments.ToImmutable(), helpers.ToImmutable(), null, null, null, customBody: null, emitAggressiveInlining: emitAggressiveInlining);
         }
 
-        private static MappingModel CreateUpdateMappingModel(IMethodSymbol method, Compilation compilation, List<Diagnostic> diagnostics)
+        private static MappingModel CreateUpdateMappingModel(IMethodSymbol method, Compilation compilation, List<Diagnostic> diagnostics, HelperNameRegistry helperNames)
         {
             var source = method.Parameters[0];
             var destination = method.Parameters[1];
@@ -626,7 +632,6 @@ namespace Mammoth.LiteMapper.Generator
             var assignments = ImmutableArray.CreateBuilder<AssignmentModel>();
             var preconditions = ImmutableArray.CreateBuilder<PreconditionModel>();
             var helpers = ImmutableArray.CreateBuilder<MappingModel>();
-            var helperNames = new HashSet<string>(StringComparer.Ordinal);
             var usedSources = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
             var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
             var explicitConfigurations = ParseExplicitConfigurations(method, sourceType, targetType, sourceMembers, diagnostics);
@@ -1007,7 +1012,7 @@ namespace Mammoth.LiteMapper.Generator
             return names;
         }
 
-        private static ConversionModel? ResolveConversion(IMethodSymbol mappingMethod, ExplicitMemberConfiguration? explicitConfiguration, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, INamedTypeSymbol[] externalTypes, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options, string? sourceExpressionOverride = null)
+        private static ConversionModel? ResolveConversion(IMethodSymbol mappingMethod, ExplicitMemberConfiguration? explicitConfiguration, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, INamedTypeSymbol[] externalTypes, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options, string? sourceExpressionOverride = null)
         {
             var parameterName = mappingMethod.Parameters[0].Name;
             var sourcePath = explicitConfiguration == null ? null : explicitConfiguration.SelectedSource;
@@ -1719,7 +1724,7 @@ namespace Mammoth.LiteMapper.Generator
             return converterInput == null ? null : CreateConverterResult(currentMethod, candidates[0].Method, targetType, EscapeIdentifier(candidates[0].Method.Name) + "(" + converterInput + ")", sourceMember, compilation, diagnostics, targetName, location);
         }
 
-        private static ConversionModel? ResolveNestedMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options, bool sourceExpressionMayBeNull = false, string? sourceMemberPath = null, bool capturedNullableSourceExpression = false)
+        private static ConversionModel? ResolveNestedMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options, bool sourceExpressionMayBeNull = false, string? sourceMemberPath = null, bool capturedNullableSourceExpression = false)
         {
             var location = targetMember.Locations.FirstOrDefault() ?? mappingMethod.Locations.FirstOrDefault();
             if (sourceType.IsRefLikeType || targetType.IsRefLikeType)
@@ -1750,8 +1755,8 @@ namespace Mammoth.LiteMapper.Generator
                 return null;
             }
 
-            var helperName = CreateHelperName("MapNested_", namedSource, namedTarget);
-            if (helperNames.Add(helperName))
+            var helperName = helperNames.GetOrAdd("MapNested_", namedSource, namedTarget, out var isNewHelper);
+            if (isNewHelper)
             {
                 var helper = CreateNestedMappingModel(mappingMethod, namedSource, namedTarget, helperName, compilation, diagnostics, helpers, helperNames, options);
                 if (helper == null)
@@ -1785,7 +1790,7 @@ namespace Mammoth.LiteMapper.Generator
             return new ConversionModel(helperName + "(" + expression + ")", sourceMember, potentiallyNull, targetMember.Name, nullCheckExpression: null);
         }
 
-        private static ConversionModel? ResolveCollectionMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options, bool sourceExpressionMayBeNull = false)
+        private static ConversionModel? ResolveCollectionMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, ISymbol targetMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options, bool sourceExpressionMayBeNull = false)
         {
             var sourceShape = GetCollectionShape(sourceType, compilation);
             var targetShape = GetCollectionShape(targetType, compilation);
@@ -1823,11 +1828,12 @@ namespace Mammoth.LiteMapper.Generator
                 return null;
             }
 
-            var helperName = CreateHelperName(
+            var helperName = helperNames.GetOrAdd(
                 sourceShape.IsDictionary || targetShape.IsDictionary ? "MapDictionary_" : "MapCollection_",
                 sourceType,
-                targetType);
-            if (helperNames.Add(helperName))
+                targetType,
+                out var isNewHelper);
+            if (isNewHelper)
             {
                 var helper = CreateCollectionMappingModel(mappingMethod, sourceType, targetType, mappingMethod.Parameters[0].Name, targetMember, compilation, diagnostics, helpers, helperNames, options, helperName);
                 if (helper == null)
@@ -1843,7 +1849,7 @@ namespace Mammoth.LiteMapper.Generator
             return new ConversionModel(helperName + "(" + expression + ")", sourceMember, potentiallyNull, targetMember.Name, nullCheckExpression: null);
         }
 
-        private static MappingModel? CreateCollectionMappingModel(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string parameterName, ISymbol? targetMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder outerHelpers, HashSet<string> outerHelperNames, EffectiveMappingOptions options, string? helperName)
+        private static MappingModel? CreateCollectionMappingModel(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string parameterName, ISymbol? targetMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder outerHelpers, HelperNameRegistry outerHelperNames, EffectiveMappingOptions options, string? helperName)
         {
             var location = targetMember == null ? method.Locations.FirstOrDefault() : targetMember.Locations.FirstOrDefault() ?? method.Locations.FirstOrDefault();
             var sourceShape = GetCollectionShape(sourceType, compilation);
@@ -1889,7 +1895,7 @@ namespace Mammoth.LiteMapper.Generator
             return new MappingModel(method, sourceNullable, returnNullable, options.NullableMismatch, options.ReferenceHandling, helperName == null && !IsMaybeNull(method.Parameters[0]) && options.GuardNonNullSource, null, ImmutableArray<PreconditionModel>.Empty, ImmutableArray<AssignmentModel>.Empty, helpers.ToImmutable(), helperName, helperName == null ? null : sourceType, helperName == null ? null : targetType, body);
         }
 
-        private static string? RenderCollectionBody(IMethodSymbol method, CollectionShape sourceShape, CollectionShape targetShape, ITypeSymbol sourceType, ITypeSymbol targetType, string parameterName, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options, Location? location)
+        private static string? RenderCollectionBody(IMethodSymbol method, CollectionShape sourceShape, CollectionShape targetShape, ITypeSymbol sourceType, ITypeSymbol targetType, string parameterName, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options, Location? location)
         {
             if (sourceShape.IsDictionary != targetShape.IsDictionary)
             {
@@ -2048,7 +2054,7 @@ namespace Mammoth.LiteMapper.Generator
             return builder.ToString();
         }
 
-        private static string? ResolveElementExpression(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options, Location? location)
+        private static string? ResolveElementExpression(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options, Location? location)
         {
             if (ReportDuplicateVisibleDefaults(method, sourceType, targetType, compilation, diagnostics, "item", location))
             {
@@ -2109,11 +2115,12 @@ namespace Mammoth.LiteMapper.Generator
                     return null;
                 }
 
-                var helperName = CreateHelperName(
+                var helperName = helperNames.GetOrAdd(
                     nestedSourceShape.IsDictionary || nestedTargetShape.IsDictionary ? "MapDictionary_" : "MapCollection_",
                     sourceType,
-                    targetType);
-                if (helperNames.Add(helperName))
+                    targetType,
+                    out var isNewHelper);
+                if (isNewHelper)
                 {
                     var helper = CreateCollectionMappingModel(method, sourceType, targetType, method.Parameters[0].Name, null, compilation, diagnostics, helpers, helperNames, options, helperName);
                     if (helper == null)
@@ -2129,8 +2136,8 @@ namespace Mammoth.LiteMapper.Generator
 
             if (sourceType is INamedTypeSymbol namedSource && targetType is INamedTypeSymbol namedTarget && IsStructuralObjectType(namedSource) && IsStructuralObjectType(namedTarget))
             {
-                var helperName = CreateHelperName("MapNested_", namedSource, namedTarget);
-                if (helperNames.Add(helperName))
+                var helperName = helperNames.GetOrAdd("MapNested_", namedSource, namedTarget, out var isNewHelper);
+                if (isNewHelper)
                 {
                     var helper = CreateNestedMappingModel(method, namedSource, namedTarget, helperName, compilation, diagnostics, helpers, helperNames, options);
                     if (helper == null)
@@ -2149,7 +2156,7 @@ namespace Mammoth.LiteMapper.Generator
             return null;
         }
 
-        private static MappingModel? CreateNestedMappingModel(IMethodSymbol rootMethod, INamedTypeSymbol sourceType, INamedTypeSymbol targetType, string helperName, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder sharedHelpers, HashSet<string> sharedHelperNames, EffectiveMappingOptions options)
+        private static MappingModel? CreateNestedMappingModel(IMethodSymbol rootMethod, INamedTypeSymbol sourceType, INamedTypeSymbol targetType, string helperName, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder sharedHelpers, HelperNameRegistry sharedHelperNames, EffectiveMappingOptions options)
         {
             var sourceMembers = GetSourceMembers(sourceType, diagnostics).ToArray();
             var construction = SelectConstruction(targetType, rootMethod, sourceMembers, compilation, diagnostics, options, sharedHelpers, sharedHelperNames, ImmutableArray<ExplicitMemberConfiguration>.Empty);
@@ -2446,6 +2453,82 @@ namespace Mammoth.LiteMapper.Generator
             var identity = sourceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "->" +
                 targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             return prefix + ShapeName(sourceType) + "_To_" + ShapeName(targetType) + "_" + StableHash(identity);
+        }
+
+        private sealed class HelperNameRegistry
+        {
+            private readonly HashSet<string> names;
+            private readonly Dictionary<string, string> identities;
+
+            public HelperNameRegistry(IEnumerable<string> reservedNames)
+            {
+                names = new HashSet<string>(reservedNames, StringComparer.Ordinal);
+                identities = new Dictionary<string, string>(StringComparer.Ordinal);
+            }
+
+            private HelperNameRegistry(HashSet<string> names, Dictionary<string, string> identities)
+            {
+                this.names = names;
+                this.identities = identities;
+            }
+
+            public string GetOrAdd(string prefix, ITypeSymbol sourceType, ITypeSymbol targetType, out bool isNew)
+            {
+                var identity = prefix + ":" + sourceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "->" +
+                    targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                if (identities.TryGetValue(identity, out var existing))
+                {
+                    isNew = false;
+                    return existing;
+                }
+
+                var preferred = CreateHelperName(prefix, sourceType, targetType);
+                var name = preferred;
+                if (!names.Add(name))
+                {
+                    var suffix = EncodeHelperIdentity(identity);
+                    name = preferred + "_" + suffix;
+                    var attempt = 0;
+                    while (!names.Add(name))
+                    {
+                        attempt++;
+                        name = preferred + "_" + suffix + "_" + attempt.ToString(CultureInfo.InvariantCulture);
+                    }
+                }
+
+                identities.Add(identity, name);
+                isNew = true;
+                return name;
+            }
+
+            public HelperNameRegistry Clone()
+            {
+                return new HelperNameRegistry(
+                    new HashSet<string>(names, StringComparer.Ordinal),
+                    new Dictionary<string, string>(identities, StringComparer.Ordinal));
+            }
+
+            public void Merge(HelperNameRegistry other)
+            {
+                foreach (var identity in other.identities)
+                {
+                    identities[identity.Key] = identity.Value;
+                }
+
+                names.UnionWith(other.names);
+            }
+        }
+
+        private static string EncodeHelperIdentity(string identity)
+        {
+            var bytes = Encoding.UTF8.GetBytes(identity);
+            var builder = new StringBuilder(bytes.Length * 2);
+            foreach (var value in bytes)
+            {
+                builder.Append(value.ToString("X2", CultureInfo.InvariantCulture));
+            }
+
+            return builder.ToString();
         }
 
         private static string CreateExpressionCaptureName(IMethodSymbol method, string targetName, string expression)
@@ -3136,7 +3219,7 @@ namespace Mammoth.LiteMapper.Generator
             return new MatchResult(null, exact.Length > 1);
         }
 
-        private static ConstructionModel? SelectConstruction(INamedTypeSymbol targetType, IMethodSymbol method, ISymbol[] sourceMembers, Compilation compilation, ICollection<Diagnostic> diagnostics, EffectiveMappingOptions options, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, ImmutableArray<ExplicitMemberConfiguration> configurations, ISet<string>? targetDefaults = null)
+        private static ConstructionModel? SelectConstruction(INamedTypeSymbol targetType, IMethodSymbol method, ISymbol[] sourceMembers, Compilation compilation, ICollection<Diagnostic> diagnostics, EffectiveMappingOptions options, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, ImmutableArray<ExplicitMemberConfiguration> configurations, ISet<string>? targetDefaults = null)
         {
             var location = method.Locations.FirstOrDefault();
             var constructors = targetType.Constructors
@@ -3150,12 +3233,12 @@ namespace Mammoth.LiteMapper.Generator
                 return null;
             }
 
-            var candidates = new List<(IMethodSymbol Constructor, ConstructionModel? Plan, List<Diagnostic> Diagnostics, ImmutableArray<MappingModel>.Builder Helpers, HashSet<string> Names)>();
+            var candidates = new List<(IMethodSymbol Constructor, ConstructionModel? Plan, List<Diagnostic> Diagnostics, ImmutableArray<MappingModel>.Builder Helpers, HelperNameRegistry Names)>();
             foreach (var constructor in marked.Length == 1 ? marked : constructors.Where(static c => c.Parameters.Length > 0))
             {
                 var candidateDiagnostics = new List<Diagnostic>();
                 var candidateHelpers = ImmutableArray.CreateBuilder<MappingModel>();
-                var candidateNames = new HashSet<string>(helperNames, StringComparer.Ordinal);
+                var candidateNames = helperNames.Clone();
                 var plan = TryCreateConstruction(constructor, targetType, method, sourceMembers, compilation, targetDefaults, configurations, candidateDiagnostics, candidateHelpers, candidateNames, options);
                 candidates.Add((constructor, plan, candidateDiagnostics, candidateHelpers, candidateNames));
             }
@@ -3168,7 +3251,7 @@ namespace Mammoth.LiteMapper.Generator
                 if (best.Length == 1)
                 {
                     helpers.AddRange(best[0].Helpers);
-                    helperNames.UnionWith(best[0].Names);
+                    helperNames.Merge(best[0].Names);
                     foreach (var diagnostic in best[0].Diagnostics) diagnostics.Add(diagnostic);
                     return best[0].Plan;
                 }
@@ -3201,7 +3284,7 @@ namespace Mammoth.LiteMapper.Generator
             return null;
         }
 
-        private static ConstructionModel? TryCreateConstruction(IMethodSymbol constructor, INamedTypeSymbol targetType, IMethodSymbol method, ISymbol[] sourceMembers, Compilation compilation, ISet<string>? targetDefaults, ImmutableArray<ExplicitMemberConfiguration> configurations, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HashSet<string> helperNames, EffectiveMappingOptions options)
+        private static ConstructionModel? TryCreateConstruction(IMethodSymbol constructor, INamedTypeSymbol targetType, IMethodSymbol method, ISymbol[] sourceMembers, Compilation compilation, ISet<string>? targetDefaults, ImmutableArray<ExplicitMemberConfiguration> configurations, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options)
         {
             var nameMatching = options.NameMatching;
             var arguments = ImmutableArray.CreateBuilder<ConstructorArgumentModel>();

@@ -12,6 +12,10 @@
 
 ## Final implementation findings
 
+### GitHub issue #3 helper-name hardening (2026-09-16)
+
+The implementation and documentation state that nested and collection helpers are private mapper implementation details; allocation is mapper-scoped, reserves handwritten members and other generated helper signatures, reuses names for identical closed source/destination identities, and deterministically disambiguates distinct identities even when preferred shape-plus-hash names collide. The rule is independent of syntax-tree and equivalent compilation order, and does not introduce runtime reflection or dynamic dispatch. `HelperNameCollisionTests` passes 7/7, the full generator suite passes 551/551, the solution build has 0 warnings/errors, and the integrated solution tests pass 618/619 with one known Windows Native AOT prerequisite skip.
+
 ### GitHub issue #2 incremental invalidation hardening (2026-09-16)
 
 Issue #2 is addressed under sections 19.2, 21.1, 21.2, and 21.4. Assembly-level defaults and external mapper registrations now flow through an explicit deterministic configuration fingerprint into mapper planning. `IncrementalIsolationTests` covers same-driver generated-content and diagnostic changes for affected mappings, plus cached output for an unrelated mapper. Focused 23/23 and full generator 544/544 tests pass; the solution build and 611/611 solution tests pass with no skips. Roslyn candidate-identity limitations remain governed by the existing incremental-host decision.

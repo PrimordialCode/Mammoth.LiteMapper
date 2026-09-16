@@ -1,5 +1,9 @@
 # Mammoth.LiteMapper handoff
 
+## Latest: GitHub issue #3 helper-name hardening, 2026-09-16
+
+The branch implements and documents deterministic mapper-scoped allocation for private generated nested and collection helpers. Handwritten members and other generated helper signatures reserve names; identical closed source/destination identities reuse a name; distinct identities are deterministically disambiguated under preferred shape-plus-hash collisions independently of syntax-tree or equivalent compilation order. Consumers must not depend on helper names or signatures. This is post-Milestone 13 hardening with no public API change. Focused 7/7 and full generator 551/551 tests pass; the solution build has 0 warnings/errors; integrated solution tests pass 618/619 with one known Windows Native AOT prerequisite skip. No commit, push, or publication occurred.
+
 ## Latest: GitHub issue #2 incremental invalidation, 2026-09-16
 
 The `codex/issue-2` feature branch carries the issue #2 hardening. Assembly-wide defaults and external mapper registrations are explicit incremental inputs to mapper planning and source emission. The two new same-driver regressions cover affected generated content, diagnostics, compilation, and cached unrelated output. Focused and integrated validation pass: 544 generator tests, 611 solution tests, the usage-documentation test, and the skill validator. No commit, push, remote CI, or publication occurred. Review the dirty diff before any user-authorized commit.

@@ -1,20 +1,18 @@
 # Mammoth.LiteMapper Status
 
-Latest active work: GitHub issue #2 is implemented on `codex/issue-2`. Assembly-wide defaults and external mapper registrations are explicit incremental inputs to mapper planning and emission. No commit, push, or publication occurred.
+Latest active work: GitHub issue #3 helper-name hardening is implemented and in review on `codex/issue-3-helper-names`. It adds mapper-scoped deterministic collision-safe helper allocation and synchronized documentation. No commit, push, or publication occurred.
 
-- Current scope: GitHub issue #2 incremental invalidation, documentation synchronization, and regression validation.
-- Current state: implementation, documentation, focused validation, and integrated validation are complete on `codex/issue-2`; the branch is ready for user review and remains uncommitted. DEC-0040 records the implementation decision.
+- Current scope: GitHub issue #3 generated helper-name allocation, compile-and-run regressions, and documentation synchronization.
+- Current state: implementation and validation are complete locally; the branch remains uncommitted for user review. DEC-0041 records the implementation decision.
 - Completed milestones: Milestone 1; Milestone 2; Milestone 3; Milestone 4; Milestone 5; Milestone 6; Milestone 7; Milestone 8; Milestone 9; Milestone 10; Milestone 11; Milestone 12; Milestone 13; Milestone 14; Milestone 15; Milestone 16.
-- Current work: assembly configuration is fingerprinted from relevant defaults and registrations and is combined into each mapper planning input; per-mapper emission equality preserves unchanged output.
-- Work completed: added red-first same-driver regressions for assembly defaults and `UseMapper`, retaining valid affected and unaffected mapper fixtures; synchronized the specification and consumer/maintainer documentation.
-- Tests added or updated: `IncrementalIsolationTests.AssemblyDefaultsChangeInvalidatesAffectedMapperPlanning` and `AssemblyUseMapperChangeInvalidatesAffectedMapperPlanning` cover generated content, diagnostics, compilation, and output reasons.
-- Diagnostics added: no new diagnostic ID; the new regressions exercise existing `LITEMAPPER1001` and `LITEMAPPER2004` diagnostics across assembly configuration changes.
-- Generated-source review: the default-change case changes the affected A source and removes `LITEMAPPER1001`; the registration case adds `External.Convert` and removes `LITEMAPPER2004`; B remains cached in both same-driver runs.
-- Validation evidence: `IncrementalIsolationTests` passes 23/23; the full generator suite passes 544/544; `dotnet build Mammoth.LiteMapper.sln --no-restore` passes for 13 projects with 0 warnings and 0 errors; the full solution test run passes 611/611 with 0 skipped; `Milestone16UsageDocumentationTests` passes 1/1; the consumer skill validator passes.
-- Skipped validation: none in the current issue #2 validation commands. Remote CI was not executed. Historical limitations remain recorded in the checkpoints below.
-- Blockers: none known.
-- Known issues: none found for issue #2 at focused scope. Existing unrelated changes in `.agents/skills/subagent-orchestrator/references/routing.md` and `.tokensave/config.json` were preserved.
-- Next permitted action: review the dirty diff. Commit only if explicitly requested.
+- Current work: final review of mapper-scoped registry behavior, collision regressions, and synchronized documentation.
+- Work completed: shared one registry across declared mappings; reserved handwritten names; reused identical closed pairs; added deterministic suffixes for preferred-name collisions; synchronized the specification, usage, README, changelog, conformance review, handoff, work ledger, and consumer skill/reference text.
+- Tests added or updated: `HelperNameCollisionTests` covers nested and collection handwritten signature collisions, preferred hash collision, syntax-tree order, cross-mapping helper reuse, and rollback after rejected planning.
+- Validation evidence: focused helper-collision tests pass 7/7; full generator suite passes 551/551; solution build passes with 0 warnings/errors; solution tests pass 619 total with 618 passed and 1 known Windows Native AOT prerequisite skip; usage documentation test passes 1/1; skill validator passes.
+- Skipped validation: one Windows Native AOT packaging case skipped because linker prerequisites are unavailable. Remote CI was not executed.
+- Blockers: none known for issue #3.
+- Known issues: exact generated helper names remain intentionally non-public and must not be used as consumer dependencies.
+- Next permitted action: root review of the documentation diff. Commit only if explicitly requested.
 
 ## GitHub issue #1 implementation checkpoint (2026-09-16)
 

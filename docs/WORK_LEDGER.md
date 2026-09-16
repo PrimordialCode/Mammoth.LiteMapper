@@ -21,6 +21,10 @@ Each repair requires valid-input failing tests, minimal implementation, focused 
 
 Final integrated checkpoint: 540 generator tests pass on each Roslyn 4.8/4.14/5.9 host. The Windows solution passes 607 with one Native AOT prerequisite skip; Linux Native AOT passes 1/1. The controlled five-scenario comparison remains accepted, and the current flat pair confirms the inline optimization. Final read-only subagent checks found no remaining configured-path/nested defect and accepted the exact/fallback default-pair correction.
 
+## GitHub issue #3 helper-name hardening checkpoint (2026-09-16)
+
+The bounded post-Milestone 13 objective is to implement and document private, mapper-scoped deterministic helper-name allocation. The implementation owns `LiteMapperGenerator.cs` and focused collision regressions; the documentation slice owns the twelve documentation and skill files listed in the task. Acceptance requires reserved handwritten/generated signatures, identical closed-identity name reuse, deterministic disambiguation of distinct preferred-name collisions, independence from syntax-tree/equivalent compilation order, and no runtime reflection or dynamic dispatch. Focused 7/7 and full generator 551/551 tests pass; the solution build has 0 warnings/errors; integrated solution tests pass 618/619 with one known Windows Native AOT prerequisite skip.
+
 ## GitHub issue #2 delegation (2026-09-16)
 
 Root retained the shared generator integration, all documentation, validation, and review handoff. Delegated ownership was disjoint: Bohr owned only `LiteMapperGenerator.cs` and `IncrementalIsolationTests.cs`; Herschel performed a read-only specification and documentation audit. Neither agent committed or pushed.

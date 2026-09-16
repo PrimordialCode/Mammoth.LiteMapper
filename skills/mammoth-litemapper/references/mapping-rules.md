@@ -49,6 +49,8 @@ A nullable reference or value converter result targeting a non-null member repor
 
 Generated eligible partial mappings are discovered automatically. Handwritten local methods require one of those explicit mechanisms or `[DefaultMapping]`; names such as `ToDto` or a matching scalar/structural signature alone do not make a helper eligible. Explicit registration opts in compatible methods from a static external container. Mark converters used for dictionary keys/values or collection elements with `[MappingConverter]` when they should participate automatically; marked converters outrank identity conversion.
 
+Generated nested and collection helpers are private mapper implementation details. Their names are allocated per generated mapper, reserve handwritten members and other generated helper signatures, reuse one name for an identical closed source/destination identity, and deterministically disambiguate distinct identities when preferred shape-plus-hash names collide. Allocation does not depend on syntax-tree or equivalent compilation order. Consumer code must not depend on helper names or signatures.
+
 Resolve explicit `MapProperty.Use` first, then an explicit source path (completing immediately if directly assignable), local marked converters, the local member convention, local mappings, registered external converters, and registered external mappings, before language/enum/collection/structural conversion. A unique default selects among mapping methods within its stage; it never skips an earlier stage.
 
 For example, suppose a nested member needs `SourceValue -> TargetValue`:
