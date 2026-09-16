@@ -1,6 +1,6 @@
 # Mammoth.LiteMapper Implementation Plan
 
-Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1 through #6 are implemented, documented, merged, and closed. Issue #7 is implemented on `codex/issue-7-strict-source-completeness`, committed as `ba77312`, and submitted as PR [#10](https://github.com/PrimordialCode/Mammoth.LiteMapper/pull/10) for human review. Existing source-policy behavior already satisfies the requested mapper, method, assembly, severity, and editorconfig boundaries; this scope adds adoption evidence and synchronized guidance without a public API or semantic change. Remote CI remains unexecuted.
+Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1 through #7 are implemented, documented, merged, and closed. Issue #7 was merged into `develop` via PR [#10](https://github.com/PrimordialCode/Mammoth.LiteMapper/pull/10) at `a8ac8bd`; AgentStack is `done` and its claim is released. Existing source-policy behavior already satisfies the requested mapper, method, assembly, severity, and editorconfig boundaries; this scope added adoption evidence and synchronized guidance without a public API or semantic change. Remote CI remains unexecuted.
 
 PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, and regression-tested. All milestone and dated checkpoint sections below are historical planning and revision-specific evidence; their pending-work statements are superseded by the current execution state above.
 
@@ -12,7 +12,7 @@ PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, 
 - Contract boundary: mapper, method, and assembly configuration already resolve through the specified precedence. `LITEMAPPER1003` already supports `Ignore`, `Info`, `Warning`, `Error`, and standard editorconfig severity overrides; target completeness and mandatory diagnostics remain independent.
 - Red-first evidence: the new generator regression passes for mapper, method, and assembly strict-source configuration, while the new usage-guide assertions fail until the first-class guidance is added.
 - Scope: generator regression coverage, `docs/USAGE.md`, the consumer skill and mapping-rules reference, changelog, status, and conformance ledger. No public API, production generator behavior, or consumer DTO test is required.
-- Status: implementation and focused/full local validation are complete; PR #10 is open through AgentStack and human review is required before merge and issue closure.
+- Status: implementation and focused/full local validation are complete; PR #10 was approved and merged into `develop`, issue #7 is closed, and AgentStack is `done` with its claim released.
 
 ## GitHub issue #6 existing-target atomicity checkpoint (2026-09-16)
 
