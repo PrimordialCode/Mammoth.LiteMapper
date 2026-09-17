@@ -33,6 +33,18 @@ namespace Mammoth.LiteMapper.Packaging.Tests
         }
 
         [TestMethod]
+        public void ReleaseBranchesUseManualDeploymentForExplicitTags()
+        {
+            var config = File.ReadAllText(Path.Combine(Repository.Root, "GitVersion.yml"));
+
+            Assert.IsTrue(
+                Regex.IsMatch(
+                    config,
+                    @"(?ms)^  release:\r?\n    regex: \^release\[/-\]\r?\n    mode: ManualDeployment\r?\n    increment: None.*\r?\n    prevent-increment:\r?\n      when-current-commit-tagged: true\r?\n"),
+                "Release branches must preserve explicitly tagged prerelease versions.");
+        }
+
+        [TestMethod]
         [DataRow("v1.0.0")]
         [DataRow("1.0")]
         [DataRow("1.0.0+©")]
