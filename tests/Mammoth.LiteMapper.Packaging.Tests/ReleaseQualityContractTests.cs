@@ -116,6 +116,23 @@ function dotnet {
                 packages.Select(Path.GetFileName).ToArray());
         }
 
+        [TestMethod]
+        public void FinalPackageConsumerRestoresWindowsRuntimeBeforeNoRestorePublish()
+        {
+            var workflow = File.ReadAllText(Path.Combine(
+                Repository.Root, ".github", "workflows", "ci.yml"));
+
+            StringAssert.Contains(
+                workflow,
+                "dotnet restore (Join-Path $consumer 'Consumer.csproj') --configfile (Join-Path $consumer 'NuGet.Config') --no-cache -r win-x64");
+            StringAssert.Contains(
+                workflow,
+                "dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -r win-x64 -p:PublishTrimmed=true");
+            StringAssert.Contains(
+                workflow,
+                "dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -r win-x64 -p:PublishAot=true");
+        }
+
         private static string ResolveChannel(string tag)
         {
             Assert.IsTrue(TryResolveChannel(tag, out var channel), tag);

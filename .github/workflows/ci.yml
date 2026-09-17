@@ -417,17 +417,17 @@ jobs:
             </packageSourceMapping>
           </configuration>
           "@ | Set-Content -LiteralPath (Join-Path $consumer 'NuGet.Config')
-          dotnet restore (Join-Path $consumer 'Consumer.csproj') --configfile (Join-Path $consumer 'NuGet.Config') --no-cache
+          dotnet restore (Join-Path $consumer 'Consumer.csproj') --configfile (Join-Path $consumer 'NuGet.Config') --no-cache -r win-x64
           dotnet run --project (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore
           $trimmed = Join-Path $consumer 'trimmed'
-          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -p:PublishTrimmed=true -p:PublishDir="$trimmed/"
+          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -r win-x64 -p:PublishTrimmed=true -p:PublishDir="$trimmed/"
           if (Test-Path (Join-Path $trimmed 'Consumer.exe')) {
             & (Join-Path $trimmed 'Consumer.exe')
           } else {
             dotnet (Join-Path $trimmed 'Consumer.dll')
           }
           $aot = Join-Path $consumer 'aot'
-          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -p:PublishAot=true -p:TreatWarningsAsErrors=true -p:PublishDir="$aot/"
+          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -r win-x64 -p:PublishAot=true -p:TreatWarningsAsErrors=true -p:PublishDir="$aot/"
           & (Join-Path $aot 'Consumer.exe')
 
       - name: Upload validated packages

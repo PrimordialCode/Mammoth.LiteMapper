@@ -15,6 +15,7 @@ The canonical release workflow is .github/workflows/ci.yml. Releases use bare Se
 - Pack the three shipping projects once at the exact tag version.
 - Verify exactly one .nupkg and one .snupkg for each package.
 - Verify package API compatibility, package contents, clean-consumer mappings, trimming, Native AOT, checksums, and provenance.
+- Ensure the Windows consumer restore includes the `win-x64` runtime before no-restore trimmed/AOT publishes.
 - Retain the uploaded package, checksum, and provenance artifacts.
 
 ## Publish
