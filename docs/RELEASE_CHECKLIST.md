@@ -16,6 +16,7 @@ The canonical release workflow is .github/workflows/ci.yml. Releases use bare Se
 - Verify exactly one .nupkg and one .snupkg for each package.
 - Verify package API compatibility, package contents, clean-consumer mappings, trimming, Native AOT, checksums, and provenance.
 - Ensure the Windows consumer restore includes the `win-x64` runtime before no-restore trimmed/AOT publishes.
+- Use Node 24-compatible artifact actions: `actions/upload-artifact@v6` and `actions/download-artifact@v7`.
 - Retain the uploaded package, checksum, and provenance artifacts.
 
 ## Publish

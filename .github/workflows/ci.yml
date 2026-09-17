@@ -438,7 +438,7 @@ jobs:
           }
 
       - name: Upload validated packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: litemapper-packages-${{ steps.gitversion.outputs.semver }}
           path: ${{ env.PACKAGE_OUTPUT }}
@@ -472,7 +472,7 @@ jobs:
 
     steps:
       - name: Download validated packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: litemapper-packages-${{ needs.pack-and-validate.outputs.semver }}
           path: ${{ env.PACKAGE_OUTPUT }}
@@ -544,7 +544,7 @@ jobs:
 
     steps:
       - name: Download verified packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: litemapper-packages-${{ needs.pack-and-validate.outputs.semver }}
           path: ${{ env.PACKAGE_OUTPUT }}

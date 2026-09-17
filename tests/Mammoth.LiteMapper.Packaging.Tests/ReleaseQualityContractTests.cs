@@ -149,6 +149,18 @@ function dotnet {
                 StringComparison.Ordinal));
         }
 
+        [TestMethod]
+        public void ArtifactActionsUseNode24CompatibleReleases()
+        {
+            var workflow = File.ReadAllText(Path.Combine(
+                Repository.Root, ".github", "workflows", "ci.yml"));
+
+            StringAssert.Contains(workflow, "actions/upload-artifact@v6");
+            StringAssert.Contains(workflow, "actions/download-artifact@v7");
+            Assert.IsFalse(workflow.Contains("actions/upload-artifact@v4", StringComparison.Ordinal));
+            Assert.IsFalse(workflow.Contains("actions/download-artifact@v4", StringComparison.Ordinal));
+        }
+
         private static string ResolveChannel(string tag)
         {
             Assert.IsTrue(TryResolveChannel(tag, out var channel), tag);
