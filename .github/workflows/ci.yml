@@ -283,6 +283,55 @@ jobs:
             artifacts = @($allArtifacts | ForEach-Object { $_.Name })
           } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path '${{ env.PACKAGE_OUTPUT }}' 'provenance.json')
 
+      - name: Validate final package consumers
+        shell: pwsh
+        run: |
+          $version = '${{ steps.gitversion.outputs.semver }}'
+          $feed = (Resolve-Path '${{ env.PACKAGE_OUTPUT }}').Path
+          foreach ($packageId in @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper')) {
+            dotnet apicompat package (Join-Path $feed "$packageId.$version.nupkg") --run-api-compat
+          }
+
+          $consumer = Join-Path $env:RUNNER_TEMP "litemapper-package-consumer-$version"
+          New-Item -ItemType Directory -Force -Path $consumer | Out-Null
+          @"
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>Exe</OutputType>
+              <TargetFramework>net10.0</TargetFramework>
+              <ImplicitUsings>enable</ImplicitUsings>
+              <Nullable>enable</Nullable>
+              <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+            </PropertyGroup>
+            <ItemGroup>
+              <PackageReference Include="Mammoth.LiteMapper" Version="$version" />
+            </ItemGroup>
+          </Project>
+          "@ | Set-Content -LiteralPath (Join-Path $consumer 'Consumer.csproj')
+          @"
+          using Mammoth.LiteMapper;
+          var result = Mapper.Map(new Source { Value = 7 });
+          if (result.Value != 7) throw new InvalidOperationException("Generated package mapping failed.");
+          public sealed class Source { public int Value { get; set; } }
+          public sealed class Target { public int Value { get; set; } }
+          [LiteMapper]
+          public static partial class Mapper { public static partial Target Map(Source source); }
+          "@ | Set-Content -LiteralPath (Join-Path $consumer 'Program.cs')
+          @"
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="$feed" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          "@ | Set-Content -LiteralPath (Join-Path $consumer 'NuGet.Config')
+          dotnet restore (Join-Path $consumer 'Consumer.csproj') --configfile (Join-Path $consumer 'NuGet.Config') --no-cache
+          dotnet run --project (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore
+          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -p:PublishTrimmed=true
+          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -p:PublishAot=true -p:TreatWarningsAsErrors=true
+          & (Join-Path $consumer 'bin\Release\net10.0\win-x64\publish\Consumer.exe')
+
       - name: Upload validated packages
         uses: actions/upload-artifact@v4
         with:
