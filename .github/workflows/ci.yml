@@ -152,29 +152,31 @@ jobs:
       - name: Test generator with requested Roslyn host
         run: dotnet test tests/Mammoth.LiteMapper.Generator.Tests/Mammoth.LiteMapper.Generator.Tests.csproj -c Release -p:RoslynTestVersion=${{ matrix.roslyn }} --logger trx
 
-  publish:
-    name: Pack & Publish
+  pack-and-validate:
+    name: Pack & Validate
     needs: [build-and-test, roslyn-hosts]
     runs-on: windows-latest
+    outputs:
+      semver: ${{ steps.gitversion.outputs.semver }}
     if: >
       github.event_name != 'pull_request' &&
       (
         (
           github.event_name != 'workflow_dispatch' &&
-          (
-            github.ref == 'refs/heads/main' ||
-            startsWith(github.ref, 'refs/heads/release/') ||
-            startsWith(github.ref, 'refs/heads/hotfix/')
-          )
+          github.ref_type == 'tag'
         ) ||
         (
           github.event_name == 'workflow_dispatch' &&
-          inputs.publish == true &&
           (
             inputs.dry_run == true ||
-            github.ref == 'refs/heads/main' ||
-            startsWith(github.ref, 'refs/heads/release/') ||
-            startsWith(github.ref, 'refs/heads/hotfix/')
+            (
+              inputs.publish == true &&
+              (
+                github.ref == 'refs/heads/main' ||
+                startsWith(github.ref, 'refs/heads/release/') ||
+                startsWith(github.ref, 'refs/heads/hotfix/')
+              )
+            )
           )
         )
       )
@@ -201,6 +203,19 @@ jobs:
           $semver = $version.SemVer
           if ([string]::IsNullOrWhiteSpace($semver)) {
             throw 'GitVersion did not return a SemVer value.'
+          }
+
+          # Only release tags may publish, and their exact valid SemVer must
+          # agree with GitVersion. Branch dispatches use GitVersion normally.
+          if ('${{ github.ref_type }}' -eq 'tag') {
+            $tag = '${{ github.ref_name }}'
+            $semverPattern = '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
+            if ($tag -notmatch $semverPattern) {
+              throw "Release tag '$tag' is not a valid stable or prerelease SemVer."
+            }
+            if ($tag -cne $semver) {
+              throw "Release tag '$tag' does not match GitVersion SemVer '$semver'."
+            }
           }
 
           "semver=$semver" >> $env:GITHUB_OUTPUT
@@ -233,36 +248,110 @@ jobs:
               /p:ContinuousIntegrationBuild=true
           }
 
-          $packages = Get-ChildItem -Path '${{ env.PACKAGE_OUTPUT }}' -Filter "Mammoth.LiteMapper*.${{ steps.gitversion.outputs.semver }}.nupkg" |
-            Where-Object { $_.Name -notlike '*.symbols.nupkg' }
-          if ($packages.Count -ne 3) {
-            throw "Expected 3 NuGet packages, found $($packages.Count)."
+          $packageIds = @(
+            'Mammoth.LiteMapper.Abstractions',
+            'Mammoth.LiteMapper.Generator',
+            'Mammoth.LiteMapper'
+          )
+          $packages = @()
+          $symbolPackages = @()
+          foreach ($packageId in $packageIds) {
+            $packagePath = Join-Path '${{ env.PACKAGE_OUTPUT }}' "$packageId.${{ steps.gitversion.outputs.semver }}.nupkg"
+            $symbolPath = Join-Path '${{ env.PACKAGE_OUTPUT }}' "$packageId.${{ steps.gitversion.outputs.semver }}.snupkg"
+            if (-not (Test-Path -LiteralPath $packagePath) -or -not (Test-Path -LiteralPath $symbolPath)) {
+              throw "Missing exact package artifacts for $packageId version ${{ steps.gitversion.outputs.semver }}."
+            }
+            $packages += Get-Item -LiteralPath $packagePath
+            $symbolPackages += Get-Item -LiteralPath $symbolPath
           }
-          $symbolPackages = Get-ChildItem -Path '${{ env.PACKAGE_OUTPUT }}' -Filter "Mammoth.LiteMapper*.${{ steps.gitversion.outputs.semver }}.snupkg"
-          if ($symbolPackages.Count -ne 3) {
-            throw "Expected 3 symbol packages, found $($symbolPackages.Count)."
+          $unexpected = Get-ChildItem -Path '${{ env.PACKAGE_OUTPUT }}' -File |
+            Where-Object { $_.Extension -in '.nupkg', '.snupkg' -and $_.FullName -notin ($packages + $symbolPackages).FullName }
+          if ($unexpected) {
+            throw "Unexpected package artifacts found: $($unexpected.Name -join ', ')"
+          }
+
+          $allArtifacts = @($packages + $symbolPackages)
+          $hashLines = foreach ($artifact in $allArtifacts) {
+            $hash = (Get-FileHash -LiteralPath $artifact.FullName -Algorithm SHA256).Hash
+            "$hash  $($artifact.Name)"
+          }
+          $hashLines | Set-Content -LiteralPath (Join-Path '${{ env.PACKAGE_OUTPUT }}' 'SHA256SUMS.txt')
+          [ordered]@{
+            commit = '${{ github.sha }}'
+            ref = '${{ github.ref }}'
+            version = '${{ steps.gitversion.outputs.semver }}'
+            artifacts = @($allArtifacts | ForEach-Object { $_.Name })
+          } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path '${{ env.PACKAGE_OUTPUT }}' 'provenance.json')
+
+      - name: Upload validated packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: litemapper-packages-${{ steps.gitversion.outputs.semver }}
+          path: ${{ env.PACKAGE_OUTPUT }}
+          if-no-files-found: error
+
+      - name: Publish
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        shell: pwsh
+        run: |
+          "Dry run complete: validated and uploaded packages for ${{ steps.gitversion.outputs.semver }}; no NuGet push was invoked."
+
+  publish:
+    name: Publish Validated Packages
+    needs: pack-and-validate
+    runs-on: windows-latest
+    environment: production
+    if: >
+      github.ref_type == 'tag' ||
+      (github.event_name == 'workflow_dispatch' && inputs.dry_run == false && inputs.publish == true)
+
+    steps:
+      - name: Download validated packages
+        uses: actions/download-artifact@v4
+        with:
+          name: litemapper-packages-${{ needs.pack-and-validate.outputs.semver }}
+          path: ${{ env.PACKAGE_OUTPUT }}
+
+      - name: Verify validated package set
+        shell: pwsh
+        run: |
+          $version = '${{ needs.pack-and-validate.outputs.semver }}'
+          $provenancePath = Join-Path '${{ env.PACKAGE_OUTPUT }}' 'provenance.json'
+          $checksumsPath = Join-Path '${{ env.PACKAGE_OUTPUT }}' 'SHA256SUMS.txt'
+          if (-not (Test-Path -LiteralPath $provenancePath) -or -not (Test-Path -LiteralPath $checksumsPath)) {
+            throw 'Validated package provenance or checksum manifest is missing.'
+          }
+          $provenance = Get-Content -LiteralPath $provenancePath -Raw | ConvertFrom-Json
+          if ($provenance.commit -cne '${{ github.sha }}' -or $provenance.version -cne $version) {
+            throw 'Package provenance does not match this commit and version.'
+          }
+          $packageIds = @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper.Generator', 'Mammoth.LiteMapper')
+          $expected = foreach ($packageId in $packageIds) { foreach ($extension in @('nupkg', 'snupkg')) { "$packageId.$version.$extension" } }
+          if (@($provenance.artifacts | Sort-Object) -join '|' -cne (@($expected | Sort-Object) -join '|')) {
+            throw 'Package provenance artifact list is not exact.'
+          }
+          $hashes = @{}
+          foreach ($line in Get-Content -LiteralPath $checksumsPath) {
+            $parts = $line -split '\s+', 2
+            if ($parts.Count -ne 2) { throw "Malformed checksum entry: $line" }
+            $hashes[$parts[1]] = $parts[0]
+          }
+          foreach ($name in $expected) {
+            $path = Join-Path '${{ env.PACKAGE_OUTPUT }}' $name
+            if (-not (Test-Path -LiteralPath $path) -or $hashes[$name] -cne (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash) {
+              throw "Checksum verification failed for $name."
+            }
           }
 
       - name: Publish
-        if: github.event_name != 'workflow_dispatch' || inputs.dry_run == false
         shell: pwsh
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
-            throw 'NUGET_API_KEY secret is required to publish.'
-          }
-
-          Get-ChildItem -Path '${{ env.PACKAGE_OUTPUT }}' -File -Recurse |
-            Where-Object { $_.Extension -in '.nupkg', '.snupkg' } |
-            ForEach-Object {
-              dotnet nuget push $_.FullName --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY --skip-duplicate
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) { throw 'NUGET_API_KEY secret is required to publish.' }
+          $version = '${{ needs.pack-and-validate.outputs.semver }}'
+          foreach ($packageId in @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper.Generator', 'Mammoth.LiteMapper')) {
+            foreach ($extension in @('nupkg', 'snupkg')) {
+              dotnet nuget push (Join-Path '${{ env.PACKAGE_OUTPUT }}' "$packageId.$version.$extension") --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY
             }
-
-      - name: Dry run summary
-        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
-        shell: pwsh
-        run: |
-          Get-ChildItem -Path '${{ env.PACKAGE_OUTPUT }}' -File -Recurse |
-            Where-Object { $_.Extension -in '.nupkg', '.snupkg' } |
-            ForEach-Object { "Dry run: would publish $($_.FullName)" }
+          }
