@@ -1,6 +1,6 @@
 # Mapping rules
 
-Consumer guidance for Mammoth.LiteMapper 2.0.0. `SPECIFICATION.md` is the normative product contract, `docs/USAGE.md` is the consumer guide, and the matching public API, samples, and tests demonstrate release behavior. Consult the revision matching the installed package when behavior differs.
+Consumer guidance for Mammoth.LiteMapper 3.0.0. `SPECIFICATION.md` is the normative product contract, `docs/USAGE.md` is the consumer guide, and the matching public API, samples, and tests demonstrate release behavior. Consult the revision matching the installed package when behavior differs.
 
 Nested mapper classes may live in non-generic partial records, record structs, or interfaces; every containing type must be partial and the mapper itself must remain a class. For example, a partial record Container can contain a static partial Mapper class. Attribute enum constants are validated by value: `(NameMatching)3` means IgnoreCase and maps source value to target Value; undefined999 is rejected, including in assembly defaults.
 
@@ -104,7 +104,7 @@ Declare public top-level collection mappings explicitly, for example `public sta
 
 Mutable collections are copied; elements are not necessarily deep-cloned. Arbitrary enumerable sources are traversed once. Null elements are not silently removed. Dictionary keys and values map separately; duplicate converted keys throw through normal `Add` semantics. Compatible identity key/element mappings can preserve comparers. Do not generate custom/immutable collection construction, queues, stacks, rectangular arrays, or async enumerables.
 
-Interface destinations use `T[]` for `IEnumerable<T>`, `IReadOnlyCollection<T>`, and `IReadOnlyList<T>`; `List<T>` for `ICollection<T>` and `IList<T>`; `HashSet<T>` for set interfaces; and `Dictionary<TKey, TValue>` for dictionary interfaces. The same result types apply to nested members and `NullCollections.Empty`. In 2.0.0, regression coverage verifies array results, mutable-list results, independent copies, one-pass enumeration, and nested/null-to-empty mappings.
+Interface destinations use `T[]` for `IEnumerable<T>`, `IReadOnlyCollection<T>`, and `IReadOnlyList<T>`; `List<T>` for `ICollection<T>` and `IList<T>`; `HashSet<T>` for set interfaces; and `Dictionary<TKey, TValue>` for dictionary interfaces. The same result types apply to nested members and `NullCollections.Empty`. In 3.0.0, regression coverage verifies array results, mutable-list results, independent copies, one-pass enumeration, and nested/null-to-empty mappings.
 
 An unknown-count enumerable-to-array mapping may allocate a temporary growing buffer plus its final array under the approved section 23.3 exception. Temporary storage/allocation is O(n); enumeration and element conversion happen once. With a cheap, reliable count, allocate the final array directly. This also applies to array-backed interfaces. Do not promise destination-only allocations for unknown-count arrays; use the repository's `CollectionAllocationBenchmarks` to compare measured allocation against its corresponding manual baseline.
 
@@ -120,7 +120,7 @@ Equal-arity tuple mappings are positional. `(int Number, string Text)` can map t
 
 Use the emitted diagnostic message and the matching specification §20 catalogue. Families: `0xxx` declarations/configuration, `1xxx` members/construction, `2xxx` nullability/conversions, `3xxx` mapping resolution, `4xxx` collections, `5xxx` updates, `6xxx` recursion, `7xxx` enums, `9001` internal generator failure. For an internal failure, reduce the case and report it without including proprietary data.
 
-In 2.0.0, a method-specific fatal error leaves that method unimplemented but does not suppress independent valid mappings in the same mapper. Invalid mapper-wide configuration suppresses that mapper; unrelated mappers continue. Fix the reported error before expecting the consumer build to succeed.
+In 3.0.0, a method-specific fatal error leaves that method unimplemented but does not suppress independent valid mappings in the same mapper. Invalid mapper-wide configuration suppresses that mapper; unrelated mappers continue. Fix the reported error before expecting the consumer build to succeed.
 
 Async mapping declarations report `LITEMAPPER0006`. For example, change `async partial Target Map(Source source);` to `partial Target Map(Source source);` and perform asynchronous work before mapping. Task-returning mappings and async converters remain unsupported.
 
@@ -128,7 +128,7 @@ Ordinary unmapped policies support `Ignore`, `Info`, `Warning`, and `Error`. Sta
 
 Projects requiring mandatory unmapped-target coverage should treat `LITEMAPPER1001` as an error in CI and audit or avoid project-wide suppression. The library cannot prevent an intentional consumer `.editorconfig` or other compiler severity override while this diagnostic remains configurable.
 
-For configuration troubleshooting, use `1006` invalid source path, `1007` dotted target, `1008` duplicate target mapping, `1014` missing requested default, `1015` invalid ignored member, `1016` unsupported indexer selection, `2009` invalid selected converter signature, and `2011` ambiguous converters (all prefixed `LITEMAPPER`). Existing-target array updates report `4005`; get-only collection updates report `4004`. IDs `4003`, `6002`, and `6003` are not part of the 2.0.0 catalogue.
+For configuration troubleshooting, use `1006` invalid source path, `1007` dotted target, `1008` duplicate target mapping, `1014` missing requested default, `1015` invalid ignored member, `1016` unsupported indexer selection, `2009` invalid selected converter signature, and `2011` ambiguous converters (all prefixed `LITEMAPPER`). Existing-target array updates report `4005`; get-only collection updates report `4004`. IDs `4003`, `6002`, and `6003` are not part of the 3.0.0 catalogue.
 
 Unexpected planning failures normally report one sanitized `LITEMAPPER9001` per failing mapper. The documented `LiteMapper_TreatInternalGeneratorErrorsAsExceptions` development option exposes full exception details through compiler generator-failure reporting; redact local paths and proprietary details before sharing them.
 
