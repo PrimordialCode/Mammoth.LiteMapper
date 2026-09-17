@@ -186,5 +186,85 @@ public sealed class BDto { public ADto? A { get; set; } }
             AssertNoLiteMapperDiagnostics(result.RunResult);
             Emit(result.Compilation);
         }
+
+        [TestMethod]
+        public void OverloadedDeclaredMappingsDoNotTrackSameNamedConverter()
+        {
+            // Sections 14.1 and 17.1 require declared cycle edges to use method identity,
+            // so an acyclic overload and a same-named converter must not receive tracker arguments.
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+
+[LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)]
+public static partial class Mapper
+{
+    public static partial RootDto Map(Root source);
+    public static partial ChildDto Map(Child source);
+
+    [MappingConverter]
+    private static int Map(string source) => int.Parse(source);
+}
+
+public sealed class Root { public Child? Child { get; set; } }
+public sealed class RootDto { public ChildDto? Child { get; set; } }
+public sealed class Child { public string Value { get; set; } = string.Empty; }
+public sealed class ChildDto { public int Value { get; set; } }
+");
+
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var generated = SingleGeneratedSource(result.RunResult);
+            Assert.IsFalse(generated.Contains("__LiteMapperCycleTracker", StringComparison.Ordinal), generated);
+
+            var assembly = Emit(result.Compilation);
+            dynamic root = Activator.CreateInstance(assembly.GetType("Root")!)!;
+            dynamic child = Activator.CreateInstance(assembly.GetType("Child")!)!;
+            child.Value = "7";
+            root.Child = child;
+
+            dynamic mapped = assembly.GetType("Mapper")!.GetMethod("Map", new[] { assembly.GetType("Root")! })!.Invoke(null, new[] { root })!;
+            Assert.AreEqual(7, mapped.Child.Value);
+        }
+
+        [TestMethod]
+        public void OverloadedRecursiveMappingsTrackOnlyDeclaredEdges()
+        {
+            var result = RunGenerator(@"
+using Mammoth.LiteMapper;
+
+[LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)]
+public static partial class Mapper
+{
+    public static partial ADto Map(A source);
+    public static partial BDto Map(B source);
+
+    [MappingConverter]
+    private static int Map(string source) => int.Parse(source);
+}
+
+public sealed class A { public B? Child { get; set; } }
+public sealed class B { public A? Parent { get; set; } public string Value { get; set; } = string.Empty; }
+public sealed class ADto { public BDto? Child { get; set; } }
+public sealed class BDto { public ADto? Parent { get; set; } public int Value { get; set; } }
+");
+
+            AssertNoLiteMapperDiagnostics(result.RunResult);
+            var generated = SingleGeneratedSource(result.RunResult);
+            StringAssert.Contains(generated, "__LiteMapperCycleTracker");
+            StringAssert.Contains(generated, "Map(source.Value)");
+            Assert.IsFalse(generated.Contains("Map(source.Value, __tracker", StringComparison.Ordinal), generated);
+
+            var assembly = Emit(result.Compilation);
+            var aType = assembly.GetType("A")!;
+            var bType = assembly.GetType("B")!;
+            dynamic a = Activator.CreateInstance(aType)!;
+            dynamic b = Activator.CreateInstance(bType)!;
+            b.Value = "7";
+            a.Child = b;
+            b.Parent = a;
+
+            var exception = Assert.ThrowsExactly<TargetInvocationException>(() => assembly.GetType("Mapper")!.GetMethod("Map", new[] { aType })!.Invoke(null, new[] { a }));
+            var cycle = (LiteMapperCycleException)exception.InnerException!;
+            Assert.AreEqual("Child.Parent", cycle.MemberPath);
+        }
     }
 }
