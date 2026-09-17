@@ -3,7 +3,10 @@ mode: ContinuousDeployment
 branches:
   release:
     regex: ^release[/-]
+    mode: ManualDeployment
     increment: None # Do not bump the version automatically, previus value: Patch
+    prevent-increment:
+      when-current-commit-tagged: true
   hotfix:
     regex: ^hotfix[/-]
     increment: None # previous value: Patch

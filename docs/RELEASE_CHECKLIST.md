@@ -1,6 +1,6 @@
 # Release checklist
 
-The canonical release workflow is .github/workflows/ci.yml. Releases use bare SemVer tags, for example 2.0.0, 2.0.0-alpha.1, or 2.0.1-beta.1.
+The canonical release workflow is .github/workflows/ci.yml. Releases use bare SemVer tags, for example 3.0.0, 3.0.0-alpha.1, or 3.0.1-beta.1.
 
 ## Before release
 

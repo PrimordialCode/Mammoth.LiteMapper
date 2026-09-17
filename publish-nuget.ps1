@@ -175,7 +175,8 @@ if ($unexpected.Count -ne 0 -or $missing.Count -ne 0 -or $artifacts.Count -ne $e
     throw "Expected exactly $($expectedArtifacts.Count) versioned package artifacts for $version; missing: $($missing -join ', '); unexpected: $($unexpected.Name -join ', ')."
 }
 
-foreach ($artifactName in $expectedArtifacts) {
+foreach ($packageId in $packageIds) {
+    $artifactName = "$packageId.$version.nupkg"
     $artifactPath = Join-Path $resolvedOutput $artifactName
     if ($DryRun) {
         Write-Host "Dry run: would publish $artifactPath to $Source"

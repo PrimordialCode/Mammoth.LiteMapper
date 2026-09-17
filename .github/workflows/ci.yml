@@ -557,8 +557,6 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) { throw 'NUGET_API_KEY secret is required to publish.' }
           $version = '${{ needs.pack-and-validate.outputs.semver }}'
           foreach ($packageId in @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper.Generator', 'Mammoth.LiteMapper')) {
-            foreach ($extension in @('nupkg', 'snupkg')) {
-              $path = Join-Path '${{ env.PACKAGE_OUTPUT }}' "$packageId.$version.$extension"
-              dotnet nuget push $path --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY
-            }
+            $path = Join-Path '${{ env.PACKAGE_OUTPUT }}' "$packageId.$version.nupkg"
+            dotnet nuget push $path --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY
           }

@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 3.0.0
+
+### Breaking Changes
+
+- Issue #1: ordinary unmapped target properties and fields now default to errors; explicit target policies and `IgnoreTarget`/`UseTargetDefault` opt-outs remain supported, while unmapped source members remain ignored by default. Unmapped-member diagnostics identify the exact source or target member. [#1](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/1)
 
 ### Changed
 
@@ -9,8 +13,13 @@
 - Issue #5: closed constructed static generic external registration containers are now supported; unbound generic registrations and generic methods remain rejected. Declaration, registration, constructor, accessibility, and diagnostic-contract coverage was expanded across the Roslyn host matrix. [#5](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/5)
 - Issue #4: clarified that ordinary unmapped-target suppression or downgrade does not suppress valid generation or prove complete mapping; mandatory target obligations remain hard errors, and CI guidance recommends treating configurable `LITEMAPPER1001` as an error when full coverage is required. [#4](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/4)
 - Issue #3: generated nested and collection helper names are allocated deterministically within each mapper, reserve handwritten/generated helper signatures, reuse identical closed identities, and disambiguate preferred-name collisions independently of syntax-tree or equivalent compilation order. [#3](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/3)
-- Issue #1: ordinary unmapped target properties and fields now default to errors; explicit target policies and `IgnoreTarget`/`UseTargetDefault` opt-outs remain supported, while unmapped source members remain ignored by default. Unmapped-member diagnostics identify the exact source or target member. [#1](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/1)
 - Issue #2: assembly-wide `LiteMapperDefaultsAttribute` values and `UseMapperAttribute` registrations now participate explicitly in incremental mapper planning and emission invalidation. Same-driver regressions cover affected generated content and diagnostics while preserving unrelated cached output where Roslyn permits. [#2](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/2)
+
+### Fixed
+
+- Issue #11: existing-target mappings with `NullableMismatch.Throw` now evaluate and enforce nullable preconditions in deterministic per-member order, preserving earlier assignments when a later member fails. [#11](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/11)
+- Issue #12: declared cycle tracking now identifies mappings by symbol identity instead of method name, preventing overload false positives, invalid tracker arguments, and unnecessary tracking state. [#12](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/12)
+- Issue #13: direct nullable sources passed to nested updaters are evaluated once, preventing duplicate source getter or path evaluation. [#13](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/13)
 
 ## 2.0.0
 

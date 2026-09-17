@@ -5,16 +5,16 @@ description: Use Mammoth.LiteMapper in C# applications to declare compile-time o
 
 # Mammoth.LiteMapper
 
-Generate ordinary C# mapping calls from bodyless partial methods. This skill targets consumer usage of Mammoth.LiteMapper 2.0.0, not development of the generator.
+Generate ordinary C# mapping calls from bodyless partial methods. This skill targets consumer usage of Mammoth.LiteMapper 3.0.0, not development of the generator.
 
 ## Start with the consumer
 
 Inspect the consumer's package version, target framework, language version, nullable context, source/destination models, and existing mapper conventions. Preserve the application's intended null, update, and conversion semantics. Ask when those semantics are unclear.
 
-Use the primary `Mammoth.LiteMapper` NuGet package. One package reference supplies the abstractions and generator analyzer; do not add Roslyn runtime dependencies or install the generator package as the normal consumer route. Follow existing central package management when present. This skill documents release `2.0.0`; verify availability in the consumer's configured feed before changing versions.
+Use the primary `Mammoth.LiteMapper` NuGet package. One package reference supplies the abstractions and generator analyzer; do not add Roslyn runtime dependencies or install the generator package as the normal consumer route. Follow existing central package management when present. This skill documents release `3.0.0`; verify availability in the consumer's configured feed before changing versions.
 
 ```xml
-<PackageReference Include="Mammoth.LiteMapper" Version="2.0.0" />
+<PackageReference Include="Mammoth.LiteMapper" Version="3.0.0" />
 ```
 
 The documented support matrix is `netstandard2.0`, `net8.0`, `net9.0`, and `net10.0`, with C# 9+ and a Roslyn 4.8.0+ compiler host. Shipping assemblies target `netstandard2.0`. Newer model syntax such as `required` still needs the corresponding compiler capabilities.
@@ -55,7 +55,7 @@ Call `new InstanceMapper().Map(new InstanceSource { Id = 42 })`. Static mappers 
 
 Read [references/mapping-rules.md](references/mapping-rules.md) for member configuration, construction, converter precedence and defaults, null policies, collections, patch updates, enums, cycles, or diagnostic troubleshooting. It includes source links and version-specific verification limits.
 
-When upgrading from 1.x, re-check any reliance on implicit root null guards, convention-only handwritten helpers, interface collection result types, tuple member names, or former diagnostic IDs. In 2.0.0, root guards are opt-in through `GuardNonNullSource`, handwritten helpers need an explicit eligibility mechanism, equal-arity tuples map positionally, read-only sequence interfaces use array results, and the specification's current diagnostic catalogue is canonical.
+When upgrading from 1.x or 2.x, re-check any reliance on implicit root null guards, convention-only handwritten helpers, interface collection result types, tuple member names, former diagnostic IDs, or unmapped target members. In 3.0.0, root guards are opt-in through `GuardNonNullSource`, handwritten helpers need an explicit eligibility mechanism, equal-arity tuples map positionally, read-only sequence interfaces use array results, ordinary unmapped target members default to `LITEMAPPER1001` errors, and the specification's current diagnostic catalogue is canonical.
 
 For simple matching, public instance properties and fields map by name. The default is exact matching followed by a unique case-insensitive match. Ordinary unmapped targets are errors; unmapped sources are ignored. Explicit `UnmappedTargetMembers` values (`Ignore`, `Info`, `Warning`, or `Error`) override that default, and standard compiler severity configuration can also relax configurable `LITEMAPPER1001`. That suppression or downgrade does not suppress valid generation and is not proof of complete mapping. Required, non-nullable, inaccessible, invalid, and otherwise mandatory targets still cause hard errors. `IgnoreTarget` and `UseTargetDefault` are explicit member-level opt-outs that retain their validation.
 
@@ -71,4 +71,4 @@ Build the affected consumer project and inspect the actual `LITEMAPPER` diagnost
 
 Source-generated implementations are private build artifacts apart from the methods the consumer declared. Nested and collection helper names are private, allocated within each generated mapper, and deterministic. Handwritten members and other generated helper signatures reserve names; identical closed source/destination identities reuse one name, while distinct identities are disambiguated even if preferred shape-plus-hash names collide. Allocation is independent of syntax-tree or equivalent compilation order. Do not edit generated files or assume extra public collection overloads exist, and do not depend on helper names or signatures. Do not infer deep copies of identical non-collection reference types; absent an explicit mapping, the same reference is assigned.
 
-For version-specific behavior, consult the matching upstream revision. For 2.0.0, `SPECIFICATION.md` is the product contract, `docs/USAGE.md` is the consumer guide, and the public API, compiling samples, and tests establish demonstrated usage. Report discrepancies rather than silently treating documentation or implementation drift as a new contract.
+For version-specific behavior, consult the matching upstream revision. For 3.0.0, `SPECIFICATION.md` is the product contract, `docs/USAGE.md` is the consumer guide, and the public API, compiling samples, and tests establish demonstrated usage. Report discrepancies rather than silently treating documentation or implementation drift as a new contract.

@@ -33,6 +33,18 @@ namespace Mammoth.LiteMapper.Packaging.Tests
         }
 
         [TestMethod]
+        public void ReleaseBranchesUseManualDeploymentForExplicitTags()
+        {
+            var config = File.ReadAllText(Path.Combine(Repository.Root, "GitVersion.yml"));
+
+            Assert.IsTrue(
+                Regex.IsMatch(
+                    config,
+                    @"(?ms)^  release:\r?\n    regex: \^release\[/-\]\r?\n    mode: ManualDeployment\r?\n    increment: None.*\r?\n    prevent-increment:\r?\n      when-current-commit-tagged: true\r?\n"),
+                "Release branches must preserve explicitly tagged prerelease versions.");
+        }
+
+        [TestMethod]
         [DataRow("v1.0.0")]
         [DataRow("1.0")]
         [DataRow("1.0.0+©")]
@@ -96,6 +108,28 @@ function dotnet {
             StringAssert.Contains(script, "'.snupkg'");
             StringAssert.Contains(script, "Expected exactly");
             Assert.IsFalse(script.Contains("--skip-duplicate", StringComparison.OrdinalIgnoreCase));
+
+            var publishStart = script.LastIndexOf(
+                "foreach ($packageId in $packageIds)",
+                StringComparison.Ordinal);
+            Assert.IsTrue(publishStart >= 0, "The publish loop was not found.");
+            var publishBlock = script.Substring(publishStart);
+            StringAssert.Contains(publishBlock, "$packageId.$version.nupkg");
+            Assert.IsFalse(publishBlock.Contains("$packageId.$version.snupkg", StringComparison.Ordinal));
+        }
+
+        [TestMethod]
+        public void WorkflowPublishesPackagesOnceAndReliesOnAdjacentSymbols()
+        {
+            var workflow = File.ReadAllText(Path.Combine(
+                Repository.Root, ".github", "workflows", "ci.yml"));
+            var publishStart = workflow.IndexOf(
+                "      - name: Publish exact packages",
+                StringComparison.Ordinal);
+            Assert.IsTrue(publishStart >= 0, "The workflow publish step was not found.");
+            var publishBlock = workflow.Substring(publishStart);
+            StringAssert.Contains(publishBlock, "$packageId.$version.nupkg");
+            Assert.IsFalse(publishBlock.Contains(".snupkg", StringComparison.Ordinal));
         }
 
         [TestMethod]
