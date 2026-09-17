@@ -156,20 +156,32 @@ foreach ($project in $packProjects) {
     Assert-NativeSuccess "dotnet pack $project -c Release --no-restore -o $resolvedOutput with GitVersion properties"
 }
 
-$packages = Get-ChildItem -Path $resolvedOutput -Filter "Mammoth.LiteMapper*.$version.nupkg" |
-    Where-Object { $_.Name -notlike '*.symbols.nupkg' } |
-    Sort-Object Name
-
-if ($packages.Count -ne 3) {
-    throw "Expected 3 packages for version $version, found $($packages.Count)."
+$packageIds = @(
+    'Mammoth.LiteMapper.Abstractions',
+    'Mammoth.LiteMapper.Generator',
+    'Mammoth.LiteMapper'
+)
+$expectedArtifacts = foreach ($packageId in $packageIds) {
+    foreach ($extension in @('nupkg', 'snupkg')) {
+        "$packageId.$version.$extension"
+    }
+}
+$artifacts = @(Get-ChildItem -Path $resolvedOutput -File |
+    Where-Object { $_.Extension -in '.nupkg', '.snupkg' } |
+    Sort-Object Name)
+$unexpected = @($artifacts | Where-Object { $_.Name -notin $expectedArtifacts })
+$missing = @($expectedArtifacts | Where-Object { -not (Test-Path -LiteralPath (Join-Path $resolvedOutput $_)) })
+if ($unexpected.Count -ne 0 -or $missing.Count -ne 0 -or $artifacts.Count -ne $expectedArtifacts.Count) {
+    throw "Expected exactly $($expectedArtifacts.Count) versioned package artifacts for $version; missing: $($missing -join ', '); unexpected: $($unexpected.Name -join ', ')."
 }
 
-foreach ($package in $packages) {
+foreach ($artifactName in $expectedArtifacts) {
+    $artifactPath = Join-Path $resolvedOutput $artifactName
     if ($DryRun) {
-        Write-Host "Dry run: would publish $($package.FullName) to $Source"
+        Write-Host "Dry run: would publish $artifactPath to $Source"
         continue
     }
 
-    & dotnet nuget push $package.FullName --source $Source --api-key $ApiKey --skip-duplicate
-    Assert-NativeSuccess "dotnet nuget push $($package.FullName) --source $Source --api-key *** --skip-duplicate"
+    & dotnet nuget push $artifactPath --source $Source --api-key $ApiKey
+    Assert-NativeSuccess "dotnet nuget push $artifactPath --source $Source --api-key ***"
 }

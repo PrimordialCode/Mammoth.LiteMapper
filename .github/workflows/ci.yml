@@ -283,6 +283,31 @@ jobs:
             artifacts = @($allArtifacts | ForEach-Object { $_.Name })
           } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path '${{ env.PACKAGE_OUTPUT }}' 'provenance.json')
 
+      - name: Validate package contents
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $version = '${{ steps.gitversion.outputs.semver }}'
+          $feed = (Resolve-Path '${{ env.PACKAGE_OUTPUT }}').Path
+          function Get-PackageEntries([string] $path) {
+            $archive = [System.IO.Compression.ZipFile]::OpenRead($path)
+            try { return @($archive.Entries | ForEach-Object { $_.FullName }) }
+            finally { $archive.Dispose() }
+          }
+          $generatorPath = Join-Path $feed "Mammoth.LiteMapper.Generator.$version.nupkg"
+          $primaryPath = Join-Path $feed "Mammoth.LiteMapper.$version.nupkg"
+          $generatorEntries = Get-PackageEntries $generatorPath
+          $primaryEntries = Get-PackageEntries $primaryPath
+          if (-not ($generatorEntries -contains 'analyzers/dotnet/cs/Mammoth.LiteMapper.Generator.dll')) {
+            throw 'Generator package is missing its analyzer assembly.'
+          }
+          if (@($generatorEntries | Where-Object { $_ -match '^(lib|ref)/' })) {
+            throw 'Generator package contains runtime lib/ref assets.'
+          }
+          if (@($generatorEntries + $primaryEntries | Where-Object { $_ -match '(?i)(Microsoft\.CodeAnalysis|Roslyn)' })) {
+            throw 'Packages contain Roslyn runtime assets.'
+          }
+
       - name: Validate final package consumers
         shell: pwsh
         run: |
@@ -309,13 +334,60 @@ jobs:
           </Project>
           "@ | Set-Content -LiteralPath (Join-Path $consumer 'Consumer.csproj')
           @"
+          using System.Collections.Generic;
           using Mammoth.LiteMapper;
-          var result = Mapper.Map(new Source { Value = 7 });
-          if (result.Value != 7) throw new InvalidOperationException("Generated package mapping failed.");
-          public sealed class Source { public int Value { get; set; } }
-          public sealed class Target { public int Value { get; set; } }
+
+          var source = new Source
+          {
+              Value = 7,
+              Child = new ChildSource { Value = 11 },
+              Children = new[] { new ChildSource { Value = 13 } }
+          };
+          var result = StaticMapper.Map(source);
+          if (result.Value != 7 || result.Child.Value != 11 || result.Children.Count != 1 || result.Children[0].Value != 13)
+              throw new InvalidOperationException("Static or nested package mapping failed.");
+
+          var instance = new InstanceMapper().Map(new ChildSource { Value = 17 });
+          if (instance.Value != 17) throw new InvalidOperationException("Instance package mapping failed.");
+
+          var existing = new ChildTarget { Value = 19 };
+          if (!ReferenceEquals(existing, UpdateMapper.Apply(new ChildSource { Value = 23 }, existing)) || existing.Value != 23)
+              throw new InvalidOperationException("Existing-target package mapping failed.");
+
+          var node = new NodeSource();
+          node.Next = node;
+          try
+          {
+              CycleMapper.Map(node);
+              throw new InvalidOperationException("Cycle detection failed.");
+          }
+          catch (LiteMapperCycleException) { }
+
+          public sealed class Source
+          {
+              public int Value { get; set; }
+              public ChildSource Child { get; set; } = new ChildSource();
+              public ChildSource[] Children { get; set; } = new ChildSource[0];
+          }
+          public sealed class Target
+          {
+              public int Value { get; set; }
+              public ChildTarget Child { get; set; } = new ChildTarget();
+              public List<ChildTarget> Children { get; set; } = new List<ChildTarget>();
+          }
+          public sealed class ChildSource { public int Value { get; set; } }
+          public sealed class ChildTarget { public int Value { get; set; } }
+          public sealed class NodeSource { public NodeSource? Next { get; set; } }
+          public sealed class NodeTarget { public NodeTarget? Next { get; set; } }
+
           [LiteMapper]
-          public static partial class Mapper { public static partial Target Map(Source source); }
+          public static partial class StaticMapper { public static partial Target Map(Source source); }
+          [LiteMapper]
+          public sealed partial class InstanceMapper { public partial ChildTarget Map(ChildSource source); }
+          [LiteMapper]
+          public static partial class UpdateMapper { public static partial ChildTarget Apply(ChildSource source, ChildTarget destination); }
+          [LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)]
+          public static partial class CycleMapper { public static partial NodeTarget Map(NodeSource source); }
           "@ | Set-Content -LiteralPath (Join-Path $consumer 'Program.cs')
           @"
           <configuration>
@@ -324,13 +396,28 @@ jobs:
               <add key="local" value="$feed" />
               <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
             </packageSources>
+            <packageSourceMapping>
+              <packageSource key="local">
+                <package pattern="Mammoth.LiteMapper*" />
+              </packageSource>
+              <packageSource key="nuget.org">
+                <package pattern="*" />
+              </packageSource>
+            </packageSourceMapping>
           </configuration>
           "@ | Set-Content -LiteralPath (Join-Path $consumer 'NuGet.Config')
           dotnet restore (Join-Path $consumer 'Consumer.csproj') --configfile (Join-Path $consumer 'NuGet.Config') --no-cache
           dotnet run --project (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore
-          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -p:PublishTrimmed=true
-          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -p:PublishAot=true -p:TreatWarningsAsErrors=true
-          & (Join-Path $consumer 'bin\Release\net10.0\win-x64\publish\Consumer.exe')
+          $trimmed = Join-Path $consumer 'trimmed'
+          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -p:PublishTrimmed=true -p:PublishDir="$trimmed/"
+          if (Test-Path (Join-Path $trimmed 'Consumer.exe')) {
+            & (Join-Path $trimmed 'Consumer.exe')
+          } else {
+            dotnet (Join-Path $trimmed 'Consumer.dll')
+          }
+          $aot = Join-Path $consumer 'aot'
+          dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -p:PublishAot=true -p:TreatWarningsAsErrors=true -p:PublishDir="$aot/"
+          & (Join-Path $aot 'Consumer.exe')
 
       - name: Upload validated packages
         uses: actions/upload-artifact@v4
@@ -339,20 +426,31 @@ jobs:
           path: ${{ env.PACKAGE_OUTPUT }}
           if-no-files-found: error
 
-      - name: Publish
+      - name: Dry run summary
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
         shell: pwsh
         run: |
           "Dry run complete: validated and uploaded packages for ${{ steps.gitversion.outputs.semver }}; no NuGet push was invoked."
 
-  publish:
-    name: Publish Validated Packages
+  verify-release-artifacts:
+    name: Verify Release Artifacts
     needs: pack-and-validate
     runs-on: windows-latest
-    environment: production
     if: >
       github.ref_type == 'tag' ||
-      (github.event_name == 'workflow_dispatch' && inputs.dry_run == false && inputs.publish == true)
+      (github.event_name == 'workflow_dispatch' &&
+      (
+        inputs.dry_run == true ||
+        (
+          inputs.dry_run == false &&
+          inputs.publish == true &&
+          (
+            github.ref == 'refs/heads/main' ||
+            startsWith(github.ref, 'refs/heads/release/') ||
+            startsWith(github.ref, 'refs/heads/hotfix/')
+          )
+        )
+      ))
 
     steps:
       - name: Download validated packages
@@ -374,16 +472,28 @@ jobs:
           if ($provenance.commit -cne '${{ github.sha }}' -or $provenance.version -cne $version) {
             throw 'Package provenance does not match this commit and version.'
           }
+          if ($provenance.ref -cne '${{ github.ref }}') {
+            throw 'Package provenance does not match this release ref.'
+          }
           $packageIds = @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper.Generator', 'Mammoth.LiteMapper')
           $expected = foreach ($packageId in $packageIds) { foreach ($extension in @('nupkg', 'snupkg')) { "$packageId.$version.$extension" } }
           if (@($provenance.artifacts | Sort-Object) -join '|' -cne (@($expected | Sort-Object) -join '|')) {
             throw 'Package provenance artifact list is not exact.'
+          }
+          $actual = @(Get-ChildItem -LiteralPath '${{ env.PACKAGE_OUTPUT }}' -File |
+            Where-Object { $_.Extension -in '.nupkg', '.snupkg' } |
+            ForEach-Object { $_.Name })
+          if (@($actual | Sort-Object) -join '|' -cne (@($expected | Sort-Object) -join '|')) {
+            throw 'Downloaded package artifact set is not exact.'
           }
           $hashes = @{}
           foreach ($line in Get-Content -LiteralPath $checksumsPath) {
             $parts = $line -split '\s+', 2
             if ($parts.Count -ne 2) { throw "Malformed checksum entry: $line" }
             $hashes[$parts[1]] = $parts[0]
+          }
+          if ($hashes.Count -ne $expected.Count) {
+            throw 'Checksum manifest does not contain exactly one entry per package artifact.'
           }
           foreach ($name in $expected) {
             $path = Join-Path '${{ env.PACKAGE_OUTPUT }}' $name
@@ -392,7 +502,36 @@ jobs:
             }
           }
 
-      - name: Publish
+      - name: Dry run artifact handoff
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        shell: pwsh
+        run: |
+          "Dry run artifact handoff verified for ${{ needs.pack-and-validate.outputs.semver }}; no NuGet push was invoked."
+
+  publish:
+    name: Publish NuGet Packages
+    needs: [pack-and-validate, verify-release-artifacts]
+    runs-on: windows-latest
+    environment: production
+    if: >
+      github.ref_type == 'tag' ||
+      (github.event_name == 'workflow_dispatch' &&
+      inputs.dry_run == false &&
+      inputs.publish == true &&
+      (
+        github.ref == 'refs/heads/main' ||
+        startsWith(github.ref, 'refs/heads/release/') ||
+        startsWith(github.ref, 'refs/heads/hotfix/')
+      ))
+
+    steps:
+      - name: Download verified packages
+        uses: actions/download-artifact@v4
+        with:
+          name: litemapper-packages-${{ needs.pack-and-validate.outputs.semver }}
+          path: ${{ env.PACKAGE_OUTPUT }}
+
+      - name: Publish exact packages
         shell: pwsh
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
@@ -401,6 +540,7 @@ jobs:
           $version = '${{ needs.pack-and-validate.outputs.semver }}'
           foreach ($packageId in @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper.Generator', 'Mammoth.LiteMapper')) {
             foreach ($extension in @('nupkg', 'snupkg')) {
-              dotnet nuget push (Join-Path '${{ env.PACKAGE_OUTPUT }}' "$packageId.$version.$extension") --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY
+              $path = Join-Path '${{ env.PACKAGE_OUTPUT }}' "$packageId.$version.$extension"
+              dotnet nuget push $path --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY
             }
           }

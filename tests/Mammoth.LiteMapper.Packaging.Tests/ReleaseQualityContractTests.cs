@@ -67,6 +67,7 @@ function dotnet {
         New-Item -ItemType Directory -Force -Path $destination | Out-Null
         foreach ($id in @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper.Generator', 'Mammoth.LiteMapper')) {
             Set-Content -Path (Join-Path $destination ($id + '.1.2.3-beta.1.nupkg')) -Value $id
+            Set-Content -Path (Join-Path $destination ($id + '.1.2.3-beta.1.snupkg')) -Value $id
         }
         return
     }
@@ -86,6 +87,15 @@ function dotnet {
                 var marker = Path.Combine(Repository.Root, "push.marker");
                 if (File.Exists(marker)) File.Delete(marker);
             }
+        }
+
+        [TestMethod]
+        public void ReleaseScriptPublishesExactSymbolsAndDoesNotSkipDuplicates()
+        {
+            var script = File.ReadAllText(Path.Combine(Repository.Root, "publish-nuget.ps1"));
+            StringAssert.Contains(script, "'.snupkg'");
+            StringAssert.Contains(script, "Expected exactly");
+            Assert.IsFalse(script.Contains("--skip-duplicate", StringComparison.OrdinalIgnoreCase));
         }
 
         [TestMethod]

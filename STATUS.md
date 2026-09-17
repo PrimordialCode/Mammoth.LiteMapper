@@ -2,10 +2,10 @@
 
 ## GitHub issue #17 release quality checkpoint (2026-09-17)
 
-- Scope: explicit MSTest discovery metadata on the four test projects and focused packaging-test contracts for bare stable/alpha/beta SemVer tags, invalid/non-bare tag rejection, dry-run publication ordering, and the three required versioned package artifacts.
-- Existing package validation remains authoritative for final artifacts: `Milestone14PackagingAndAotTests` covers package contents, deterministic fingerprints, API compatibility, trimming, and Native AOT; the Native AOT case may be inconclusive on Windows when linker prerequisites are unavailable.
-- Workflow seam: the release workflow/script must resolve and validate the Git tag before packing, pass the resolved version to all three packs, and perform no `dotnet nuget push` when dry-run is selected. The tests intentionally do not invoke NuGet or mutate a remote feed.
-- Local focused validation is pending this branch's test run; remote CI and publication are not claimed.
+- Scope: canonical CI/release hardening for bare stable/prerelease SemVer tags, exact six-artifact handoff, package/API/consumer/AOT validation, explicit MSTest discovery, analyzer-only generator packaging, and release documentation.
+- Workflow seam: `.github/workflows/ci.yml` validates the exact tag/GitVersion version before one pack, verifies checksums/provenance and package contents, uploads the validated packages, and publishes only from a protected tag or approved production dispatch. Dry-run follows the same validation and handoff path and never calls `dotnet nuget push`.
+- Local helper seam: `publish-nuget.ps1` accepts the same stable/prerelease versioned artifacts, requires exactly three .nupkg plus three .snupkg, and does not suppress duplicate push failures.
+- Current evidence (2026-09-17): ReleaseQualityContractTests 14/14; solution build 0 warnings/errors; Milestone 14 24 passed with one expected Windows Native AOT prerequisite skip; full solution 649 passed with the same one expected skip; six local packages packed and content-checked. `dotnet tool restore` and package-level `apicompat` were blocked by local NuGet SSL access; remote Actions and NuGet publication are not claimed.
 
 Latest completed work: GitHub issue #7 strict source-member completeness was merged into `develop` via PR [#10](https://github.com/PrimordialCode/Mammoth.LiteMapper/pull/10) at `a8ac8bd`, and closed. AgentStack issue #7 is `done` and its claim is released. Issue #6 existing-target update atomicity was previously merged into `develop` via PR [#9](https://github.com/PrimordialCode/Mammoth.LiteMapper/pull/9) and closed. Issue #5 declaration, registration, constructor, and accessibility coverage was also previously merged into `develop` and closed.
 

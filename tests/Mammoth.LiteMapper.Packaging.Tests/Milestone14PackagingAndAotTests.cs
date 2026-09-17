@@ -60,6 +60,10 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             var entries = archive.Entries.Select(static e => e.FullName).ToArray();
 
             CollectionAssert.Contains(entries, "analyzers/dotnet/cs/Mammoth.LiteMapper.Generator.dll");
+            Assert.IsFalse(entries.Any(static e => e.StartsWith("lib/", StringComparison.Ordinal) || e.StartsWith("ref/", StringComparison.Ordinal)),
+                string.Join(Environment.NewLine, entries));
+            Assert.IsFalse(entries.Any(static e => e.Contains("Microsoft.CodeAnalysis", StringComparison.OrdinalIgnoreCase)),
+                string.Join(Environment.NewLine, entries));
         }
 
         [TestMethod]
