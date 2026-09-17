@@ -1,5 +1,11 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #17: release quality and test discovery
+
+- Scope: add explicit `<IsTestProject>true</IsTestProject>` to the four test projects and add deterministic packaging-test contracts for release tag/channel validation, rejection of invalid or non-bare tags, dry-run non-publication ordering, and the complete three-package artifact set.
+- Workflow handoff: the release workflow/script owns tag extraction, exact version propagation, and the actual no-mutation dry-run. It must call the same acceptance rules represented by `ReleaseQualityContractTests` before any push. No source projects, workflow YAML, or public APIs are changed in this worktree.
+- Validation target: run `dotnet test tests\Mammoth.LiteMapper.Packaging.Tests\Mammoth.LiteMapper.Packaging.Tests.csproj --no-restore --filter ReleaseQualityContractTests`, then the existing Milestone 14 packaging filter where local prerequisites permit.
+
 Current execution state (2026-09-16): W01 through W10 and the approved Milestone 13 flat-mapping optimization remain complete. GitHub issues #1 through #7 are implemented, documented, merged, and closed. Issue #7 was merged into `develop` via PR [#10](https://github.com/PrimordialCode/Mammoth.LiteMapper/pull/10) at `a8ac8bd`; AgentStack is `done` and its claim is released. Existing source-policy behavior already satisfies the requested mapper, method, assembly, severity, and editorconfig boundaries; this scope added adoption evidence and synchronized guidance without a public API or semantic change. Remote CI remains unexecuted.
 
 PENDING-0006 and PENDING-0007 Option A are approved, incorporated, implemented, and regression-tested. All milestone and dated checkpoint sections below are historical planning and revision-specific evidence; their pending-work statements are superseded by the current execution state above.
