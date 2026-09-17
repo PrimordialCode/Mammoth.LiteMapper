@@ -133,6 +133,22 @@ function dotnet {
                 "dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -r win-x64 -p:PublishAot=true");
         }
 
+        [TestMethod]
+        public void FinalPackageConsumerDiscoversTheNativeAotExecutable()
+        {
+            var workflow = File.ReadAllText(Path.Combine(
+                Repository.Root, ".github", "workflows", "ci.yml"));
+
+            StringAssert.Contains(
+                workflow,
+                "$aotExecutables = @(Get-ChildItem -LiteralPath $aot -File -Recurse -Filter '*.exe')");
+            StringAssert.Contains(workflow, "if ($aotExecutables.Count -ne 1)");
+            StringAssert.Contains(workflow, "& $aotExecutables[0].FullName");
+            Assert.IsFalse(workflow.Contains(
+                "& (Join-Path $aot 'Consumer.exe')",
+                StringComparison.Ordinal));
+        }
+
         private static string ResolveChannel(string tag)
         {
             Assert.IsTrue(TryResolveChannel(tag, out var channel), tag);

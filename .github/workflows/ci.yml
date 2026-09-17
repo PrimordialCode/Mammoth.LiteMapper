@@ -428,7 +428,14 @@ jobs:
           }
           $aot = Join-Path $consumer 'aot'
           dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -r win-x64 -p:PublishAot=true -p:TreatWarningsAsErrors=true -p:PublishDir="$aot/"
-          & (Join-Path $aot 'Consumer.exe')
+          $aotExecutables = @(Get-ChildItem -LiteralPath $aot -File -Recurse -Filter '*.exe')
+          if ($aotExecutables.Count -ne 1) {
+            throw "Expected exactly one Native AOT executable under $aot; found $($aotExecutables.Count)."
+          }
+          & $aotExecutables[0].FullName
+          if ($LASTEXITCODE -ne 0) {
+            throw "Native AOT consumer exited with code $LASTEXITCODE."
+          }
 
       - name: Upload validated packages
         uses: actions/upload-artifact@v4
