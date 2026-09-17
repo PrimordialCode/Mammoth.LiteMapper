@@ -153,6 +153,70 @@ public static class Probe {
         }
 
         [TestMethod]
+        public void ThrowPolicyEvaluatesDirectNullableNestedUpdaterSourceOnce()
+        {
+            var result = Run(@"
+#nullable enable
+using System;
+using Mammoth.LiteMapper;
+
+[LiteMapper(NullableMismatch = NullableMismatchPolicy.Throw)]
+public static partial class Mapper
+{
+    public static int UpdaterCalls;
+
+    public static partial void Apply(Source source, Target target);
+
+    [DefaultMapping]
+    private static void ApplyChild(ChildSource source, ChildTarget target)
+    {
+        UpdaterCalls++;
+        target.Value = source.Value;
+    }
+}
+
+public sealed class Source
+{
+    private readonly ChildSource? child;
+    public static int ChildReads;
+
+    public Source(ChildSource? child) { this.child = child; }
+    public ChildSource? Child { get { ChildReads++; return child; } }
+}
+
+public sealed class ChildSource { public int Value { get; set; } }
+public sealed class ChildTarget { public int Value { get; set; } }
+public sealed class Target { public ChildTarget Child { get; } = new ChildTarget(); }
+
+public static class Probe
+{
+    public static bool Run()
+    {
+        Source.ChildReads = Mapper.UpdaterCalls = 0;
+        var target = new Target();
+        Mapper.Apply(new Source(new ChildSource { Value = 3 }), target);
+        var present = target.Child.Value == 3 && Source.ChildReads == 1 && Mapper.UpdaterCalls == 1;
+
+        Source.ChildReads = Mapper.UpdaterCalls = 0;
+        try
+        {
+            Mapper.Apply(new Source(null), target);
+            return false;
+        }
+        catch (InvalidOperationException exception)
+        {
+            return present && exception.Message.Contains(""Child"", StringComparison.Ordinal) &&
+                Source.ChildReads == 1 && Mapper.UpdaterCalls == 0;
+        }
+    }
+}
+");
+
+            Assert.AreEqual(true, Execute(result),
+                "A direct nullable source passed to a Throw-policy nested updater must be evaluated once for present and null values.");
+        }
+
+        [TestMethod]
         public void ReturningUpdaterCreatesAndAssignsANullableWritableChild()
         {
             var fixture = Fixture(false, "none")

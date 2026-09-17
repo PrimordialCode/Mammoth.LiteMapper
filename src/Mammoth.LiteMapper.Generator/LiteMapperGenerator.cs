@@ -743,15 +743,15 @@ namespace Mammoth.LiteMapper.Generator
                             var escapedSourceName = EscapeIdentifier(source.Name);
                             var sourcePath = selected?.Expression ?? match.Member.Name;
                             var sourceMayBeNull = !rootArgument && (selected != null ? SourcePathMayBeNull(selected) : SourceMayBeNull(match.Member));
-                            var throwCaptureName = sourceMayBeNull && selected != null && !options.IgnoreNullSourceMembers &&
+                            var throwCaptureName = sourceMayBeNull && !options.IgnoreNullSourceMembers &&
                                 !IsMaybeNull(updater.Parameters[0].Type) && options.NullableMismatch != NullableMismatchPolicyError
-                                ? CreateExpressionCaptureName(method, targetMember.Name, selected.Expression)
+                                ? CreateExpressionCaptureName(method, targetMember.Name, selected?.Expression ?? match.Member.Name)
                                 : null;
                             var argument = rootArgument
                                 ? escapedSourceName
                                 : selected != null
                                     ? sourcePathCaptureName ?? throwCaptureName ?? BuildNullSafeSourcePathExpression(source.Name, selected)
-                                    : escapedSourceName + "." + EscapeIdentifier(match.Member.Name);
+                                    : throwCaptureName ?? escapedSourceName + "." + EscapeIdentifier(match.Member.Name);
                             string? updaterGuard = null;
                             PreconditionModel? updaterPrecondition = null;
                             if (sourceMayBeNull)
@@ -769,7 +769,7 @@ namespace Mammoth.LiteMapper.Generator
                                     }
 
                                     var nullCheck = throwCaptureName != null
-                                        ? "!(" + BuildNullSafeSourcePathExpression(source.Name, selected!) + " is { } " + throwCaptureName + ")"
+                                        ? "!(" + (selected != null ? BuildNullSafeSourcePathExpression(source.Name, selected) : escapedSourceName + "." + EscapeIdentifier(match.Member.Name)) + " is { } " + throwCaptureName + ")"
                                         : selected == null ? argument + " == null" : BuildNullCheck(source.Name, selected);
                                     if (nullCheck != null)
                                     {
