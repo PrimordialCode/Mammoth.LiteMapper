@@ -108,6 +108,17 @@ jobs:
         env:
           LITEMAPPER_REQUIRE_NATIVE_AOT: '1'
 
+      - name: Run sample smoke validations
+        if: runner.os == 'Linux'
+        run: |
+          dotnet run --project samples/Mammoth.LiteMapper.Samples.Basic/Mammoth.LiteMapper.Samples.Basic.csproj --no-restore
+          dotnet run --project samples/Mammoth.LiteMapper.Samples.Collections/Mammoth.LiteMapper.Samples.Collections.csproj --no-restore
+          dotnet run --project samples/Mammoth.LiteMapper.Samples.AspNetCore/Mammoth.LiteMapper.Samples.AspNetCore.csproj --no-restore -- --smoke
+
+      - name: Run benchmark smoke validation
+        if: runner.os == 'Linux'
+        run: dotnet run --project benchmarks/Mammoth.LiteMapper.Benchmarks/Mammoth.LiteMapper.Benchmarks.csproj -c Release --no-restore -- --filter '*FlatObjectBenchmarks*' --job Dry --warmupCount 1 --iterationCount 1
+
       - name: Test (windows)
         if: runner.os == 'Windows'
         shell: pwsh
