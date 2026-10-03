@@ -532,7 +532,7 @@ jobs:
     runs-on: windows-latest
     environment: production
     if: >
-      github.ref_type == 'tag' ||
+      (github.event_name == 'push' && github.ref_type == 'tag') ||
       (github.event_name == 'workflow_dispatch' &&
       inputs.dry_run == false &&
       inputs.publish == true &&

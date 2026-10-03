@@ -2,6 +2,13 @@
 
 `SPECIFICATION.md` is authoritative. Accepted entries here are non-semantic implementation decisions unless explicitly stated otherwise.
 
+## Issue #19: distinguish automatic tag pushes from manual dispatches (2026-10-03)
+
+- Context: the bare tag test in the publish condition bypassed workflow_dispatch inputs. With successful prerequisites, a tag-selected dry run could enter the production approval gate even with publish=false.
+- Decision: automatic tag publishing requires github.event_name=push. The existing manual branch publishing gate remains publish=true, dry_run=false on main/release/*/hotfix/*. Tag dispatches remain available for nonpublishing rehearsals; no new manual tag publishing path is introduced.
+- Evidence: MSTest evaluates the actual workflow conditions and needs graph over 96 event/ref/input cases and 48 unsuccessful-prerequisite cases. Two tag-rehearsal cases verify zero mocked push calls; five authorized-path cases execute the extracted publish script with dotnet mocked locally; unsupported-event and absent-input controls also run.
+- Consequences: one production YAML line changes; production environment protection, exact package/symbol validation, checksums/provenance, and NuGet push behavior remain intact. The restricted expression evaluator and local job scheduler validate current source semantics, not live GitHub runner/environment behavior. This is an operational release-safety fix, not a product-specification change.
+
 ## Accepted non-semantic implementation decisions
 
 ### DEC-0001

@@ -6,7 +6,7 @@ The canonical release workflow is .github/workflows/ci.yml. Releases use bare Se
 
 - Confirm the tag exactly matches the GitVersion SemVer value.
 - Confirm the tag is protected and the production environment requires the configured human approval.
-- Run the workflow manually with dry_run=true to rehearse the complete validation path.
+- Run the workflow manually with dry_run=true on a branch or tag to rehearse the complete validation path. The publish job must remain skipped, regardless of the publish input.
 
 ## Validation and artifacts
 
@@ -21,6 +21,6 @@ The canonical release workflow is .github/workflows/ci.yml. Releases use bare Se
 
 ## Publish
 
-- Publish only from a valid SemVer tag or an explicitly approved production workflow dispatch on main, release/**, or hotfix/**.
+- Publish automatically only on a push of a valid SemVer tag. Manual production publishing requires publish=true and dry_run=false on main, release/**, or hotfix/**; selecting a tag for a manual dispatch does not authorize publishing.
 - The publish job downloads and verifies the uploaded artifacts, then pushes those exact six files without duplicate suppression.
 - A dry run must report the artifacts that would be published and must never call dotnet nuget push or mutate NuGet.
