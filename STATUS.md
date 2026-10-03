@@ -1,5 +1,16 @@
 # Mammoth.LiteMapper Status
 
+## GitHub issue #19 publishing gate checkpoint (2026-10-03)
+
+- Scope: prevent tag-selected manual rehearsals from entering the NuGet publish job. The production change requires a push event for automatic tag publishing; manual main/release/*/hotfix/* publishing still requires publish=true and dry_run=false. Production approval, dependencies, and all package/artifact validations are preserved.
+- Red-first evidence: 154 new source-based condition/dependency/mock cases ran before the YAML change: 20 failed, 134 passed, zero skipped. Both tag-selected dry runs recorded three mocked push calls, including publish=false. Non-dry-run tag dispatches already skipped pack, despite their unsafe raw publish condition.
+- Focused evidence: 154 new cases plus 19 existing release-quality cases pass (173 total, zero skipped). Release solution build passes with zero warnings/errors. YAML parsing and whitespace validation allowing the repository's existing CRLF endings pass. Independent read-only review found no acceptance gap.
+- Full local evidence: the solution run recorded 806 passes, two sample/usage failures caused by stale NuGet assets pointing to the sandbox user's cache (NETSDK1064 for System.IO.Hashing 10.0.12), and one Native AOT prerequisite skip. Regenerating assets in the working environment and rebuilding recovered both failures; the affected tests plus all focused release tests then passed 175/175 with zero skips. Across the full run and targeted recovery, all 808 executed test cases have passing evidence; this does not claim a single all-green full-suite invocation.
+- Local limitation: MSVC C++ tooling is unavailable, so NativeAotConsumerPublishesAndRunsWithoutLiteMapperWarnings is inconclusive. Trimming and the other package/consumer/API/benchmark validations passed in the full run. The initial sandbox restore failed with NU1301 SSL authentication errors; the approved unrestricted restore succeeded.
+- Review handoff: draft PR targets develop. Exact-head ordinary PR CI results are recorded in the PR and issue #19. Local evidence is under artifacts/validation/issue-19/{red,focused,full,recovery}. The condition evaluator covers the workflow's current expression subset and needs graph, not live GitHub production-environment approval behavior.
+- Operational note: installed AgentStack expects .agent-stack/active-tracker.json while this repository uses .agent-stack/modules/protocol/active-tracker.json; repository-authorized GitHub CLI fallback recorded the plan and significant checkpoints. GITHUB_PrimordialCode authentication remained process-local.
+- Boundaries: no workflow dispatch, real NuGet push, release, tag push, merge, or security-setting change. Issue #19 remains open for human review; no unrelated issue or product contract changed.
+
 ## GitHub issue #17 release quality checkpoint (2026-09-17)
 
 - Scope: canonical CI/release hardening for bare stable/prerelease SemVer tags, exact six-artifact handoff, package/API/consumer/AOT validation, explicit MSTest discovery, analyzer-only generator packaging, and release documentation.

@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #19: tag-selected rehearsal publishing gate (2026-10-03)
+
+- Scope: prevent tag-selected workflow dispatches from bypassing manual publish/dry_run authorization. No generator, public API, package validation, or release-protection change.
+- Test-first evidence: source-extracted condition/dependency tests and mocked execution of the actual push step initially produced 20 failures and 134 passes, with zero skips. Both dry-run tag dispatches reached three mocked pushes; non-dry-run tag dispatches already skipped pack.
+- Implementation: require a push event for the automatic tag branch of the publish condition. Preserve manual production publishing on main, release/*, and hotfix/* with publish=true and dry_run=false, and preserve production approval and the successful artifact dependency chain.
+- Validation: the 154 new cases and 19 existing release-quality cases pass; Release solution build has zero warnings/errors. Full local suite results are recorded in STATUS.md; exact-head ordinary PR CI results are recorded in the PR and issue #19. No release-capable workflow is dispatched and no NuGet publication is attempted.
+
 ## Issue #17: release quality and test discovery
 
 - Scope: harden the canonical release workflow and helper for bare stable/prerelease SemVer tags, exact six-artifact handoff, checksums/provenance, package/API/consumer/AOT validation, explicit test discovery, analyzer-only generator packaging, and synchronized release documentation.
