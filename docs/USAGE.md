@@ -897,6 +897,8 @@ Windows and Linux are supported. A `netstandard2.0` library runs inside an appli
 
 The primary `Mammoth.LiteMapper` package is the normal install path. `Mammoth.LiteMapper.Generator` is the generator implementation package and is not the normal consumer install route.
 
+The release workflow validates package API compatibility and clean-consumer execution, including trimming and Native AOT, before promoting artifacts. Each native validation and package push must succeed immediately; a failure stops the stage and reports the affected operation or package. See [the release checklist](RELEASE_CHECKLIST.md).
+
 ## Analyzer options
 
 The generator recognizes these build properties for diagnostics and development:

@@ -81,7 +81,9 @@ jobs:
         id: gitversion
         shell: pwsh
         run: |
-          $version = dotnet gitversion /output json | ConvertFrom-Json
+          $versionOutput = dotnet gitversion /output json
+          if ($LASTEXITCODE -ne 0) { throw "GitVersion failed with exit code $LASTEXITCODE." }
+          $version = $versionOutput | ConvertFrom-Json
           "semver=$($version.SemVer)" >> $env:GITHUB_OUTPUT
           "assembly_semver=$($version.AssemblySemVer)" >> $env:GITHUB_OUTPUT
           "assembly_file_semver=$($version.AssemblySemFileVer)" >> $env:GITHUB_OUTPUT
@@ -125,12 +127,14 @@ jobs:
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0) { throw "Visual Studio toolchain discovery failed with exit code $LASTEXITCODE." }
           if (-not $installPath) {
             throw "Visual Studio C++ toolchain was not found."
           }
 
           $vsDevCmd = Join-Path $installPath "Common7\Tools\VsDevCmd.bat"
           cmd /s /c "call `"$vsDevCmd`" -arch=x64 -host_arch=x64 && dotnet test ${{ env.SOLUTION }} -c Release --no-build"
+          if ($LASTEXITCODE -ne 0) { throw "Windows solution tests failed with exit code $LASTEXITCODE." }
         env:
           LITEMAPPER_REQUIRE_NATIVE_AOT: '1'
 
@@ -138,7 +142,9 @@ jobs:
         shell: pwsh
         run: |
           dotnet sln Mammoth.LiteMapper.sln list
+          if ($LASTEXITCODE -ne 0) { throw "Solution path validation for Mammoth.LiteMapper.sln failed with exit code $LASTEXITCODE." }
           dotnet sln Mammoth.LiteMapper.slnx list
+          if ($LASTEXITCODE -ne 0) { throw "Solution path validation for Mammoth.LiteMapper.slnx failed with exit code $LASTEXITCODE." }
 
   roslyn-hosts:
     name: Roslyn ${{ matrix.roslyn }} (${{ matrix.os }})
@@ -210,7 +216,9 @@ jobs:
         id: gitversion
         shell: pwsh
         run: |
-          $version = dotnet gitversion /output json | ConvertFrom-Json
+          $versionOutput = dotnet gitversion /output json
+          if ($LASTEXITCODE -ne 0) { throw "GitVersion failed with exit code $LASTEXITCODE." }
+          $version = $versionOutput | ConvertFrom-Json
           $semver = $version.SemVer
           if ([string]::IsNullOrWhiteSpace($semver)) {
             throw 'GitVersion did not return a SemVer value.'
@@ -257,6 +265,7 @@ jobs:
               /p:FileVersion=${{ steps.gitversion.outputs.assembly_file_semver }} `
               /p:InformationalVersion=${{ steps.gitversion.outputs.informational_version }} `
               /p:ContinuousIntegrationBuild=true
+            if ($LASTEXITCODE -ne 0) { throw "Package build for $project failed with exit code $LASTEXITCODE." }
           }
 
           $packageIds = @(
@@ -326,6 +335,7 @@ jobs:
           $feed = (Resolve-Path '${{ env.PACKAGE_OUTPUT }}').Path
           foreach ($packageId in @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper')) {
             dotnet apicompat package (Join-Path $feed "$packageId.$version.nupkg") --run-api-compat
+            if ($LASTEXITCODE -ne 0) { throw "API compatibility validation for $packageId failed with exit code $LASTEXITCODE." }
           }
 
           $consumer = Join-Path $env:RUNNER_TEMP "litemapper-package-consumer-$version"
@@ -418,16 +428,22 @@ jobs:
           </configuration>
           "@ | Set-Content -LiteralPath (Join-Path $consumer 'NuGet.Config')
           dotnet restore (Join-Path $consumer 'Consumer.csproj') --configfile (Join-Path $consumer 'NuGet.Config') --no-cache -r win-x64
+          if ($LASTEXITCODE -ne 0) { throw "Package consumer restore failed with exit code $LASTEXITCODE." }
           dotnet run --project (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw "Package consumer execution failed with exit code $LASTEXITCODE." }
           $trimmed = Join-Path $consumer 'trimmed'
           dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -r win-x64 -p:PublishTrimmed=true -p:PublishDir="$trimmed/"
+          if ($LASTEXITCODE -ne 0) { throw "Trimmed consumer publish failed with exit code $LASTEXITCODE." }
           if (Test-Path (Join-Path $trimmed 'Consumer.exe')) {
             & (Join-Path $trimmed 'Consumer.exe')
+            if ($LASTEXITCODE -ne 0) { throw "Trimmed consumer execution failed with exit code $LASTEXITCODE." }
           } else {
             dotnet (Join-Path $trimmed 'Consumer.dll')
+            if ($LASTEXITCODE -ne 0) { throw "Trimmed consumer DLL execution failed with exit code $LASTEXITCODE." }
           }
           $aot = Join-Path $consumer 'aot'
           dotnet publish (Join-Path $consumer 'Consumer.csproj') -c Release --no-restore -r win-x64 -p:PublishAot=true -p:TreatWarningsAsErrors=true -p:PublishDir="$aot/"
+          if ($LASTEXITCODE -ne 0) { throw "Native AOT consumer publish failed with exit code $LASTEXITCODE." }
           $aotExecutables = @(Get-ChildItem -LiteralPath $aot -File -Recurse -Filter '*.exe')
           if ($aotExecutables.Count -ne 1) {
             throw "Expected exactly one Native AOT executable under $aot; found $($aotExecutables.Count)."
@@ -559,4 +575,5 @@ jobs:
           foreach ($packageId in @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper.Generator', 'Mammoth.LiteMapper')) {
             $path = Join-Path '${{ env.PACKAGE_OUTPUT }}' "$packageId.$version.nupkg"
             dotnet nuget push $path --source https://api.nuget.org/v3/index.json --api-key $env:NUGET_API_KEY
+            if ($LASTEXITCODE -ne 0) { throw "NuGet push for $packageId version $version failed with exit code $LASTEXITCODE." }
           }

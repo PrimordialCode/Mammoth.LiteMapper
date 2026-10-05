@@ -4,6 +4,7 @@
 
 ## Fixes
 
+- Issue #20: release validation and each NuGet package push now stop immediately on a nonzero native exit, reporting the failed operation or package before later successes can conceal it. [#20](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/20)
 - Issue #19: tag-selected manual workflow dry runs no longer enter the NuGet publish job. Automatic tag publishing requires a push event; manual branch publishing retains its explicit publish and dry-run gates. [#19](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/19)
 
 ## 3.0.0
