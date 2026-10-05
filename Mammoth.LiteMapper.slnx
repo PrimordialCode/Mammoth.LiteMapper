@@ -21,6 +21,7 @@
     <Project Path="tests/Mammoth.LiteMapper.Generator.Tests/Mammoth.LiteMapper.Generator.Tests.csproj" />
     <Project Path="tests/Mammoth.LiteMapper.IntegrationTests/Mammoth.LiteMapper.IntegrationTests.csproj" />
     <Project Path="tests/Mammoth.LiteMapper.Packaging.Tests/Mammoth.LiteMapper.Packaging.Tests.csproj" />
+    <Project Path="tests/Mammoth.LiteMapper.Packaging.Tests/ProcessFixture/Mammoth.LiteMapper.ProcessFixture.csproj" />
     <Project Path="tests/Mammoth.LiteMapper.Runtime.Tests/Mammoth.LiteMapper.Runtime.Tests.csproj" />
   </Folder>
 </Solution>
