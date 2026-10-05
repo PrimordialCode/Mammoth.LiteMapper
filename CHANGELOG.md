@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+## Fixes
+
+- Issue #19: tag-selected manual workflow dry runs no longer enter the NuGet publish job. Automatic tag publishing requires a push event; manual branch publishing retains its explicit publish and dry-run gates. [#19](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/19)
+
 ## 3.0.0
 
 ### Breaking Changes
@@ -17,7 +23,6 @@
 
 ### Fixed
 
-- Issue #19: tag-selected manual workflow dry runs no longer enter the NuGet publish job. Automatic tag publishing requires a push event; manual branch publishing retains its explicit publish and dry-run gates. [#19](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/19)
 - Issue #11: existing-target mappings with `NullableMismatch.Throw` now evaluate and enforce nullable preconditions in deterministic per-member order, preserving earlier assignments when a later member fails. [#11](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/11)
 - Issue #12: declared cycle tracking now identifies mappings by symbol identity instead of method name, preventing overload false positives, invalid tracker arguments, and unnecessary tracking state. [#12](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/12)
 - Issue #13: direct nullable sources passed to nested updaters are evaluated once, preventing duplicate source getter or path evaluation. [#13](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/13)
