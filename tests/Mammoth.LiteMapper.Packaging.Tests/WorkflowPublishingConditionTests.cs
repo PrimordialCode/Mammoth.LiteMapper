@@ -144,7 +144,7 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             var command = @"
 $ErrorActionPreference = 'Stop'
 $env:NUGET_API_KEY = 'local-mock-key'
-function dotnet { 'MOCK:' + ($args -join ' ') }
+function dotnet { $global:LASTEXITCODE = 0; 'MOCK:' + ($args -join ' ') }
 ";
             if (scheduled)
                 command += workflow.PublishScript

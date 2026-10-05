@@ -2,6 +2,13 @@
 
 `SPECIFICATION.md` is authoritative. Accepted entries here are non-semantic implementation decisions unless explicitly stated otherwise.
 
+## Issue #20: check native exits before later validation (2026-10-05)
+
+- Context: PowerShell's error preference alone does not guarantee native failure propagation; later success can overwrite LASTEXITCODE in validation and push loops.
+- Decision: check each native exit immediately, matching publish-nuget.ps1's existing pattern. Messages identify the operation or package and exit code without API keys. Check GitVersion output before JSON conversion.
+- Evidence: extracted workflow scripts run with native error preference disabled. Native fixtures return exit 23 independently at every affected position; tests assert no later native calls or promotion marker. Both trimmed execution branches and eight successful controls run. Pre-existing package/consumer artifacts prevent incidental missing-output failures concealing a missed guard.
+- Consequences: operational release failure handling changes; the product contract and publishing authorization do not. Tests use dummy keys and local fixtures; no real publication or release-capable workflow execution is needed.
+
 ## Issue #19: distinguish automatic tag pushes from manual dispatches (2026-10-03)
 
 - Context: the bare tag test in the publish condition bypassed workflow_dispatch inputs. With successful prerequisites, a tag-selected dry run could enter the production approval gate even with publish=false.

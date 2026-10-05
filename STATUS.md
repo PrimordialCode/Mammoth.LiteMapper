@@ -1,5 +1,15 @@
 # Mammoth.LiteMapper Status
 
+## GitHub issue #20 native failure checkpoint (2026-10-05)
+
+- Scope: immediate native exit checks across multiline PowerShell release validation and each package push; preserve issue #19's dry-run gates, production approval, and artifact handoff.
+- Red-first evidence: 36 new executable cases produced 26 failures and 10 passes with zero skips. All eight successful controls passed; existing AOT execution checks passed both injected failures. Native commands and consumer executables were replaced by local fixtures.
+- Focused evidence: 213/213 pass with zero skips (36 new, 154 issue #19, 19 release-quality, four process tests). Release solution build has zero warnings/errors. Independent read-only review found no correctness blocker.
+- Full local evidence: 844 passed, zero failed, one skipped out of 845 discovered tests (568 generator, five runtime, one integration, 270 packaging passes). NativeAotConsumerPublishesAndRunsWithoutLiteMapperWarnings is inconclusive because the platform linker is unavailable. Trimming and other packaging/consumer validations passed; local Native AOT success is not claimed.
+- Review handoff: draft PR targets develop; exact-head ordinary PR CI evidence belongs in the PR. Logs and TRX files are retained in the task workspace and project TestResults directories. No live release validation or NuGet publication is claimed.
+- Operations: checkout is based on c79b1a2. Approved restore recovered sandbox NU1301 socket-access failures. AgentStack doctor passed and issue #20 has no dependencies; explicit user authorization supplies scope despite draft/human metadata. Tracker comments/claim writes are omitted under the no-issue-comment instruction; progress and verification belong in the PR.
+- Boundaries: no real NuGet push, release, tag push, workflow dispatch, merge, security change, credential persistence, or unrelated issue work.
+
 ## GitHub issue #19 publishing gate checkpoint (2026-10-03)
 
 - Scope: prevent tag-selected manual rehearsals from entering the NuGet publish job. The production change requires a push event for automatic tag publishing; manual main/release/*/hotfix/* publishing still requires publish=true and dry_run=false. Production approval, dependencies, and all package/artifact validations are preserved.

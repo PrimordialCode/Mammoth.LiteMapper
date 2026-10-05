@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #20: immediate native release failure propagation (2026-10-05)
+
+- Scope: check native exits in multiline PowerShell validation and package-push stages before later operations overwrite them. Preserve issue #19's event/input gates and artifact dependencies.
+- Test-first evidence: 36 cases execute extracted workflow scripts with native mock processes. The unchanged workflow produced 26 failures and 10 passes, with zero skips; all eight successful controls passed.
+- Implementation: immediate operation-specific checks cover GitVersion, Windows toolchain discovery/tests, both solution formats, each pack/API check/push, consumer restore/run, both trimmed execution branches, and AOT publish. Existing AOT execution and local helper guards remain.
+- Validation: 213 focused tests pass with zero skips. Release solution build has zero warnings/errors. Full suite: 844 passed, zero failed, one Native AOT prerequisite skip (platform linker unavailable). Exact-head ordinary PR CI evidence belongs in the PR.
+- Boundaries: no product semantics or public API change; no real NuGet push, release, tag push, workflow dispatch, or merge.
+
 ## Issue #19: tag-selected rehearsal publishing gate (2026-10-03)
 
 - Scope: prevent tag-selected workflow dispatches from bypassing manual publish/dry_run authorization. No generator, public API, package validation, or release-protection change.
