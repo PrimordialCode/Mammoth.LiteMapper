@@ -22,8 +22,17 @@ namespace Mammoth.LiteMapper.Samples.Basic
                 throw new InvalidOperationException("Static mapping failed.");
             }
 
-            var instanceTarget = new InstanceMapper().Map(new InstanceSource { Id = 42 });
-            if (instanceTarget.Id != 42)
+            var instanceSource = new InstanceSource
+            {
+                Id = 42,
+                Child = new ChildSource { Value = 7 },
+                Children = new[] { new ChildSource { Value = 8 } },
+            };
+            var instanceTarget = new InstanceMapper("first:").Map(instanceSource);
+            var otherTarget = new InstanceMapper("second:").Map(instanceSource);
+            if (instanceTarget.Id != 42 || instanceTarget.Child.Value != "first:7" ||
+                instanceTarget.Children[0].Value != "first:8" || otherTarget.Child.Value != "second:7" ||
+                otherTarget.Children[0].Value != "second:8")
             {
                 throw new InvalidOperationException("Instance mapping failed.");
             }
@@ -50,7 +59,14 @@ namespace Mammoth.LiteMapper.Samples.Basic
     [LiteMapper]
     public sealed partial class InstanceMapper
     {
+        private readonly string prefix;
+
+        public InstanceMapper(string prefix = "") => this.prefix = prefix;
+
         public partial InstanceTarget Map(InstanceSource source);
+
+        [MappingConverter]
+        private string Format(int value) => prefix + value;
     }
 
     [LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)]
@@ -86,11 +102,24 @@ namespace Mammoth.LiteMapper.Samples.Basic
     public sealed class InstanceSource
     {
         public int Id { get; set; }
+
+        public ChildSource Child { get; set; } = new ChildSource();
+
+        public ChildSource[] Children { get; set; } = new ChildSource[0];
     }
 
     public sealed class InstanceTarget
     {
         public int Id { get; set; }
+
+        public FormattedChildTarget Child { get; set; } = new FormattedChildTarget();
+
+        public List<FormattedChildTarget> Children { get; set; } = new List<FormattedChildTarget>();
+    }
+
+    public sealed class FormattedChildTarget
+    {
+        public string Value { get; set; } = string.Empty;
     }
 
     public sealed class NodeSource

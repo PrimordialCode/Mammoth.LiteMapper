@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #22: instance context in generated helpers (2026-10-08)
+
+- Scope: preserve the calling mapper instance through nested and collection helpers that depend on instance converters or mappings. Keep instance-free helpers static and exclude instance-only candidates from static entry methods.
+- Test-first evidence: 16 initial regressions produced 14 failures and two static controls before production edits. The completed 20-case matrix on a separate unchanged-develop worktree produced 18 failures and two controls, zero skips. The normal Basic sample also failed with CS0120 before the fix.
+- Implementation: carry instance requirements independently of declared mapping/cycle metadata through successful conversion and constructor plans. Propagate those requirements callerward through the existing helper graph, then choose private helper modifiers at emission. Public signatures and equivalent helper sharing remain unchanged.
+- Validation: focused/full generator tests, source samples, clean package consumers, available packaging checks, and exact-head ordinary CI. Record local infrastructure limitations separately from CI evidence in STATUS.md and the draft PR.
+- Boundaries: issue #22 only; no public API or specification semantics change, no unrelated bug fix, merge, release, tag push, package publication, or workflow dispatch.
+
 ## Issue #21: helper semantic isolation (2026-10-08)
 
 - Scope: preserve each mapping entry's effective policies and nullable shape throughout nested and collection helpers, retaining deterministic equivalent-plan sharing.

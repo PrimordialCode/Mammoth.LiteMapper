@@ -234,8 +234,17 @@ if (target.Name != ""Ada"" || target.Scores.Length != 3 || target.Children.Count
     throw new System.InvalidOperationException(""Static mapping failed."");
 }
 
-var instanceTarget = new InstanceMapper().ToTarget(new InstanceSource { Id = 7 });
-if (instanceTarget.Id != 7)
+var instanceSource = new InstanceSource
+{
+    Id = 7,
+    Child = new ChildSource { Value = 8 },
+    Children = new[] { new ChildSource { Value = 9 } }
+};
+var instanceTarget = new InstanceMapper(""first:"").ToTarget(instanceSource);
+var otherTarget = new InstanceMapper(""second:"").ToTarget(instanceSource);
+if (instanceTarget.Id != 7 || instanceTarget.Child.Value != ""first:8"" ||
+    instanceTarget.Children[0].Value != ""first:9"" || otherTarget.Child.Value != ""second:8"" ||
+    otherTarget.Children[0].Value != ""second:9"")
 {
     throw new System.InvalidOperationException(""Instance mapping failed."");
 }
@@ -260,7 +269,10 @@ public static partial class StaticMapper
 [LiteMapper]
 public sealed partial class InstanceMapper
 {
+    private readonly string prefix;
+    public InstanceMapper(string prefix) => this.prefix = prefix;
     public partial InstanceTarget ToTarget(InstanceSource source);
+    [MappingConverter] private string Format(int value) => prefix + value;
 }
 
 [LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)]
@@ -296,11 +308,20 @@ public sealed class ChildTarget
 public sealed class InstanceSource
 {
     public int Id { get; set; }
+    public ChildSource Child { get; set; } = new ChildSource();
+    public ChildSource[] Children { get; set; } = new ChildSource[0];
 }
 
 public sealed class InstanceTarget
 {
     public int Id { get; set; }
+    public FormattedChildTarget Child { get; set; } = new FormattedChildTarget();
+    public List<FormattedChildTarget> Children { get; set; } = new List<FormattedChildTarget>();
+}
+
+public sealed class FormattedChildTarget
+{
+    public string Value { get; set; } = string.Empty;
 }
 
 public sealed class NodeSource
