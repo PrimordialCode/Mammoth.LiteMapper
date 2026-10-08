@@ -265,7 +265,8 @@ namespace Mammoth.LiteMapper.Generator
                 HelperNameRegistry? mappingHelperNames = null;
                 if (!hasMapperErrors && !methodDiagnostics.Any(IsFatalDiagnostic))
                 {
-                    mappingHelperNames = helperNames.Clone();
+                    var validationDiagnosticCount = methodDiagnostics.Count;
+                    mappingHelperNames = helperNames.ForMapping(member, EffectiveOptions(member));
                     if (IsNewObjectMappingCandidate(member))
                     {
                         mapping = CreateMappingModel(member, compilation, methodDiagnostics, mappingHelperNames);
@@ -273,6 +274,18 @@ namespace Mammoth.LiteMapper.Generator
                     else if (IsUpdateMappingCandidate(member))
                     {
                         mapping = CreateUpdateMappingModel(member, compilation, methodDiagnostics, mappingHelperNames);
+                    }
+
+                    // Declared-call resolution excludes the current entry, including while
+                    // probing constructors that are later discarded. Those plans cannot be
+                    // shared with another entry merely because their options are equal.
+                    if (mapping != null && (mappingHelperNames.RequiresMethodContext || CalledMappings(mapping).Any()))
+                    {
+                        methodDiagnostics.RemoveRange(validationDiagnosticCount, methodDiagnostics.Count - validationDiagnosticCount);
+                        mappingHelperNames = helperNames.ForMapping(member, EffectiveOptions(member), isolateMethod: true);
+                        mapping = IsNewObjectMappingCandidate(member)
+                            ? CreateMappingModel(member, compilation, methodDiagnostics, mappingHelperNames)
+                            : CreateUpdateMappingModel(member, compilation, methodDiagnostics, mappingHelperNames);
                     }
                 }
 
@@ -1077,7 +1090,7 @@ namespace Mammoth.LiteMapper.Generator
             }
 
             var mappingDiagnosticCount = diagnostics.Count;
-            var visibleMapping = ResolveVisibleMapping(mappingMethod, mappingMethod.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location, sourceExpressionMayBeNull: sourceExpressionMayBeNull, sourceMemberPath: sourcePath?.Expression);
+            var visibleMapping = ResolveVisibleMapping(mappingMethod, mappingMethod.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, targetMember.Name, location, sourceExpressionMayBeNull: sourceExpressionMayBeNull, sourceMemberPath: sourcePath?.Expression, helperNames: helperNames);
             if (visibleMapping != null || diagnostics.Count != mappingDiagnosticCount)
             {
                 return visibleMapping;
@@ -1657,8 +1670,14 @@ namespace Mammoth.LiteMapper.Generator
             return true;
         }
 
-        private static ConversionModel? ResolveVisibleMapping(IMethodSymbol currentMethod, INamedTypeSymbol mapperType, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, string targetName, Location? location, bool includePartialDeclarations = true, bool sourceExpressionMayBeNull = false, string? sourceMemberPath = null)
+        private static ConversionModel? ResolveVisibleMapping(IMethodSymbol currentMethod, INamedTypeSymbol mapperType, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, string targetName, Location? location, bool includePartialDeclarations = true, bool sourceExpressionMayBeNull = false, string? sourceMemberPath = null, HelperNameRegistry? helperNames = null)
         {
+            if (includePartialDeclarations && IsNewObjectMappingCandidate(currentMethod) &&
+                (compilation.ClassifyConversion(sourceType, currentMethod.Parameters[0].Type).IsImplicit ||
+                 compilation.ClassifyConversion(RemoveNullableAnnotation(sourceType), currentMethod.Parameters[0].Type).IsImplicit))
+            {
+                helperNames?.RequireMethodContext();
+            }
             var options = EffectiveOptions(currentMethod);
             var rawDirectSourceMayBeNull = sourceMember != null && SourceMayBeNull(sourceMember);
             var allowNonNullInputFallback = sourceExpressionMayBeNull || options.IgnoreNullSourceMembers && rawDirectSourceMayBeNull;
@@ -2066,7 +2085,7 @@ namespace Mammoth.LiteMapper.Generator
                 return localMarked?.Expression;
             }
 
-            var visible = ResolveVisibleMapping(method, method.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, "item", location);
+            var visible = ResolveVisibleMapping(method, method.ContainingType, sourceType, targetType, expression, sourceMember, compilation, diagnostics, "item", location, helperNames: helperNames);
             if (visible != null || diagnostics.Count != diagnosticCount)
             {
                 if (visible?.DeclaredMapping != null)
@@ -2220,7 +2239,7 @@ namespace Mammoth.LiteMapper.Generator
                 assignments.Add(new AssignmentModel(targetMember.Name, conversion.Expression, declaredMapping: conversion.DeclaredMapping));
             }
 
-            return new MappingModel(rootMethod, sourceNullable: false, returnNullable: false, options.NullableMismatch, options.ReferenceHandling, guardNonNullSource: false, construction, preconditions.ToImmutable(), assignments.ToImmutable(), ImmutableArray<MappingModel>.Empty, helperName, sourceType, targetType, customBody: null);
+            return new MappingModel(rootMethod, sourceNullable: false, returnNullable: false, options.NullableMismatch, options.ReferenceHandling, guardNonNullSource: false, construction, preconditions.ToImmutable(), assignments.ToImmutable(), ImmutableArray<MappingModel>.Empty, helperName, sourceType.WithNullableAnnotation(NullableAnnotation.NotAnnotated), targetType.WithNullableAnnotation(NullableAnnotation.NotAnnotated), customBody: null);
         }
 
         private static string SanitizeIdentifier(string value)
@@ -2462,26 +2481,42 @@ namespace Mammoth.LiteMapper.Generator
         {
             private readonly HashSet<string> names;
             private readonly Dictionary<string, string> identities;
+            private readonly HashSet<string> planned;
+            private readonly string semanticContext;
+            private readonly HelperPlanningContext planningContext;
 
             public HelperNameRegistry(IEnumerable<string> reservedNames)
             {
                 names = new HashSet<string>(reservedNames, StringComparer.Ordinal);
                 identities = new Dictionary<string, string>(StringComparer.Ordinal);
+                planned = new HashSet<string>(StringComparer.Ordinal);
+                semanticContext = string.Empty;
+                planningContext = new HelperPlanningContext();
             }
 
-            private HelperNameRegistry(HashSet<string> names, Dictionary<string, string> identities)
+            private HelperNameRegistry(HashSet<string> names, Dictionary<string, string> identities, HashSet<string> planned, string semanticContext, HelperPlanningContext planningContext)
             {
                 this.names = names;
                 this.identities = identities;
+                this.planned = planned;
+                this.semanticContext = semanticContext;
+                this.planningContext = planningContext;
             }
+
+            public bool RequiresMethodContext => planningContext.RequiresMethodContext;
+
+            public void RequireMethodContext() => planningContext.RequiresMethodContext = true;
 
             public string GetOrAdd(string prefix, ITypeSymbol sourceType, ITypeSymbol targetType, out bool isNew)
             {
-                var identity = prefix + ":" + sourceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "->" +
-                    targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                // Structural helpers always construct a non-null object. Caller guards
+                // own outer nullability; collection helpers own their null handling.
+                var normalizeOuterNullability = prefix == "MapNested_";
+                var identity = prefix + ":" + HelperTypeIdentity(sourceType, normalizeOuterNullability) + "->" +
+                    HelperTypeIdentity(targetType, normalizeOuterNullability) + ":" + semanticContext;
+                isNew = planned.Add(identity);
                 if (identities.TryGetValue(identity, out var existing))
                 {
-                    isNew = false;
                     return existing;
                 }
 
@@ -2489,26 +2524,43 @@ namespace Mammoth.LiteMapper.Generator
                 var name = preferred;
                 if (!names.Add(name))
                 {
-                    var suffix = EncodeHelperIdentity(identity);
+                    var suffix = StableHash(identity);
                     name = preferred + "_" + suffix;
-                    var attempt = 0;
-                    while (!names.Add(name))
+                    if (!names.Add(name))
                     {
-                        attempt++;
-                        name = preferred + "_" + suffix + "_" + attempt.ToString(CultureInfo.InvariantCulture);
+                        suffix = EncodeHelperIdentity(identity);
+                        name = preferred + "_" + suffix;
+                        var attempt = 0;
+                        while (!names.Add(name))
+                        {
+                            attempt++;
+                            name = preferred + "_" + suffix + "_" + attempt.ToString(CultureInfo.InvariantCulture);
+                        }
                     }
                 }
 
                 identities.Add(identity, name);
-                isNew = true;
                 return name;
+            }
+
+            public HelperNameRegistry ForMapping(IMethodSymbol method, EffectiveMappingOptions options, bool isolateMethod = false)
+            {
+                var context = options.HelperIdentity + ":" + (method.IsStatic ? "static" : "instance");
+                if (isolateMethod)
+                {
+                    context += ":" + method.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+                }
+                return new HelperNameRegistry(new HashSet<string>(names, StringComparer.Ordinal),
+                    new Dictionary<string, string>(identities, StringComparer.Ordinal),
+                    new HashSet<string>(StringComparer.Ordinal), context, new HelperPlanningContext());
             }
 
             public HelperNameRegistry Clone()
             {
                 return new HelperNameRegistry(
                     new HashSet<string>(names, StringComparer.Ordinal),
-                    new Dictionary<string, string>(identities, StringComparer.Ordinal));
+                    new Dictionary<string, string>(identities, StringComparer.Ordinal),
+                    new HashSet<string>(planned, StringComparer.Ordinal), semanticContext, planningContext);
             }
 
             public void Merge(HelperNameRegistry other)
@@ -2519,7 +2571,34 @@ namespace Mammoth.LiteMapper.Generator
                 }
 
                 names.UnionWith(other.names);
+                planned.UnionWith(other.planned);
             }
+        }
+
+        private sealed class HelperPlanningContext
+        {
+            // Failed constructor candidates affect which construction is selected,
+            // even though their helper allocations and diagnostics are discarded.
+            public bool RequiresMethodContext { get; set; }
+        }
+
+        private static string HelperTypeIdentity(ITypeSymbol type, bool normalizeOuterNullability = false)
+        {
+            var annotation = normalizeOuterNullability ? NullableAnnotation.NotAnnotated : type.NullableAnnotation;
+            var identity = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + ":" + ((int)annotation).ToString(CultureInfo.InvariantCulture);
+            if (type is IArrayTypeSymbol array)
+            {
+                return identity + "[" + HelperTypeIdentity(array.ElementType) + "]";
+            }
+            if (type is INamedTypeSymbol named)
+            {
+                if (named.ContainingType != null)
+                {
+                    identity += ":in:" + HelperTypeIdentity(named.ContainingType);
+                }
+                identity += "<" + string.Join(",", named.TypeArguments.Select(static argument => HelperTypeIdentity(argument))) + ">";
+            }
+            return identity;
         }
 
         private static string EncodeHelperIdentity(string identity)
@@ -3796,6 +3875,7 @@ namespace Mammoth.LiteMapper.Generator
             var needsCycleTracker = false;
             var orderedMappings = mappings.OrderBy(static m => m.Method.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), StringComparer.Ordinal).ToArray();
             var recursiveDeclaredMappings = FindRecursiveDeclaredMappings(orderedMappings);
+            var emittedHelpers = new HashSet<string>(StringComparer.Ordinal);
             foreach (var mapping in orderedMappings)
             {
                 var recursiveHelperNames = mapping.ReferenceHandling == ReferenceHandlingThrowOnCycle ? FindRecursiveHelperNames(mapping) : new HashSet<string>(StringComparer.Ordinal);
@@ -3821,7 +3901,10 @@ namespace Mammoth.LiteMapper.Generator
                 }
                 foreach (var helper in FlattenHelpers(mapping).OrderBy(static h => h.HelperName, StringComparer.Ordinal))
                 {
-                    AppendMapping(builder, helper, recursiveHelperNames, recursiveDeclaredMappings);
+                    if (emittedHelpers.Add(helper.HelperName!))
+                    {
+                        AppendMapping(builder, helper, recursiveHelperNames, recursiveDeclaredMappings);
+                    }
                 }
             }
             if (needsCycleTracker)
@@ -3896,7 +3979,7 @@ namespace Mammoth.LiteMapper.Generator
             {
                 builder.Append(", ");
             }
-            builder.AppendLine(trackerLocal + ", string.Empty);");
+            builder.AppendLine(trackerLocal + ", string.Empty, \"" + method.Name + "\");");
             builder.AppendLine("    }");
         }
 
@@ -3958,8 +4041,10 @@ namespace Mammoth.LiteMapper.Generator
             var destination = mapping.DestinationParameter;
             var trackerLocal = CreateUniqueIdentifier(method, "__tracker");
             var memberPathLocal = CreateUniqueIdentifier(method, "__memberPath", trackerLocal);
-            var destinationCreatedLocal = CreateUniqueIdentifier(method, "__destinationCreated", trackerLocal, memberPathLocal);
-            var targetLocal = CreateUniqueIdentifier(method, "target", trackerLocal, memberPathLocal, destinationCreatedLocal);
+            var mappingMethodLocal = CreateUniqueIdentifier(method, "__mappingMethod", trackerLocal, memberPathLocal);
+            var mappingMethodExpression = mapping.HelperName == null ? "\"" + method.Name + "\"" : mappingMethodLocal;
+            var destinationCreatedLocal = CreateUniqueIdentifier(method, "__destinationCreated", trackerLocal, memberPathLocal, mappingMethodLocal);
+            var targetLocal = CreateUniqueIdentifier(method, "target", trackerLocal, memberPathLocal, mappingMethodLocal, destinationCreatedLocal);
             var trackedHelper = mapping.HelperName != null && (mapping.IsDeclaredCore || recursiveHelperNames.Contains(mapping.HelperName));
             var trackedPublicEntry = mapping.HelperName == null && mapping.ReferenceHandling == ReferenceHandlingThrowOnCycle && recursiveHelperNames.Count != 0;
             var trackedMapping = trackedHelper || trackedPublicEntry;
@@ -4002,7 +4087,7 @@ namespace Mammoth.LiteMapper.Generator
             }
             if (trackedHelper)
             {
-                builder.Append(", __LiteMapperCycleTracker " + trackerLocal + ", string " + memberPathLocal);
+                builder.Append(", __LiteMapperCycleTracker " + trackerLocal + ", string " + memberPathLocal + ", string " + mappingMethodLocal);
             }
 
             builder.AppendLine(")");
@@ -4056,13 +4141,13 @@ namespace Mammoth.LiteMapper.Generator
                 builder.AppendLine("        var " + trackerLocal + " = new __LiteMapperCycleTracker();");
                 if (!parameter.Type.IsValueType)
                 {
-                builder.AppendLine("        " + trackerLocal + ".Enter(" + EscapeIdentifier(parameter.Name) + "!, typeof(" + DisplayType(parameter.Type).TrimEnd('?') + "), typeof(" + DisplayType(method.ReturnType).TrimEnd('?') + "), \"" + method.Name + "\", string.Empty);");
+                builder.AppendLine("        " + trackerLocal + ".Enter(" + EscapeIdentifier(parameter.Name) + "!, typeof(" + DisplayType(parameter.Type).TrimEnd('?') + "), typeof(" + DisplayType(method.ReturnType).TrimEnd('?') + "), " + mappingMethodExpression + ", string.Empty);");
                 }
             }
 
             if (trackedHelper && mapping.HelperSourceType != null && !mapping.HelperSourceType.IsValueType)
             {
-                builder.AppendLine("        " + trackerLocal + ".Enter(" + EscapeIdentifier(parameter.Name) + "!, typeof(" + DisplayType(mapping.HelperSourceType).TrimEnd('?') + "), typeof(" + DisplayType(mapping.HelperTargetType!).TrimEnd('?') + "), \"" + method.Name + "\", " + memberPathLocal + ");");
+                builder.AppendLine("        " + trackerLocal + ".Enter(" + EscapeIdentifier(parameter.Name) + "!, typeof(" + DisplayType(mapping.HelperSourceType).TrimEnd('?') + "), typeof(" + DisplayType(mapping.HelperTargetType!).TrimEnd('?') + "), " + mappingMethodExpression + ", " + memberPathLocal + ");");
                 builder.AppendLine("        try");
                 builder.AppendLine("        {");
             }
@@ -4070,7 +4155,7 @@ namespace Mammoth.LiteMapper.Generator
             if (mapping.CustomBody != null)
             {
                 builder.Append(RenderTrackedCalls(mapping.CustomBody, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping,
-                    mapping.DeclaredCalls, memberPathLocal, trackerLocal));
+                    mapping.DeclaredCalls, memberPathLocal, trackerLocal, mappingMethodExpression));
                 if (trackedHelper && mapping.HelperSourceType != null && !mapping.HelperSourceType.IsValueType)
                 {
                     builder.AppendLine("        }");
@@ -4108,13 +4193,13 @@ namespace Mammoth.LiteMapper.Generator
                         builder.Append('(');
                         if (mapping.Construction != null)
                         {
-                            builder.Append(string.Join(", ", mapping.Construction.Arguments.Select(argument => EscapeIdentifier(argument.ParameterName) + ": " + RenderTrackedCalls(argument.Expression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(argument.DeclaredMapping), PathExpression(mapping, argument.ParameterName, memberPathLocal), trackerLocal))));
+                            builder.Append(string.Join(", ", mapping.Construction.Arguments.Select(argument => EscapeIdentifier(argument.ParameterName) + ": " + RenderTrackedCalls(argument.Expression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(argument.DeclaredMapping), PathExpression(mapping, argument.ParameterName, memberPathLocal), trackerLocal, mappingMethodExpression))));
                         }
                         builder.Append(')');
                         if (creationAssignments.Length > 0)
                         {
                             builder.Append(" { ");
-                            builder.Append(string.Join(", ", creationAssignments.Select(assignment => EscapeIdentifier(assignment.TargetName) + " = " + RenderTrackedCalls(assignment.InitializationExpression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(assignment.DeclaredMapping), PathExpression(mapping, assignment.TargetName, memberPathLocal), trackerLocal))));
+                            builder.Append(string.Join(", ", creationAssignments.Select(assignment => EscapeIdentifier(assignment.TargetName) + " = " + RenderTrackedCalls(assignment.InitializationExpression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(assignment.DeclaredMapping), PathExpression(mapping, assignment.TargetName, memberPathLocal), trackerLocal, mappingMethodExpression))));
                             builder.Append(" }");
                         }
                         builder.AppendLine(";");
@@ -4168,7 +4253,7 @@ namespace Mammoth.LiteMapper.Generator
                         builder.Append(EscapeIdentifier(assignment.TargetName));
                         builder.Append(" = ");
                     }
-                    builder.Append(RenderTrackedCalls(assignment.Expression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(assignment.DeclaredMapping), PathExpression(mapping, assignment.TargetName, memberPathLocal), trackerLocal));
+                    builder.Append(RenderTrackedCalls(assignment.Expression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(assignment.DeclaredMapping), PathExpression(mapping, assignment.TargetName, memberPathLocal), trackerLocal, mappingMethodExpression));
                     builder.AppendLine(";");
                     if (guard != null)
                     {
@@ -4203,7 +4288,7 @@ namespace Mammoth.LiteMapper.Generator
                     first = false;
                     builder.Append(EscapeIdentifier(argument.ParameterName));
                     builder.Append(": ");
-                    builder.Append(RenderTrackedCalls(argument.Expression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(argument.DeclaredMapping), PathExpression(mapping, argument.ParameterName, memberPathLocal), trackerLocal));
+                    builder.Append(RenderTrackedCalls(argument.Expression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(argument.DeclaredMapping), PathExpression(mapping, argument.ParameterName, memberPathLocal), trackerLocal, mappingMethodExpression));
                 }
             }
 
@@ -4222,7 +4307,7 @@ namespace Mammoth.LiteMapper.Generator
                     builder.Append("            ");
                     builder.Append(EscapeIdentifier(assignment.TargetName));
                     builder.Append(" = ");
-                    builder.Append(RenderTrackedCalls(assignment.Expression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(assignment.DeclaredMapping), PathExpression(mapping, assignment.TargetName, memberPathLocal), trackerLocal));
+                    builder.Append(RenderTrackedCalls(assignment.Expression, recursiveHelperNames, recursiveDeclaredMappings, trackedMapping, DeclaredCallSequence(assignment.DeclaredMapping), PathExpression(mapping, assignment.TargetName, memberPathLocal), trackerLocal, mappingMethodExpression));
                     builder.AppendLine(i == mapping.Assignments.Length - 1 ? string.Empty : ",");
                 }
 
@@ -4357,18 +4442,18 @@ namespace Mammoth.LiteMapper.Generator
             return declaredMapping == null ? Enumerable.Empty<IMethodSymbol>() : new[] { declaredMapping };
         }
 
-        private static string RenderTrackedCalls(string expression, HashSet<string> recursiveHelperNames, HashSet<IMethodSymbol> recursiveDeclaredMappings, bool trackedMapping, IEnumerable<IMethodSymbol> declaredMappings, string pathExpression, string trackerName)
+        private static string RenderTrackedCalls(string expression, HashSet<string> recursiveHelperNames, HashSet<IMethodSymbol> recursiveDeclaredMappings, bool trackedMapping, IEnumerable<IMethodSymbol> declaredMappings, string pathExpression, string trackerName, string mappingMethodExpression)
         {
-            expression = RewriteTrackedCalls(expression, recursiveHelperNames, pathExpression, trackerName);
+            expression = RewriteTrackedCalls(expression, recursiveHelperNames, pathExpression, trackerName, mappingMethodExpression);
             foreach (var declaredMapping in declaredMappings)
             {
-                expression = RewriteDeclaredCall(expression, declaredMapping, trackedMapping && recursiveDeclaredMappings.Contains(declaredMapping), pathExpression, trackerName);
+                expression = RewriteDeclaredCall(expression, declaredMapping, trackedMapping && recursiveDeclaredMappings.Contains(declaredMapping), pathExpression, trackerName, mappingMethodExpression);
             }
 
             return expression;
         }
 
-        private static string RewriteDeclaredCall(string expression, IMethodSymbol mapping, bool tracked, string pathExpression, string trackerName)
+        private static string RewriteDeclaredCall(string expression, IMethodSymbol mapping, bool tracked, string pathExpression, string trackerName, string mappingMethodExpression)
         {
             var search = "__LiteMapperDeclaredCall_" + StableHash(mapping.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)) + "(";
             var index = expression.IndexOf(search, StringComparison.Ordinal);
@@ -4398,8 +4483,8 @@ namespace Mammoth.LiteMapper.Generator
 
                 if (tracked)
                 {
-                    expression = expression.Insert(position - 1, ", " + trackerName + ", " + pathExpression);
-                    position += trackerName.Length + pathExpression.Length + 4;
+                    expression = expression.Insert(position - 1, ", " + trackerName + ", " + pathExpression + ", " + mappingMethodExpression);
+                    position += trackerName.Length + pathExpression.Length + mappingMethodExpression.Length + 6;
                 }
 
                 expression = expression.Remove(index, search.Length).Insert(index, EscapeIdentifier(mapping.Name) + "(");
@@ -4410,17 +4495,17 @@ namespace Mammoth.LiteMapper.Generator
             return expression;
         }
 
-        private static string RewriteTrackedCalls(string expression, HashSet<string> recursiveHelperNames, string pathExpression, string trackerName)
+        private static string RewriteTrackedCalls(string expression, HashSet<string> recursiveHelperNames, string pathExpression, string trackerName, string mappingMethodExpression)
         {
             foreach (var helperName in recursiveHelperNames.OrderByDescending(static n => n.Length))
             {
-                expression = RewriteTrackedCall(expression, helperName, pathExpression, trackerName);
+                expression = RewriteTrackedCall(expression, helperName, pathExpression, trackerName, mappingMethodExpression);
             }
 
             return expression;
         }
 
-        private static string RewriteTrackedCall(string expression, string helperName, string pathExpression, string trackerName)
+        private static string RewriteTrackedCall(string expression, string helperName, string pathExpression, string trackerName, string mappingMethodExpression)
         {
             var search = helperName + "(";
             var index = expression.IndexOf(search, StringComparison.Ordinal);
@@ -4445,8 +4530,8 @@ namespace Mammoth.LiteMapper.Generator
 
                 if (depth == 0)
                 {
-                    expression = expression.Insert(position - 1, ", " + trackerName + ", " + pathExpression);
-                    index = expression.IndexOf(search, position + pathExpression.Length, StringComparison.Ordinal);
+                    expression = expression.Insert(position - 1, ", " + trackerName + ", " + pathExpression + ", " + mappingMethodExpression);
+                    index = expression.IndexOf(search, position + trackerName.Length + pathExpression.Length + mappingMethodExpression.Length + 6, StringComparison.Ordinal);
                 }
                 else
                 {
@@ -4911,6 +4996,10 @@ namespace Mammoth.LiteMapper.Generator
             public string NumericConversion { get; }
 
             public bool AllowExplicitOperators { get; }
+
+            public string HelperIdentity => string.Join("|", NameMatching, UnmappedTargetMembers, UnmappedSourceMembers,
+                NullableMismatch, NullCollections, NullCollectionsExplicit, GuardNonNullSource, IgnoreNullSourceMembers,
+                EnumMapping, EnumNumericConversion, UnmatchedEnumValues, ReferenceHandling, NumericConversion, AllowExplicitOperators);
         }
 
         private sealed class EnumMemberModel

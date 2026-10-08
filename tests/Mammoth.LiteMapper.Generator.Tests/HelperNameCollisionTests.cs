@@ -202,7 +202,7 @@ public sealed class ChildDto { public int Value { get; set; } }
         }
 
         [TestMethod]
-        public void MappingRejectedAfterRecursiveAnalysisDoesNotConsumeHelperAllocation()
+        public void RecursiveMappingsWithDifferentPoliciesUseDistinctHelperAllocations()
         {
             var result = RunGenerator(@"
 #nullable enable
@@ -219,10 +219,16 @@ public sealed class GoodWrapper { public A Value { get; set; } = new A(); }
 public sealed class GoodWrapperDto { public ADto Value { get; set; } = null!; }
 public sealed class A { public A? Next { get; set; } }
 public sealed class ADto { public ADto? Next { get; set; } }
-", "recursive-discarded");
+", "recursive-policies");
 
             var generated = GeneratedSource(result);
-            Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(
+            // None produces an informational diagnostic, not a rejected mapping.
+            // Sharing its helper with ThrowOnCycle would erase the second policy.
+            Assert.AreEqual(1, result.RunResult.Diagnostics.Length);
+            Assert.AreEqual("LITEMAPPER6001", result.RunResult.Diagnostics[0].Id);
+            Assert.AreEqual(DiagnosticSeverity.Info, result.RunResult.Diagnostics[0].Severity);
+            Assert.AreEqual(0, result.Compilation.GetDiagnostics().Count(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+            Assert.AreEqual(2, System.Text.RegularExpressions.Regex.Matches(
                 generated, "private static ADto MapNested_A_To_ADto_").Count, generated);
         }
 
