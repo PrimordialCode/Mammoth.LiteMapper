@@ -529,7 +529,9 @@ namespace Mammoth.LiteMapper.Generator
 
                 var explicitConfiguration = explicitConfigurations.FirstOrDefault(c => c.TargetName == targetMember.Name);
                 var selected = explicitConfiguration == null ? null : explicitConfiguration.SelectedSource;
-                var match = selected == null ? MatchSource(targetMember, sourceMembers, options.NameMatching) : new MatchResult(selected.SourceMember, false);
+                var match = selected != null ? new MatchResult(selected.SourceMember, false)
+                    : explicitConfiguration?.Use != null ? new MatchResult(method.Parameters[0], false)
+                    : MatchSource(targetMember, sourceMembers, options.NameMatching);
                 if (match.Ambiguous)
                 {
                     diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousMemberMatch, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
@@ -706,16 +708,13 @@ namespace Mammoth.LiteMapper.Generator
 
                 var explicitConfiguration = explicitConfigurations.FirstOrDefault(c => c.TargetName == targetMember.Name);
                 var selected = explicitConfiguration == null ? null : explicitConfiguration.SelectedSource;
-                var match = selected == null ? MatchSource(targetMember, sourceMembers, options.NameMatching) : new MatchResult(selected.SourceMember, false);
+                var match = selected != null ? new MatchResult(selected.SourceMember, false)
+                    : explicitConfiguration?.Use != null ? new MatchResult(method.Parameters[0], false)
+                    : MatchSource(targetMember, sourceMembers, options.NameMatching);
                 if (match.Ambiguous)
                 {
                     diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousMemberMatch, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
                     continue;
-                }
-
-                if (match.Member == null && explicitConfiguration?.Use != null && selected == null)
-                {
-                    match = new MatchResult(method.Parameters[0], false);
                 }
 
                 if (match.Member == null)
@@ -3020,7 +3019,7 @@ namespace Mammoth.LiteMapper.Generator
                 return string.Join(" && ", sourcePath.NullCheckExpressions.Select(p => escapedParameterName + "." + EscapeMemberPath(p) + " != null"));
             }
 
-            return SourceMayBeNull(sourceMember)
+            return !(sourceMember is IParameterSymbol) && SourceMayBeNull(sourceMember)
                 ? EscapeIdentifier(parameterName) + "." + EscapeIdentifier(sourceMember.Name) + " != null"
                 : null;
         }
@@ -3402,7 +3401,9 @@ namespace Mammoth.LiteMapper.Generator
                 }
 
                 var configuration = defaultTargetMatch.Member == null ? null : configurations.FirstOrDefault(c => c.TargetName == defaultTargetMatch.Member.Name);
-                var match = configuration?.SelectedSource != null ? new MatchResult(configuration.SelectedSource.SourceMember, false) : MatchParameter(parameter, sourceMembers, nameMatching);
+                var match = configuration?.SelectedSource != null ? new MatchResult(configuration.SelectedSource.SourceMember, false)
+                    : configuration?.Use != null ? new MatchResult(method.Parameters[0], false)
+                    : MatchParameter(parameter, sourceMembers, nameMatching);
                 if (match.Ambiguous)
                 {
                     diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousMemberMatch, parameter.Locations.FirstOrDefault(), parameter.Name));

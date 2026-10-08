@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #23: resolve explicit root input before member matching (2026-10-08)
+
+- Context: new-object planning rejected absent source-member matches before resolving a root converter. Constructor/update planning also allowed automatic ambiguity or patch captures to override the explicit selection.
+- Decision: use the declared root source parameter as the selected symbol whenever `Use` is explicit and `Source` is omitted. Configured source paths keep their existing symbol selection; automatic matching runs only without either explicit selection. Root parameters never receive member-level patch guards, since the mapping entry already handles root nulls.
+- Contract: sections 5.7, 9.7, 10.3, 11.1, 11.4, 12.5, and 28.2 already require these semantics. Converter signatures, result nullability, source-path boundaries, and exception identity continue through the existing resolver. No public API or normative change is needed.
+- Evidence: test-first failures cover missing and case-ambiguous names, constructor/update counterparts, relaxed unmapped policies, invalid converter signatures, and an unrelated nullable patch getter. Tests verify root identity and one invocation; nullable-root guards and explicit external source-path conversion are covered separately.
+
 ## Issue #22: propagate instance requirements without changing call identity (2026-10-08)
 
 - Context: nested and collection planners legally selected instance converters and mappings, but non-core helpers were emitted static unconditionally.

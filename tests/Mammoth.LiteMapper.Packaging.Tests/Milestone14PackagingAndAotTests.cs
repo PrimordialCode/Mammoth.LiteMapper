@@ -229,7 +229,7 @@ var target = StaticMapper.ToTarget(new Source
     Scores = new[] { 1, 2, 3 },
     Children = new[] { new ChildSource { Value = 41 }, new ChildSource { Value = 42 } }
 });
-if (target.Name != ""Ada"" || target.Scores.Length != 3 || target.Children.Count != 2 || target.Children[1].Value != 42)
+if (target.Name != ""Ada"" || target.DisplayName != ""Name: Ada"" || target.Scores.Length != 3 || target.Children.Count != 2 || target.Children[1].Value != 42)
 {
     throw new System.InvalidOperationException(""Static mapping failed."");
 }
@@ -263,7 +263,9 @@ catch (LiteMapperCycleException)
 [LiteMapper]
 public static partial class StaticMapper
 {
+    [MapProperty(Target = nameof(Target.DisplayName), Use = nameof(BuildDisplayName))]
     public static partial Target ToTarget(Source source);
+    private static string BuildDisplayName(Source source) => ""Name: "" + source.Name;
 }
 
 [LiteMapper]
@@ -290,6 +292,7 @@ public sealed class Source
 
 public sealed class Target
 {
+    public string DisplayName { get; set; } = string.Empty;
     public string? Name { get; set; }
     public int[] Scores { get; set; } = new int[0];
     public List<ChildTarget> Children { get; set; } = new List<ChildTarget>();

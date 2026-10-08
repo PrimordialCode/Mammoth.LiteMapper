@@ -4,6 +4,7 @@
 
 ## Fixes
 
+- Issue #23: explicit omitted-`Source` converters receive the root object before automatic source-member matching in new-object, constructor-bound, and update mappings. Unrelated source names and patch getters no longer override that selection. [#23](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/23)
 - Issue #22: generated nested and collection helpers preserve the calling mapper instance for stateful converters and mappings, while instance-free helpers remain static. Static entry methods no longer select instance-only mappings. [#22](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/22)
 - Issue #21: nested and collection helpers retain each entry method's effective mapping policies and nullable shape. Equivalent recursive helpers remain shared while preserving the initiating entry's cycle metadata. [#21](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/21)
 - Issue #20: release validation and each NuGet package push now stop immediately on a nonzero native exit, reporting the failed operation or package before later successes can conceal it. [#20](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/20)
