@@ -1,5 +1,14 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #21: separate semantic planning from name allocation (2026-10-08)
+
+- Context: a mapper-wide type-pair cache skipped later planning, leaking the first method's effective policy and omitting reused helpers from later recursive graphs. Type display alone also erased relevant nullable annotations.
+- Decision: retain global deterministic name reservations, but track planned/in-progress helpers per entry. Key allocation by closed type shape, all resolved options, and execution context. Structural helper outer annotations normalize to their non-null construction contract; nested generic and collection annotations remain significant.
+- Resolution context: current-entry exclusion can affect both successful declared calls and rejected constructor candidates. A per-root observation survives candidate rollback and triggers a fresh method-specific planning pass; failed-pass diagnostics and names are discarded. Equivalent context-independent plans still share emitted helpers.
+- Cycle metadata: forward the initiating public method name through the existing tracked helper/core call chain, so a shared helper does not report its first planning owner's name. This adds no tracker field or allocation; the private tracker layout and public API stay unchanged.
+- Specification references: 6.1, 12.3-12.5, 13, 14.1, 15.2, 17.2-17.5, 19.8, 20.3. Clarified helper-identity wording preserves these existing observable contracts.
+- Existing test correction: the former recursive-allocation test's None policy emitted informational LITEMAPPER6001 rather than rejecting the method. Requiring one helper across None and ThrowOnCycle endorsed the defect; the test now requires distinct helpers and validates the informational diagnostic and generated compilation.
+
 `SPECIFICATION.md` is authoritative. Accepted entries here are non-semantic implementation decisions unless explicitly stated otherwise.
 
 ## Issue #20: check native exits before later validation (2026-10-05)

@@ -1,5 +1,14 @@
 # Mammoth.LiteMapper Status
 
+## GitHub issue #21 helper semantic isolation checkpoint (2026-10-08)
+
+- Base: clean cloud checkout of develop at 36dcaf555330dd9f72ea2a886ced66a02ae0b325. User approved readiness labels, the scoped fix and one draft PR against develop; the labels were added and read back. AgentStack CLI is absent; supported GitHub fallback is used. No issue comments or claim writes are made.
+- Red-first evidence: 44 new executable cases produced 38 failures and six controls, zero skips, on unchanged production. Input compilation is validated before generation. Runtime probes cover policy differences, nullable shapes, constructor context, and actual cycle exception metadata.
+- Implementation: per-entry planning with semantic-aware deterministic allocation and emitted-helper deduplication; entry-sensitive constructor/declared resolution is isolated; tracked calls forward initiating method metadata without enlarging tracker state. The misleading existing allocation test now checks policy isolation rather than claiming an informational diagnostic rejects a mapping.
+- Final generator evidence: 614 tests passed, zero failed/skipped, including 46 new isolation cases. The initial 44-case matrix reproduced 38 failures with six controls; four tracker-state/collision checks then failed against the field-based prototype and pass with allocation-neutral argument forwarding. Independent review found no correctness blocker. The solution baseline built with zero warnings/errors; exact-head full-platform CI remains pending in the draft PR.
+- Local environment: Linux SDK 10.0.401, runtimes 8.0.31/9.0.20/10.0.12. Restore/build use one MSBuild node because the default parallel restore exited early. A full-suite attempt was interrupted by a tool approval cancellation after 604 generator and five runtime passes; five PowerShell-dependent tests failed because pwsh is absent. The remaining package/consumer run on the preceding candidate is recorded separately from final-head CI. PowerShell and clang are absent; final local workflow-script and Native AOT success are not claimed.
+- Boundaries: no fixes for #22/#25/#26, user-PC access, merge, release, tag push, package publication, workflow dispatch, credential persistence or security change. Stop for human review after this PR.
+
 ## GitHub issue #20 native failure checkpoint (2026-10-05)
 
 - Scope: immediate native exit checks across multiline PowerShell release validation and each package push; preserve issue #19's dry-run gates, production approval, and artifact handoff.

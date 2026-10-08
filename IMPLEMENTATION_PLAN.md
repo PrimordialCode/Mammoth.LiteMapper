@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #21: helper semantic isolation (2026-10-08)
+
+- Scope: preserve each mapping entry's effective policies and nullable shape throughout nested and collection helpers, retaining deterministic equivalent-plan sharing.
+- Test-first evidence: 44 executable regression cases on unchanged develop produced 38 failures and six passing controls, with zero skips. Cases cover reversed numeric/null/enum policies, nullable shapes and diagnostics, recursive entries, static context, constructor selection, and equivalent-policy reuse.
+- Implementation: mapper-wide name allocation is separate from per-entry planning. Semantic keys include effective options and nullable/execution context. Entry-sensitive resolution is isolated, including observations in discarded constructor candidates. Each entry owns its complete analysis graph; equivalent helper bodies emit once. The initiating method name is forwarded through tracked calls without enlarging the per-call tracker.
+- Validation: focused and full compiler/consumer checks are required; exact results and environment limits are recorded in STATUS.md and the draft PR.
+- Boundaries: no public API change; the separate instance-helper (#22), nullable-element (#26), and acyclic-bridge (#25) issues remain outside this fix. No merge, release, publication, or workflow dispatch.
+
 ## Issue #20: immediate native release failure propagation (2026-10-05)
 
 - Scope: check native exits in multiline PowerShell validation and package-push stages before later operations overwrite them. Preserve issue #19's event/input gates and artifact dependencies.
