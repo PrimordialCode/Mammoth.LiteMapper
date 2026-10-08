@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #23: explicit root-source converter priority (2026-10-08)
+
+- Scope: select omitted-`Source` explicit `Use` configuration before automatic source-member matching in new-object, constructor-bound, and existing-target planning. Keep source-path selection and converter validation intact.
+- Test-first evidence: the initial 16 cases on unchanged develop produced 11 failures and five controls, zero skips. The Basic sample independently failed with LITEMAPPER1002 and CS8795. A later nullable-root patch case failed with CS1061 before the root-parameter guard was corrected; the explicit-path control passed.
+- Implementation: reuse the root parameter as the selected source symbol at the three planning boundaries. Patch member guards exclude that parameter because root null handling is emitted separately. Existing named-converter resolution, public signatures, and target obligations are unchanged.
+- Validation: focused/full generator tests, runtime and integration tests, source samples, available clean-package/matrix/API/benchmark checks, independent review, and exact-head ordinary PR CI. Record local environment gaps separately from CI.
+- Boundaries: issue #23 only; no specification semantics or public API change, other issue, user-computer access, merge, release, tag, publication, workflow dispatch, tool install, or credential change. Stop at draft PR/human review.
+
 ## Issue #22: instance context in generated helpers (2026-10-08)
 
 - Scope: preserve the calling mapper instance through nested and collection helpers that depend on instance converters or mappings. Keep instance-free helpers static and exclude instance-only candidates from static entry methods.

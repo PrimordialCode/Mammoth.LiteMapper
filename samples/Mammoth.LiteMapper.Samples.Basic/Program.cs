@@ -17,7 +17,7 @@ namespace Mammoth.LiteMapper.Samples.Basic
                     new ChildSource { Value = 2 },
                 },
             });
-            if (staticTarget.Name != "Ada" || staticTarget.Children.Count != 2 || staticTarget.Children[1].Value != 2)
+            if (staticTarget.Name != "Ada" || staticTarget.DisplayName != "Name: Ada" || staticTarget.Children.Count != 2 || staticTarget.Children[1].Value != 2)
             {
                 throw new InvalidOperationException("Static mapping failed.");
             }
@@ -53,7 +53,10 @@ namespace Mammoth.LiteMapper.Samples.Basic
     [LiteMapper]
     public static partial class StaticMapper
     {
+        [MapProperty(Target = nameof(StaticTarget.DisplayName), Use = nameof(BuildDisplayName))]
         public static partial StaticTarget Map(StaticSource source);
+
+        private static string BuildDisplayName(StaticSource source) => "Name: " + source.Name;
     }
 
     [LiteMapper]
@@ -84,6 +87,8 @@ namespace Mammoth.LiteMapper.Samples.Basic
 
     public sealed class StaticTarget
     {
+        public string DisplayName { get; set; } = string.Empty;
+
         public string? Name { get; set; }
 
         public List<ChildTarget> Children { get; set; } = new List<ChildTarget>();

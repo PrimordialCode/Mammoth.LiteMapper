@@ -235,6 +235,17 @@ Member candidates are public instance properties and fields. Hidden members are 
 
 Source paths in `[MapProperty]` may use dotted member paths such as `"Email.Value"`. Source paths must resolve to members and cannot use method-call syntax. Source methods are not discovered automatically; use a converter or root-source `MapProperty.Use` method when a method-derived value is needed.
 
+Omitting `Source` with an explicit `Use` passes the complete root object to that converter. This selection takes priority over automatic name matching, so an unrelated source member with the target name is not read and no same-name source member is required. The same rule applies to constructor-bound members and existing-target mappings, including patch mode.
+
+The [Basic sample](../samples/Mammoth.LiteMapper.Samples.Basic/Program.cs) maps `StaticSource.Name == "Ada"` to `StaticTarget.DisplayName == "Name: Ada"`:
+
+```csharp
+[MapProperty(Target = nameof(StaticTarget.DisplayName), Use = nameof(BuildDisplayName))]
+public static partial StaticTarget Map(StaticSource source);
+
+private static string BuildDisplayName(StaticSource source) => "Name: " + source.Name;
+```
+
 Nullable source paths are evaluated once per segment. When an explicit converter is selected, its parameter annotation controls traversal nulls. For example:
 
 ```csharp
