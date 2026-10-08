@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #22: propagate instance requirements without changing call identity (2026-10-08)
+
+- Context: nested and collection planners legally selected instance converters and mappings, but non-core helpers were emitted static unconditionally.
+- Decision: retain a separate instance-dependency flag on successful conversion, assignment, constructor-argument, and mapping models. Collection key/value/element planning accumulates direct requirements; helper graph propagation marks callers transitively, including recursive components. Only dependent private helpers are emitted as instance members.
+- Isolation: constructor candidates contribute only their selected plan. Instance requirements do not enter declared-call metadata, helper identity, or cycle analysis, preserving equivalent helper sharing and existing tracker behavior. Static root resolution filters instance-only local mappings/defaults consistently with converter eligibility.
+- Contract: sections 7.4, 8.1, 11.4, 14.1, 15, 17, and 19.8 already require these observable semantics. No normative specification or public API change is needed; generated helpers remain private implementation details.
+
 ## Issue #21: separate semantic planning from name allocation (2026-10-08)
 
 - Context: a mapper-wide type-pair cache skipped later planning, leaking the first method's effective policy and omitting reused helpers from later recursive graphs. Type display alone also erased relevant nullable annotations.

@@ -4,6 +4,7 @@
 
 ## Fixes
 
+- Issue #22: generated nested and collection helpers preserve the calling mapper instance for stateful converters and mappings, while instance-free helpers remain static. Static entry methods no longer select instance-only mappings. [#22](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/22)
 - Issue #21: nested and collection helpers retain each entry method's effective mapping policies and nullable shape. Equivalent recursive helpers remain shared while preserving the initiating entry's cycle metadata. [#21](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/21)
 - Issue #20: release validation and each NuGet package push now stop immediately on a nonzero native exit, reporting the failed operation or package before later successes can conceal it. [#20](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/20)
 - Issue #19: tag-selected manual workflow dry runs no longer enter the NuGet publish job. Automatic tag publishing requires a push event; manual branch publishing retains its explicit publish and dry-run gates. [#19](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/19)

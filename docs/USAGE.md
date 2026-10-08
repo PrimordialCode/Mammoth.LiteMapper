@@ -52,6 +52,10 @@ A containing type can also be a partial record, record struct, or interface. For
 
 Instance mappers may use fields, properties, constructor-injected dependencies, and instance converter methods. Static mapper classes may use static converters only.
 
+Automatic nested and collection mappings keep access to the same mapper instance when a selected converter or mapping method needs it. Helpers without instance-dependent calls remain static. A static mapping method declared inside an instance mapper can use only static converters and mapping methods.
+
+The [Basic sample](../samples/Mammoth.LiteMapper.Samples.Basic/Program.cs) passes a prefix into `InstanceMapper`: `new InstanceMapper("first:")` formats nested child value `7` as `"first:7"` and collection child value `8` as `"first:8"`. A separate `new InstanceMapper("second:")` uses its own prefix. User-owned mutable state remains the consumer's thread-safety responsibility.
+
 Ordinary inherited handwritten methods may participate when normal C# accessibility and resolution permit them, but mapper configuration is not inherited implicitly.
 
 Select an accessible base-class converter explicitly:
