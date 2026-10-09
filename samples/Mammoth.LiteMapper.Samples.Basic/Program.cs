@@ -9,6 +9,7 @@ namespace Mammoth.LiteMapper.Samples.Basic
         private static void Main()
         {
             EnumPathExample.Run();
+            PatchUpdaterExample.Run();
             var staticTarget = StaticMapper.Map(new StaticSource
             {
                 Name = "Ada",
@@ -232,4 +233,42 @@ namespace Mammoth.LiteMapper.Samples.Basic
     public sealed class EnumPathSource { public EnumPathChild? Child { get; set; } }
     public sealed class EnumPathChild { public InputState State { get; set; } }
     public sealed class EnumPathTarget { public OutputState State { get; set; } }
+}
+
+namespace Mammoth.LiteMapper.Samples.Basic
+{
+    public static class PatchUpdaterExample
+    {
+        public static void Run()
+        {
+            var source = new PatchUpdaterSource(new PatchUpdaterChild { Value = 7 });
+            var target = new PatchUpdaterTarget();
+            var original = target.Child;
+            PatchUpdaterMapper.Apply(source, target);
+            if (source.Reads != 1 || target.Child.Value != 7 || !object.ReferenceEquals(original, target.Child))
+                throw new System.InvalidOperationException("Patch updater must use its captured child once.");
+            var missing = new PatchUpdaterSource(null);
+            PatchUpdaterMapper.Apply(missing, target);
+            if (missing.Reads != 1 || target.Child.Value != 7 || !object.ReferenceEquals(original, target.Child))
+                throw new System.InvalidOperationException("A null patch child must preserve the existing destination.");
+        }
+    }
+
+    [LiteMapper(IgnoreNullSourceMembers = true)]
+    public static partial class PatchUpdaterMapper
+    {
+        public static partial void Apply(PatchUpdaterSource source, PatchUpdaterTarget target);
+        public static partial void ApplyChild(PatchUpdaterChild source, PatchUpdaterChildTarget target);
+    }
+
+    public sealed class PatchUpdaterSource
+    {
+        private readonly PatchUpdaterChild? first;
+        public PatchUpdaterSource(PatchUpdaterChild? first) { this.first = first; }
+        public int Reads;
+        public PatchUpdaterChild? Child { get { Reads++; return Reads == 1 ? first : null; } }
+    }
+    public sealed class PatchUpdaterChild { public int Value { get; set; } }
+    public sealed class PatchUpdaterChildTarget { public int Value { get; set; } }
+    public sealed class PatchUpdaterTarget { public PatchUpdaterChildTarget Child { get; } = new PatchUpdaterChildTarget(); }
 }
