@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #47: configured nullable updater captures (2026-10-09)
+
+- Non-semantic repair under specification sections 9.4, 11.4, 14.4, 16.1 and 16.3. A patch pattern capture unwraps Nullable<T>; both automatic and configured source paths must restore the selected source type at invocation so C# overload binding matches generator resolution.
+- Extend the existing direct-member cast condition to configured captures. Do not change updater selection, receiver dispatch, Throw-policy captures, update ordering, public API or specification semantics.
+- Tests preserve explicit Use and Source-only default selection, direct/dotted and nullable-intermediate paths, void/returning methods, identity/replacement, null skipping, changing getters, and non-nullable-leaf/non-patch controls. The separate enum-path issue #48 is untouched.
+
+
 ## Issue #32: immutable diagnostic paths with an inline first segment (2026-10-09)
 
 - Context: each tracked member descent concatenated the complete prefix even when mapping succeeded. Current-develop measurements confirm increasing allocation at safe depths; collection bodies and acyclic/value bridges must retain the same path without adding segments.

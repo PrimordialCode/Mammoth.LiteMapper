@@ -134,6 +134,156 @@ namespace Mammoth.LiteMapper.Generator.Tests
             Assert.AreEqual(1, actual[0], "Nullable value getters must be captured exactly once too.");
         }
 
+        [TestMethod]
+        [DataRow("Child", "explicit-void", "present")]
+        [DataRow("Child", "explicit-void", "null")]
+        [DataRow("Child", "explicit-void", "changing")]
+        [DataRow("Child", "explicit-void", "null-second")]
+        [DataRow("Child", "explicit-return", "present")]
+        [DataRow("Child", "explicit-return", "null")]
+        [DataRow("Child", "explicit-return", "changing")]
+        [DataRow("Child", "explicit-return", "null-second")]
+        [DataRow("Container.Child", "explicit-void", "present")]
+        [DataRow("Container.Child", "explicit-void", "null")]
+        [DataRow("Container.Child", "explicit-void", "changing")]
+        [DataRow("Container.Child", "explicit-void", "null-second")]
+        [DataRow("Container.Child", "explicit-return", "present")]
+        [DataRow("Container.Child", "explicit-return", "null")]
+        [DataRow("Container.Child", "explicit-return", "changing")]
+        [DataRow("Container.Child", "explicit-return", "null-second")]
+        [DataRow("Container.Child", "explicit-void", "missing-container")]
+        [DataRow("Container.Child", "explicit-return", "missing-container")]
+        public void ConfiguredNullableValueCapturePreservesSelectedUpdaterOverload(string path, string updaterKind, string getter)
+        {
+            var result = Run(NullableOverloadFixture(path, updaterKind));
+            var skipped = getter == "null" || getter == "missing-container";
+            CollectionAssert.AreEqual(new[] { getter == "missing-container" ? 0 : 1, skipped ? 0 : 1, skipped ? 42 : 7, 1 },
+                Execute<int[]>(result, getter),
+                "Explicit source-path selection must preserve the nullable overload and evaluate each guarded segment only once.");
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void ConfiguredNullableOverloadRetainsGetOnlyOrReturnedReplacement(bool replacement)
+        {
+            var source = NullableOverloadFixture("Container.Child", "explicit-return");
+            if (replacement)
+            {
+                source = source.Replace("target.Value = source?.Value ?? -1; return target;", "return new ChildTarget { Value = source?.Value ?? -1 };")
+                    .Replace("object.ReferenceEquals(child, target.Child)", "!object.ReferenceEquals(child, target.Child)");
+            }
+            else
+            {
+                source = source.Replace("public ChildTarget Child { get; set;", "public ChildTarget Child { get;");
+            }
+            CollectionAssert.AreEqual(new[] { 1, replacement ? 0 : 1, 7, 1 }, Execute<int[]>(Run(source), "null-second"),
+                "A selected returning updater must retain get-only mutation or writable replacement semantics.");
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void ConfiguredNullableOverloadRetainsInstanceAndExternalReceiver(bool external)
+        {
+            var source = NullableOverloadFixture("Container.Child", "explicit-void");
+            if (external)
+            {
+                source = source.Replace("Use = nameof(ApplyChild)", "Use = nameof(External.ApplyChild), ConverterType = typeof(External)")
+                    .Replace("    public static partial Target Apply(Source source, Target target);", "    public static partial Target Apply(Source source, Target target);\n}\npublic static class External\n{")
+                    .Replace("private static void ApplyChild", "public static void ApplyChild");
+            }
+            else
+            {
+                source = source.Replace("public static partial class Mapper", "public partial class Mapper")
+                    .Replace("public static partial Target Apply", "public partial Target Apply")
+                    .Replace("private static void ApplyChild", "private void ApplyChild")
+                    .Replace("Mapper.Apply(source, target)", "new Mapper().Apply(source, target)");
+            }
+            CollectionAssert.AreEqual(new[] { 1, 1, 7, 1 }, Execute<int[]>(Run(source), "changing"),
+                "The selected receiver and overload must both survive the configured patch capture.");
+        }
+
+        [TestMethod]
+        public void ConfiguredNullableOverloadRemainsDeterministic()
+        {
+            var source = NullableOverloadFixture("Container.Child", "explicit-void");
+            var first = Run(source);
+            Assert.AreEqual(first.Source, Run(source).Source,
+                "Restoring the selected nullable type must not introduce unstable output.");
+            CollectionAssert.AreEqual(new[] { 1, 1, 7, 1 }, Execute<int[]>(first, "present"));
+        }
+
+        [TestMethod]
+        public void ConfiguredNullableOverloadRetainsNonPatchControl()
+        {
+            var source = NullableOverloadFixture("Child", "explicit-void")
+                .Replace("IgnoreNullSourceMembers = true", "NullableMismatch = NullableMismatchPolicy.Throw");
+            CollectionAssert.AreEqual(new[] { 1, 1, 7, 1 }, Execute<int[]>(Run(source), "present"));
+            CollectionAssert.AreEqual(new[] { 1, 1, -1, 1 }, Execute<int[]>(Run(source), "null"),
+                "Without patch skipping, the selected nullable updater must still receive null.");
+        }
+
+        [TestMethod]
+        [DataRow("Child")]
+        [DataRow("Container.Child")]
+        public void ConfiguredSourceOnlyPreservesDefaultNullableUpdater(string path)
+        {
+            var source = NullableOverloadFixture(path, "explicit-void")
+                .Replace(", Use = nameof(ApplyChild)", "")
+                .Replace("private static void ApplyChild(ChildSource? source", "[DefaultMapping] private static void ApplyChild(ChildSource? source")
+                .Replace("public ChildTarget Child { get; set;", "public ChildTarget Child { get;");
+            CollectionAssert.AreEqual(new[] { 1, 1, 7, 1 }, Execute<int[]>(Run(source), "changing"),
+                "Configuring only Source must preserve a selected nullable default updater too.");
+        }
+
+        [TestMethod]
+        [DataRow("present")]
+        [DataRow("missing-container")]
+        public void NullableIntermediateDoesNotChangeNonNullableLeafOverload(string getter)
+        {
+            var source = NullableOverloadFixture("Container.Child", "explicit-void")
+                .Replace("public ChildSource? Child", "public ChildSource Child")
+                .Replace("if (behavior == \"null\") return null;", "")
+                .Replace("return behavior == \"null-second\" ? null : new ChildSource { Value = 99 };", "return new ChildSource { Value = 99 };");
+            var skipped = getter == "missing-container";
+            CollectionAssert.AreEqual(new[] { skipped ? 0 : 1, skipped ? 0 : 1, skipped ? 42 : 99, 1 },
+                Execute<int[]>(Run(source), getter),
+                "A nullable intermediate must not make a non-nullable terminal member choose the nullable overload.");
+        }
+
+        [TestMethod]
+        public void ConfiguredNullableOverloadRetainsSequentialFailureBehavior()
+        {
+            var source = NullableOverloadFixture("Container.Child", "explicit-void")
+                .Replace("public ChildSource? Child", "public int Alpha => 3;\n    public int Later => throw Probe.Failure;\n    public int Zulu => throw new Exception(\"Later member must not run.\");\n    public ChildSource? Child")
+                .Replace("public sealed class Target\n{", "public sealed class Target\n{\n    public int Alpha { get; set; }\n    public int Later { get; set; } = 51;\n    public int Zulu { get; set; } = 61;")
+                .Replace("public static class Probe\n{", "public static class Probe\n{\n    public static readonly Exception Failure = new Exception(\"Expected failure.\");")
+                .Replace("var returned = Mapper.Apply(source, target);", @"
+        try { Mapper.Apply(source, target); throw new Exception(""Expected failure was lost.""); }
+        catch (Exception error) when (object.ReferenceEquals(error, Failure)) { }
+        var returned = target;
+        if (target.Alpha != 3 || target.Later != 51 || target.Zulu != 61)
+            throw new Exception(""Member updates lost their sequential failure behavior."");");
+            CollectionAssert.AreEqual(new[] { 1, 1, 7, 1 }, Execute<int[]>(Run(source), "null-second"),
+                "The configured capture must stay inside its member update and preserve prior mutations on later failure.");
+        }
+
+        private static string NullableOverloadFixture(string path, string updaterKind)
+        {
+            var source = Fixture(updaterKind)
+                .Replace("Source = nameof(Source.Child)", "Source = \"" + path + "\"")
+                .Replace("public sealed class ChildSource", "public struct ChildSource")
+                .Replace("ApplyChild(ChildSource source", "ApplyChild(ChildSource? source")
+                .Replace("target.Value = source.Value;", "target.Value = source?.Value ?? -1;")
+                .Replace("public sealed class Source\n{", "public sealed class Source\n{\n    private int containerReads;\n    public Source? Container { get { if (++containerReads > 1) throw new Exception(\"Container read twice.\"); return behavior == \"missing-container\" ? null : this; } }")
+                .Replace("    public static partial Target Apply(Source source, Target target);", "    public static partial Target Apply(Source source, Target target);\n    private static " +
+                    (updaterKind.EndsWith("return", StringComparison.Ordinal) ? "ChildTarget" : "void") +
+                    " ApplyChild(ChildSource source, ChildTarget target) { target.Value = 99;" +
+                    (updaterKind.EndsWith("return", StringComparison.Ordinal) ? " return target;" : "") + " }");
+            return source;
+        }
+
         private static string Fixture(string updaterKind)
         {
             var returns = updaterKind.EndsWith("return", StringComparison.Ordinal);
