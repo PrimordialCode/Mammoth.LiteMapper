@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #48: effective nullability at the enum boundary (2026-10-09)
+
+- Context: a configured source path can evaluate to null even when its terminal enum symbol is non-nullable. Enum lowering previously considered only Nullable<T> symbol wrappers, so a missing reference intermediate entered by-name unknown-value handling or a by-value unwrapping cast.
+- Decision: carry effective expression nullability into the selected built-in enum stage, separately from symbol unwrapping, and reuse its existing single-evaluation nullable wrapper. Recursive underlying enum lowering clears the path flag. Earlier converter/language resolution and existing mismatch/patch guards retain their ordering.
+- Required patch construction: mark successful built-in enum conversions so a required nullable enum initializer can re-lower the original nullable source path instead of substituting it into an unwrapped patch expression. This does not reselect converters or change the normal existing-target assignment. A nullable-input converter control continues to receive null.
+- Contract: sections 9.4, 11.1/11.4, 12.4, 13, 14.3, and 16.1/16.3 already require these semantics. No public API, diagnostic contract, or specification change is introduced. Nullable<T> intermediate traversal resolution is separate; this repair covers supported nullable-reference paths, including subsequent value/tuple fields.
+- Evidence: the completed initial 70-case enum fixture has 28 failures and 42 controls on unchanged production. Four additional required-initializer cases fail the first candidate while the explicit converter control passes. All 184 related focused cases pass after the scoped repair; full evidence belongs in STATUS and the PR.
+
 ## Issue #47: configured nullable updater captures (2026-10-09)
 
 - Non-semantic repair under specification sections 9.4, 11.4, 14.4, 16.1 and 16.3. A patch pattern capture unwraps Nullable<T>; both automatic and configured source paths must restore the selected source type at invocation so C# overload binding matches generator resolution.

@@ -56,13 +56,15 @@ namespace Mammoth.LiteMapper.Packaging.Tests
                 Path.Combine(consumer, "LazyCyclePathExample.cs"));
             File.Copy(Repository.Path("samples/Mammoth.LiteMapper.Samples.Basic/ConfiguredUpdaterOverloadExample.cs"),
                 Path.Combine(consumer, "ConfiguredUpdaterOverloadExample.cs"));
+            File.Copy(Repository.Path("samples/Mammoth.LiteMapper.Samples.Basic/NullableEnumPathExample.cs"),
+                Path.Combine(consumer, "NullableEnumPathExample.cs"));
             PackageSources(packageFeed, "https://api.nuget.org/v3/index.json")
                 .Save(Path.Combine(directory, "NuGet.Config"));
 
             Milestone14PackagingAndAotTests.RunDotnet("restore --no-cache", consumer);
             Milestone14PackagingAndAotTests.RunDotnet("build -c Release --no-restore", consumer);
             var generated = Directory.GetFiles(Path.Combine(consumer, "obj", "generated"), "*.g.cs", SearchOption.AllDirectories);
-            Assert.AreEqual(13, generated.Length, "All thirteen mapper containers must generate in " + framework + "/" + language + ".");
+            Assert.AreEqual(14, generated.Length, "All fourteen mapper containers must generate in " + framework + "/" + language + ".");
             var setSource = File.ReadAllText(generated.Single(static file => Path.GetFileName(file).StartsWith(
                 "Mammoth.LiteMapper.Samples.Collections.PortableSetMapper.", StringComparison.Ordinal)));
             StringAssert.Contains(setSource, "new global::System.Collections.Generic.HashSet<long>(" +
@@ -195,6 +197,7 @@ public static class MatrixFixture
         Mammoth.LiteMapper.Samples.Collections.DictionaryComparerExample.Run();
         Mammoth.LiteMapper.Samples.Basic.LazyCyclePathExample.Run();
         Mammoth.LiteMapper.Samples.Basic.ConfiguredUpdaterOverloadExample.Run();
+        Mammoth.LiteMapper.Samples.Basic.NullableEnumPathExample.Run();
         EnumPathExample.Run();
         PatchUpdaterExample.Run();
         if (Environment.Version.Major != EXPECTED_RUNTIME_MAJOR) throw new InvalidOperationException(""Wrong runtime was used."");

@@ -882,7 +882,7 @@ public static partial class EnumPathMapper
 
 For this non-null enum target, `Ready = 1` maps by name to `Ready = 10`, a missing `Child` follows the Throw policy, and an unknown value throws `ArgumentOutOfRangeException` with `ParamName` equal to `Child.State` and the original enum in `ActualValue`. Root mappings retain their declared parameter name; direct members retain their source-member name. Exception metadata does not cause another getter evaluation.
 
-Known limitation: a nullable intermediate with a non-nullable enum leaf mapped to a nullable enum target still throws when the intermediate is null. Null preservation for this specific configured-path shape is not yet supported correctly.
+For a nullable enum target, a missing reference intermediate preserves null even when the enum leaf is non-nullable. The Basic sample's `NullableEnumPathExample.cs` demonstrates creation, constructor binding, existing-target updates, and patch skipping for `Child.State`. By-name mapping converts `Ready = 1` to `Ready = 10` and retains the exception metadata above for unknown non-null values; by-value mapping preserves null and converts the underlying value according to the enum numeric policy. Explicit converters still take precedence and a nullable-input converter receives a missing path as null.
 
 ## Recursive mappings and cycle detection
 

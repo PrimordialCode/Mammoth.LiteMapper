@@ -116,6 +116,8 @@ An unknown-count enumerable-to-array mapping may allocate a temporary growing bu
 
 Enum defaults are `EnumMappingStrategy.ByName`, `UnmatchedEnumValuePolicy.Error`, and `EnumNumericConversion.Checked`. Names match exactly. `Throw` permits unmatched names with runtime `ArgumentOutOfRangeException`; by-value conversion uses the independent enum numeric policy. Domain-specific enum semantics belong in a converter.
 
+In development revisions containing the nullable enum-path repair, a missing reference intermediate in `Child.State` maps to null when the destination enum is nullable, even when `State` is non-nullable. By-name unknown values still throw with the configured path and original value; by-value preserves null before numeric conversion. A nullable-input explicit converter still receives null. Verify the installed revision before relying on this shape; the published 3.0.0 generator may fail to compile the guarded path.
+
 `ReferenceHandling.ThrowOnCycle` detects active-path reference cycles in recursive generated mappings and throws `LiteMapperCycleException`. Shared references on separate branches are not cycles and identity is not preserved. Without tracking, recursive runtime cycles can overflow the stack. The exception exposes `SourceType`, `DestinationType`, `MappingMethod`, and `MemberPath`.
 
 Recursive declared mappings share one tracker. For an `A -> B -> A` component implemented by generated `MapA` and `MapB`, the cycle reports `MapA` at `B.A`. Value helpers forward tracker state but are not entered or boxed; a finite class-to-struct-to-class path maps normally.
