@@ -54,7 +54,7 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             Milestone14PackagingAndAotTests.RunDotnet("restore --no-cache", consumer);
             Milestone14PackagingAndAotTests.RunDotnet("build -c Release --no-restore", consumer);
             var generated = Directory.GetFiles(Path.Combine(consumer, "obj", "generated"), "*.g.cs", SearchOption.AllDirectories);
-            Assert.AreEqual(4, generated.Length, "All four mapper containers must generate in " + framework + "/" + language + ".");
+            Assert.AreEqual(5, generated.Length, "All five mapper containers must generate in " + framework + "/" + language + ".");
 
             var executable = consumer;
             if (standard)
@@ -157,6 +157,24 @@ public static class MatrixFixture
             throw new InvalidOperationException(""The configured root guard was not emitted."");
         }
         catch (ArgumentNullException) { }
+        var sharedNode = new NodeSource();
+        var wrapped = new WrappedSource { Envelope = new EnvelopeSource { Nodes = new[] { sharedNode, sharedNode } } };
+        var wrappedTarget = WrappedCycleMapper.Map(wrapped);
+        if (wrappedTarget.Envelope.Nodes.Count != 2 ||
+            ReferenceEquals(wrappedTarget.Envelope.Nodes[0], wrappedTarget.Envelope.Nodes[1]))
+        {
+            throw new InvalidOperationException(""Wrapped mapping failed."");
+        }
+        sharedNode.Next = sharedNode;
+        try
+        {
+            WrappedCycleMapper.Map(wrapped);
+            throw new InvalidOperationException(""Wrapped cycle detection failed."");
+        }
+        catch (LiteMapperCycleException error) when (
+            error.MappingMethod == ""Map"" && error.MemberPath == ""Envelope.Nodes.Next"")
+        {
+        }
         var node = new NodeSource();
         node.Next = node;
         try
@@ -200,6 +218,33 @@ public sealed class Target
 }
 public sealed class ChildSource { public int Value { get; set; } }
 public sealed class ChildTarget { public int Value { get; set; } }
+[LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)]
+public static partial class WrappedCycleMapper
+{
+    public static partial WrappedTarget Map(WrappedSource source);
+}
+
+public sealed class WrappedSource
+{
+    public EnvelopeSource Envelope { get; set; } = new EnvelopeSource();
+}
+
+public sealed class WrappedTarget
+{
+    public EnvelopeTarget Envelope { get; set; } = new EnvelopeTarget();
+}
+
+public sealed class EnvelopeSource
+{
+    public NodeSource[] Nodes { get; set; } = new NodeSource[0];
+}
+
+public sealed class EnvelopeTarget
+{
+    public List<NodeTarget> Nodes { get; set; } = new List<NodeTarget>();
+}
+
+
 public sealed class NodeSource { public NodeSource? Next { get; set; } }
 public sealed class NodeTarget { public NodeTarget? Next { get; set; } }
 ";

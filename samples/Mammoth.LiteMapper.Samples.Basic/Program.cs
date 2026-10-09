@@ -37,6 +37,25 @@ namespace Mammoth.LiteMapper.Samples.Basic
                 throw new InvalidOperationException("Instance mapping failed.");
             }
 
+            var sharedNode = new NodeSource();
+            var wrapped = new WrappedSource { Envelope = new EnvelopeSource { Nodes = new[] { sharedNode, sharedNode } } };
+            var wrappedTarget = WrappedCycleMapper.Map(wrapped);
+            if (wrappedTarget.Envelope.Nodes.Count != 2 ||
+                ReferenceEquals(wrappedTarget.Envelope.Nodes[0], wrappedTarget.Envelope.Nodes[1]))
+            {
+                throw new InvalidOperationException("Wrapped mapping failed.");
+            }
+            sharedNode.Next = sharedNode;
+            try
+            {
+                WrappedCycleMapper.Map(wrapped);
+                throw new InvalidOperationException("Wrapped cycle detection failed.");
+            }
+            catch (LiteMapperCycleException error) when (
+                error.MappingMethod == "Map" && error.MemberPath == "Envelope.Nodes.Next")
+            {
+            }
+
             var node = new NodeSource();
             node.Next = node;
             try
@@ -130,6 +149,32 @@ namespace Mammoth.LiteMapper.Samples.Basic
     public sealed class FormattedChildTarget
     {
         public string Value { get; set; } = string.Empty;
+    }
+
+    [LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)]
+    public static partial class WrappedCycleMapper
+    {
+        public static partial WrappedTarget Map(WrappedSource source);
+    }
+
+    public sealed class WrappedSource
+    {
+        public EnvelopeSource Envelope { get; set; } = new EnvelopeSource();
+    }
+
+    public sealed class WrappedTarget
+    {
+        public EnvelopeTarget Envelope { get; set; } = new EnvelopeTarget();
+    }
+
+    public sealed class EnvelopeSource
+    {
+        public NodeSource[] Nodes { get; set; } = new NodeSource[0];
+    }
+
+    public sealed class EnvelopeTarget
+    {
+        public List<NodeTarget> Nodes { get; set; } = new List<NodeTarget>();
     }
 
     public sealed class NodeSource
