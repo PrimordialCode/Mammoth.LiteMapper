@@ -4,6 +4,7 @@
 
 ## Fixes
 
+- Issue #24: partial mappers with framework attributes or `UseMapper` on another part now generate once; genuine duplicate `LiteMapper` configuration still reports one fatal diagnostic. [#24](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/24)
 - Issue #23: explicit omitted-`Source` converters receive the root object before automatic source-member matching in new-object, constructor-bound, and update mappings. Unrelated source names and patch getters no longer override that selection. [#23](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/23)
 - Issue #22: generated nested and collection helpers preserve the calling mapper instance for stateful converters and mappings, while instance-free helpers remain static. Static entry methods no longer select instance-only mappings. [#22](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/22)
 - Issue #21: nested and collection helpers retain each entry method's effective mapping policies and nullable shape. Equivalent recursive helpers remain shared while preserving the initiating entry's cycle metadata. [#21](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/21)

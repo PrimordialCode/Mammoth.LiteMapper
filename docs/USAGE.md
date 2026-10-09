@@ -24,6 +24,8 @@ Normal consumers reference the primary package only:
 
 A generated mapper is a partial method inside a class marked with `[LiteMapper]`.
 
+Apply `[LiteMapper]` once across the mapper's partial declarations. Other parts may contain mapping methods, `[UseMapper]` registrations, or unrelated attributes. LiteMapper combines those parts into one generated file. Repeating `[LiteMapper]` is invalid and reports `LITEMAPPER0013`. The Basic sample includes a separate partial part with `[DebuggerDisplay]`.
+
 From `samples/Mammoth.LiteMapper.Samples.Basic/Program.cs`:
 
 ```csharp

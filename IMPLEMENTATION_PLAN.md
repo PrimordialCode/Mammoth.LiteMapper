@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #24: one discovery per partial mapper (2026-10-09)
+
+- Scope: a single marker-owning declaration per mapper symbol, retaining the established incremental candidate identity. Other partial declarations may carry framework attributes or UseMapper registrations without duplicating planning, diagnostics, or generated source. Genuine duplicate LiteMapper markers remain invalid.
+- Test-first: 24 focused same-file/multi-file partial-declaration, registration, diagnostic, planning-count, alias, ordering, and same-driver cases produced 23 failures and one control on unchanged production. The Basic sample independently failed CS8785/CS8795 after adding another attributed partial part. Clean-package validation exercises the same sample.
+- Implementation: a minimal discovery-boundary change that preserves merged symbol validation and existing per-mapper emission equality. No compilation-wide deduplication or mutable generator state.
+- Validation: focused and full generator tests, runtime/integration checks, source samples and available packaging checks; independent review and exact-head ordinary PR CI. Record unavailable toolchain stages separately.
+- Boundary: issue #24 only, no public API or specification semantics change. Stop at draft PR/human review; no merge, release, tag, package publication, or workflow dispatch.
+
 ## Issue #23: explicit root-source converter priority (2026-10-08)
 
 - Scope: select omitted-`Source` explicit `Use` configuration before automatic source-member matching in new-object, constructor-bound, and existing-target planning. Keep source-path selection and converter validation intact.
