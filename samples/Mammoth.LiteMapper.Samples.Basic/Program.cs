@@ -10,6 +10,7 @@ namespace Mammoth.LiteMapper.Samples.Basic
         {
             LazyCyclePathExample.Run();
             ConfiguredUpdaterOverloadExample.Run();
+            NullableEnumPathExample.Run();
             EnumPathExample.Run();
             PatchUpdaterExample.Run();
             var staticTarget = StaticMapper.Map(new StaticSource
