@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #28: IgnoreCase member ambiguity (2026-10-09)
+
+- Scope: apply unique ordinal-ignore-case matching without exact-match priority to automatic source members. Preserve Exact and ExactThenIgnoreCase, constructor matching, hidden-member selection, and explicit configuration precedence.
+- Test-first: cover new-object, update, nested creation/update, properties, fields, class/interface inheritance, diagnostics and omitted invalid implementations. Retain constructor and successful exact/unique-match controls.
+- Implementation: align the shared member matcher with the existing constructor matcher; preserve the specific ambiguity diagnostic when structural helper planning fails.
+- Validation: focused/full generator, runtime/integration, source samples, available package/consumer/API/benchmark checks, independent review, and exact-head ordinary Windows/Linux and Roslyn CI.
+- Boundary: issue #28 only, no public API or specification semantics change. No merge, release, tag, package publication, or workflow dispatch. Stop at draft PR/human review. AgentStack CLI is absent; authorized connector fallback adds/readbacks readiness labels without issue comments or claim writes.
+
 ## Issue #27: stable enum exception names (2026-10-09)
 
 - Scope: separate by-name enum exception metadata from rendered value expressions. Preserve root parameter/direct source-member names; configured source paths remain identifiable even after null guards or captures.

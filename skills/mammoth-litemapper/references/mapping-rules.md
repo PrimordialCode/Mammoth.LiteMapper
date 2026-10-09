@@ -83,6 +83,8 @@ Options resolve method `[MappingOptions]`, mapper `[LiteMapper]`, assembly `[Lit
 
 For an opt-in strict source-completeness boundary, set `UnmappedSourceMembers` to `Error` at mapper, method, or assembly scope. This reports unused readable source members as configurable `LITEMAPPER1003` diagnostics naming the member; use `Warning` or `Info` to stage adoption and `IgnoreSource` for intentional exclusions. The default remains `Ignore` because source models can contain fields that are not part of a given destination contract. Source completeness does not weaken target completeness or mandatory target errors.
 
+Name matching uses ordinal comparisons. `Exact` accepts only an exact name; `ExactThenIgnoreCase` prefers exact and otherwise requires a unique case-insensitive match. `IgnoreCase` requires a unique case-insensitive match without exact priority: source `Value` plus `value` targeting `Value` reports non-configurable `LITEMAPPER1004`, including in updates and nested structural mapping. Explicit `MapProperty.Source` can disambiguate. Constructor parameters follow the same policy; hidden members are resolved before matching.
+
 ## Nulls and updates
 
 - Nullable-to-non-null values default to a compile-time error. `NullableMismatchPolicy.Throw` requests runtime validation. Nullable source and nullable result preserve root null.

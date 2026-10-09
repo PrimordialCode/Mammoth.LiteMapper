@@ -79,6 +79,44 @@ namespace Mammoth.LiteMapper.Packaging.Tests
         }
 
         [TestMethod]
+        [DataRow("netstandard2.0")]
+        [DataRow("net8.0")]
+        [DataRow("net9.0")]
+        [DataRow("net10.0")]
+        public void PackageIgnoreCaseAmbiguityRejectsExactMatches(string framework)
+        {
+            var directory = Path.Combine(Path.GetTempPath(), "MammothLiteMapperIgnoreCase", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            var properties = Properties(framework, "9.0", Path.Combine(directory, ".packages"));
+            properties.Add(new XElement("EmitCompilerGeneratedFiles", "true"),
+                new XElement("CompilerGeneratedFilesOutputPath", "obj/generated"));
+            new XDocument(new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"), properties,
+                new XElement("ItemGroup", new XElement("PackageReference",
+                    new XAttribute("Include", "Mammoth.LiteMapper"), new XAttribute("Version", "1.0.0")))))
+                .Save(Path.Combine(directory, "Consumer.csproj"));
+            File.WriteAllText(Path.Combine(directory, "Consumer.cs"), @"
+using Mammoth.LiteMapper;
+[LiteMapper(NameMatching = NameMatching.IgnoreCase)]
+public static partial class DirectMapper { public static partial Target Map(Source source); }
+[LiteMapper(NameMatching = NameMatching.IgnoreCase)]
+public static partial class NestedMapper { public static partial RootTarget Map(RootSource source); }
+public class Source { public int Value { get; set; } public int value { get; set; } }
+public class Target { public int Value { get; set; } }
+public class RootSource { public Source Child { get; set; } = new Source(); }
+public class RootTarget { public Target Child { get; set; } = new Target(); }");
+            PackageSources(packageFeed, "https://api.nuget.org/v3/index.json")
+                .Save(Path.Combine(directory, "NuGet.Config"));
+            Milestone14PackagingAndAotTests.RunDotnet("restore --no-cache", directory);
+            var result = TestProcess.Run("dotnet", "build -c Release --no-restore", directory, TimeSpan.FromSeconds(60));
+            var output = result.Output + result.Error;
+            Assert.AreNotEqual(0, result.ExitCode, "Ambiguous IgnoreCase mappings must fail compilation. " + output);
+            StringAssert.Contains(output, "LITEMAPPER1004");
+            Assert.IsFalse(output.Contains("LITEMAPPER9001", StringComparison.Ordinal), output);
+            Assert.AreEqual(0, Directory.GetFiles(Path.Combine(directory, "obj", "generated"), "*.g.cs", SearchOption.AllDirectories).Length,
+                "Neither invalid mapping may receive a generated implementation.");
+        }
+
+        [TestMethod]
         [DataRow("Mammoth.LiteMapper")]
         [DataRow("Mammoth.LiteMapper.Abstractions")]
         public void MissingLocalPackageCannotFallBackToAnotherFeed(string package)
