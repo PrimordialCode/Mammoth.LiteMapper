@@ -292,9 +292,9 @@ public static class Probe
         public void NullableInputConverterStillReceivesMissingPathAndOverridesEnumStrategy(string mode, bool explicitUse)
         {
             var source = PathFixture(mode, true, false, true)
-                .Replace("public static partial class Mapper\n{", "public static partial class Mapper\n{\n    public static int Calls;\n    " +
+                .Replace("[MapProperty(", "public static int Calls;\n    " +
                     (explicitUse ? "" : "[MappingConverter] ") +
-                    "private static To? Choose(From? value) { Calls++; return value == From.Ready ? To.Ready : To.Other; }")
+                    "private static To? Choose(From? value) { Calls++; return value == From.Ready ? To.Ready : To.Other; }\n    [MapProperty(")
                 .Replace("if (scenario == 1) return false;", "if (scenario == 1) return mapped.State == To.Other;")
                 .Replace("return mapped.State == null;", "return mapped.State == To.Other;")
                 .Replace("var source = new Source(child);", "Mapper.Calls = 0; var source = new Source(child);")
@@ -450,7 +450,7 @@ public static class Probe
                 .Replace("public To? State { get; set; }", "public required To? State { get; set; }")
                 .Replace("Mapper.Map(source, destination)", "Mapper.Map(source, null)")
                 .Replace("Target = nameof(Target.State))", "Target = nameof(Target.State), Use = nameof(Choose))")
-                .Replace("public static partial class Mapper\n{", "public static partial class Mapper\n{\n    private static To? Choose(From? value) => value == From.Ready ? To.Ready : To.Other;")
+                .Replace("[MapProperty(", "private static To? Choose(From? value) => value == From.Ready ? To.Ready : To.Other;\n    [MapProperty(")
                 .Replace("if (scenario == 1) return false;", "if (scenario == 1) return mapped.State == To.Other;")
                 .Replace("return object.ReferenceEquals(mapped, destination) && mapped.State == To.Other;", "return mapped.State == To.Other;");
             AssertRuns(Generate(source, LanguageVersion.CSharp11));
