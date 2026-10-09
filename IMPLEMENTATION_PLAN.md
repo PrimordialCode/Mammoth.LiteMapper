@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #29: captured patch-mode nested updater input (2026-10-09)
+
+- Scope: pass the existing per-member patch capture to direct nested updater calls so the guard and invocation consume the same value exactly once. Preserve configured paths, Throw captures, null skipping, updater selection, and per-member update order.
+- Test-first: cover declared and handwritten void/returning updaters, stable/changing/null getters, configured paths, writable/get-only targets, warning-free C# 9 output, and earlier assignments retained after later failure. Add a normally compiled/package-backed consumer example.
+- Implementation: use the already allocated direct-member capture at the updater argument boundary; no new abstraction, public API, or specification semantics.
+- Validation: focused/full generator, runtime/integration, source samples, available packaging/consumer/API/benchmark checks, independent review, and exact-head ordinary Windows/Linux and Roslyn CI.
+- Boundary: issue #29 only; stop at draft PR/human review. No merge, release, tag, package publication, or workflow dispatch. AgentStack CLI is absent; authorized connector fallback adds/readbacks readiness labels without issue comments or claim writes.
+
 ## Issue #28: IgnoreCase member ambiguity (2026-10-09)
 
 - Scope: apply unique ordinal-ignore-case matching without exact-match priority to automatic source members. Preserve Exact and ExactThenIgnoreCase, constructor matching, hidden-member selection, and explicit configuration precedence.

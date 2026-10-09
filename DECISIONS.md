@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #29: reuse direct patch captures without changing overload binding (2026-10-09)
+
+- Context: patch planning creates a single-evaluation capture for direct nullable members, but nested updater invocation used the original getter. Present values were read twice; changing getters could supply a different value or null after the guard.
+- Decision: prefer the existing patch capture before the existing Throw capture and direct expression. For direct nullable value types, cast the unwrapped pattern capture back to its original source type, preserving the updater overload that was selected from that type. Configured-path handling and per-member emission order remain unchanged.
+- Contract: sections 9.4, 11.2-11.4, 14.4, 16.1, and 16.3 already define selection, single evaluation, null skipping, and sequential failure behavior. No specification semantics or public API change is required.
+- Evidence: 34 initial generator cases on unchanged production yielded 17 failures and 17 controls, zero skips; the normally compiled Basic example independently threw NullReferenceException. A nullable-struct overload control passed on unchanged production and failed the naive one-line capture candidate (99 instead of the selected updater's 7), motivating the type-preserving cast. Final tests extend that control to present, changing, null-first, and null-second getters.
+
 ## Issue #28: apply the selected matching policy before exact priority (2026-10-09)
 
 - Context: MatchSource selected a sole exact candidate even under IgnoreCase. Constructor matching already limits exact priority to Exact and ExactThenIgnoreCase. Structural helper planning also discarded an ambiguous match without reporting its specific member diagnostic.

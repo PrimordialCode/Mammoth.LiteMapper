@@ -54,7 +54,7 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             Milestone14PackagingAndAotTests.RunDotnet("restore --no-cache", consumer);
             Milestone14PackagingAndAotTests.RunDotnet("build -c Release --no-restore", consumer);
             var generated = Directory.GetFiles(Path.Combine(consumer, "obj", "generated"), "*.g.cs", SearchOption.AllDirectories);
-            Assert.AreEqual(7, generated.Length, "All seven mapper containers must generate in " + framework + "/" + language + ".");
+            Assert.AreEqual(8, generated.Length, "All eight mapper containers must generate in " + framework + "/" + language + ".");
 
             var executable = consumer;
             if (standard)
@@ -178,6 +178,7 @@ public static class MatrixFixture
     public static void Run()
     {
         EnumPathExample.Run();
+        PatchUpdaterExample.Run();
         if (Environment.Version.Major != EXPECTED_RUNTIME_MAJOR) throw new InvalidOperationException(""Wrong runtime was used."");
         var nullableChildren = NullableElementMapper.Map(new ChildSource?[] { null, new ChildSource { Value = 7 }, null });
         if (nullableChildren.Count != 3 || nullableChildren[0] != null || nullableChildren[1]?.Value != 7 || nullableChildren[2] != null)
@@ -339,6 +340,42 @@ public enum OutputState { Ready = 10 }
 public sealed class EnumPathSource { public EnumPathChild? Child { get; set; } }
 public sealed class EnumPathChild { public InputState State { get; set; } }
 public sealed class EnumPathTarget { public OutputState State { get; set; } }
+
+public static class PatchUpdaterExample
+{
+    public static void Run()
+    {
+        var source = new PatchUpdaterSource(new PatchUpdaterChild { Value = 7 });
+        var target = new PatchUpdaterTarget();
+        var original = target.Child;
+        PatchUpdaterMapper.Apply(source, target);
+        if (source.Reads != 1 || target.Child.Value != 7 || !object.ReferenceEquals(original, target.Child))
+            throw new System.InvalidOperationException(""Patch updater must use its captured child once."");
+        var missing = new PatchUpdaterSource(null);
+        PatchUpdaterMapper.Apply(missing, target);
+        if (missing.Reads != 1 || target.Child.Value != 7 || !object.ReferenceEquals(original, target.Child))
+            throw new System.InvalidOperationException(""A null patch child must preserve the existing destination."");
+    }
+}
+
+[LiteMapper(IgnoreNullSourceMembers = true)]
+public static partial class PatchUpdaterMapper
+{
+    public static partial void Apply(PatchUpdaterSource source, PatchUpdaterTarget target);
+    public static partial void ApplyChild(PatchUpdaterChild source, PatchUpdaterChildTarget target);
+}
+
+public sealed class PatchUpdaterSource
+{
+    private readonly PatchUpdaterChild? first;
+    public PatchUpdaterSource(PatchUpdaterChild? first) { this.first = first; }
+    public int Reads;
+    public PatchUpdaterChild? Child { get { Reads++; return Reads == 1 ? first : null; } }
+}
+public sealed class PatchUpdaterChild { public int Value { get; set; } }
+public sealed class PatchUpdaterChildTarget { public int Value { get; set; } }
+public sealed class PatchUpdaterTarget { public PatchUpdaterChildTarget Child { get; } = new PatchUpdaterChildTarget(); }
+
 
 ";
     }

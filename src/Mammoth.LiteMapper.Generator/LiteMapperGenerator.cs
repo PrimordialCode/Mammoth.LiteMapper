@@ -766,7 +766,12 @@ namespace Mammoth.LiteMapper.Generator
                                 ? escapedSourceName
                                 : selected != null
                                     ? sourcePathCaptureName ?? throwCaptureName ?? BuildNullSafeSourcePathExpression(source.Name, selected)
-                                    : throwCaptureName ?? escapedSourceName + "." + EscapeIdentifier(match.Member.Name);
+                                    : sourcePathCaptureName ?? throwCaptureName ?? escapedSourceName + "." + EscapeIdentifier(match.Member.Name);
+                            if (selected == null && sourcePathCaptureName != null && nestedSourceType.IsValueType)
+                            {
+                                // A pattern capture unwraps Nullable<T>; retain the selected input type for overload binding.
+                                argument = "(" + DisplayType(nestedSourceType) + ")" + argument;
+                            }
                             string? updaterGuard = null;
                             PreconditionModel? updaterPrecondition = null;
                             if (sourceMayBeNull)
