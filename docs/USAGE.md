@@ -681,6 +681,12 @@ public static partial class CollectionMapper
 {
     public static partial OrderTarget Map(OrderSource source);
 }
+
+[LiteMapper]
+public static partial class NullableLineMapper
+{
+    public static partial List<LineTarget?> MapNullableLines(LineSource?[] source);
+}
 ```
 
 Supported collection mapping includes:
@@ -691,6 +697,8 @@ Supported collection mapping includes:
 - dictionaries including `Dictionary<TKey, TValue>` and dictionary interfaces;
 - nested collections and collections of nested objects;
 - dictionary key and value conversion.
+
+Nullable structural elements preserve null without calling an object-mapping helper. In the Collections sample, `MapNullableLines` maps a three-element source containing null, a line with quantity 7, and null to three elements with the same null positions and mapped quantity. This also applies to dictionary values and nested collections. Mapping a nullable element to a non-null target reports `LITEMAPPER2003` under `NullableMismatchPolicy.Error`; `Throw` checks the element before mapping and raises `InvalidOperationException` with its source element path. `NullCollectionStrategy.Empty` applies to the collection itself and does not replace or remove null object elements.
 
 LiteMapper enumerates arbitrary enumerable sources once. Capacity is preallocated only when cheap count or length information is available. Comparers are preserved for compatible set and dictionary shapes. Unsupported shapes include custom collections, immutable collections, queues, stacks, and rectangular multidimensional arrays.
 

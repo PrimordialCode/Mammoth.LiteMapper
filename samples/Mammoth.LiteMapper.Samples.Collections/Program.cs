@@ -8,6 +8,16 @@ namespace Mammoth.LiteMapper.Samples.Collections
     {
         private static void Main()
         {
+            var nullableLines = NullableLineMapper.MapNullableLines(new LineSource?[]
+            {
+                null, new LineSource { Sku = "A", Quantity = 7 }, null,
+            });
+            if (nullableLines.Count != 3 || nullableLines[0] != null ||
+                nullableLines[1]?.Quantity != 7 || nullableLines[2] != null)
+            {
+                throw new InvalidOperationException("Nullable collection elements were not preserved.");
+            }
+
             var target = CollectionMapper.Map(new OrderSource
             {
                 Id = 100,
@@ -39,6 +49,12 @@ namespace Mammoth.LiteMapper.Samples.Collections
     public static partial class CollectionMapper
     {
         public static partial OrderTarget Map(OrderSource source);
+    }
+
+    [LiteMapper]
+    public static partial class NullableLineMapper
+    {
+        public static partial List<LineTarget?> MapNullableLines(LineSource?[] source);
     }
 
     public sealed class OrderSource

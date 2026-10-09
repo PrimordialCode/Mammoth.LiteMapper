@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #26: nullable structural collection elements (2026-10-09)
+
+- Scope: preserve null elements when structurally mapping distinct source/destination classes; apply the element Error/Throw policy before a non-null structural helper is invoked. Cover arrays, lists, enumerable/interface targets, dictionary values, nested collections, and existing member/update paths.
+- Test-first: add compiling contract fixtures, prove runtime and generated-warning failures on unchanged develop, and retain Error-policy controls before editing production.
+- Implementation: apply the null boundary only after the structural fallback has been selected. Reuse deterministic capture naming, existing helper signatures, and cycle/instance plumbing; preserve higher-precedence converter behavior and single evaluation.
+- Validation: focused/full generator checks, runtime/integration, source and clean-package samples, consumer framework/language matrix, available packaging checks, independent review, and ordinary exact-head PR CI. Disclose unavailable local stages separately.
+- Boundary: issue #26 only. No public API or specification semantics change, other issue, merge, release, tag push, package publication, or workflow dispatch. Stop at draft PR/human review.
+
 ## Issue #25: cycle context through acyclic bridges (2026-10-09)
 
 - Scope: separate cycle-context forwarding from active-path vertex tracking. Acyclic object, struct, and collection bridges carry the initiating entry's tracker, member path, and method name to recursive helpers without entering the tracker themselves.

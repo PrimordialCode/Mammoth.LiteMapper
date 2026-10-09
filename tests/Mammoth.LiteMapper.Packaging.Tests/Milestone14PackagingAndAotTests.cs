@@ -223,6 +223,12 @@ if (attribute.NameMatching != NameMatching.Unspecified)
 using System.Collections.Generic;
 using Mammoth.LiteMapper;
 
+var nullableChildren = NullableElementMapper.Map(new ChildSource?[] { null, new ChildSource { Value = 7 }, null });
+if (nullableChildren.Count != 3 || nullableChildren[0] != null || nullableChildren[1]?.Value != 7 || nullableChildren[2] != null)
+{
+    throw new System.InvalidOperationException(""Nullable structural elements were not preserved."");
+}
+
 var target = StaticMapper.ToTarget(new Source
 {
     Name = ""Ada"",
@@ -315,6 +321,12 @@ public sealed class Target
     public string? Name { get; set; }
     public int[] Scores { get; set; } = new int[0];
     public List<ChildTarget> Children { get; set; } = new List<ChildTarget>();
+}
+
+[LiteMapper]
+public static partial class NullableElementMapper
+{
+    public static partial List<ChildTarget?> Map(ChildSource?[] source);
 }
 
 public sealed class ChildSource

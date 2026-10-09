@@ -54,7 +54,7 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             Milestone14PackagingAndAotTests.RunDotnet("restore --no-cache", consumer);
             Milestone14PackagingAndAotTests.RunDotnet("build -c Release --no-restore", consumer);
             var generated = Directory.GetFiles(Path.Combine(consumer, "obj", "generated"), "*.g.cs", SearchOption.AllDirectories);
-            Assert.AreEqual(5, generated.Length, "All five mapper containers must generate in " + framework + "/" + language + ".");
+            Assert.AreEqual(6, generated.Length, "All six mapper containers must generate in " + framework + "/" + language + ".");
 
             var executable = consumer;
             if (standard)
@@ -140,6 +140,12 @@ public static class MatrixFixture
     public static void Run()
     {
         if (Environment.Version.Major != EXPECTED_RUNTIME_MAJOR) throw new InvalidOperationException(""Wrong runtime was used."");
+        var nullableChildren = NullableElementMapper.Map(new ChildSource?[] { null, new ChildSource { Value = 7 }, null });
+        if (nullableChildren.Count != 3 || nullableChildren[0] != null || nullableChildren[1]?.Value != 7 || nullableChildren[2] != null)
+        {
+            throw new System.InvalidOperationException(""Nullable structural elements were not preserved."");
+        }
+
         var source = new Source { Name = ""Ada"", Scores = new[] { 1, 2 }, Children = new[] { new ChildSource { Value = 7 } }, State = SourceState.Ready };
         var target = StaticMapper.Map(source);
         if (target.Name != ""Ada"" || target.Children.Count != 1 || target.Children[0].Value != 7 || target.State != TargetState.Ready)
@@ -216,6 +222,12 @@ public sealed class Target
     public List<ChildTarget> Children { get; set; } = new List<ChildTarget>();
     public TargetState State { get; set; }
 }
+[LiteMapper]
+public static partial class NullableElementMapper
+{
+    public static partial List<ChildTarget?> Map(ChildSource?[] source);
+}
+
 public sealed class ChildSource { public int Value { get; set; } }
 public sealed class ChildTarget { public int Value { get; set; } }
 [LiteMapper(ReferenceHandling = ReferenceHandling.ThrowOnCycle)]
