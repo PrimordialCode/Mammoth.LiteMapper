@@ -9,7 +9,7 @@ static partial class Mapper
                 SourceColor.None => TargetColor.None,
                 SourceColor.Red => TargetColor.Red,
                 SourceColor.Blue => TargetColor.Blue,
-                _ => throw new global::System.ArgumentOutOfRangeException(nameof(source), source, "Unmapped enum value.")
+                _ => throw new global::System.ArgumentOutOfRangeException("source", source, "Unmapped enum value.")
             };
     }
 }

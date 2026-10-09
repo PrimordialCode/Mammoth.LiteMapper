@@ -32,7 +32,7 @@ public enum TargetColor { None = 0, Red = 10, Blue = 20 }
             var generated = SingleGeneratedSource(result.RunResult);
             StringAssert.Contains(generated, "source switch");
             StringAssert.Contains(generated, "SourceColor.Red => TargetColor.Red");
-            StringAssert.Contains(generated, "throw new global::System.ArgumentOutOfRangeException(nameof(source), source, \"Unmapped enum value.\")");
+            StringAssert.Contains(generated, "throw new global::System.ArgumentOutOfRangeException(\"source\", source, \"Unmapped enum value.\")");
             Assert.AreEqual(
                 Normalize(File.ReadAllText(Repository.Path("tests/Mammoth.LiteMapper.Generator.Tests/Snapshots/Milestone11EnumMapping.Mapper.g.cs"))),
                 Normalize(generated));

@@ -1151,7 +1151,7 @@ namespace Mammoth.LiteMapper.Generator
                 return null;
             }
 
-            var enumMapping = ResolveEnumMapping(mappingMethod, sourceType, targetType, expression, sourceMember, sourcePath?.Expression ?? targetMember.Name, diagnostics, location, options);
+            var enumMapping = ResolveEnumMapping(mappingMethod, sourceType, targetType, expression, sourceMember, sourcePath?.Expression ?? targetMember.Name, sourcePath?.Expression ?? sourceMember!.Name, diagnostics, location, options);
             if (enumMapping != null || diagnostics.Count != languageDiagnosticCount)
             {
                 return enumMapping;
@@ -1213,7 +1213,7 @@ namespace Mammoth.LiteMapper.Generator
                 return new ConversionModel(languageConversion, null, potentiallyNull: false, mappingMethod.Name, nullCheckExpression: null);
             }
 
-            return ResolveEnumMapping(mappingMethod, sourceType, targetType, expression, null, mappingMethod.Name, diagnostics, location, options, isRoot: true);
+            return ResolveEnumMapping(mappingMethod, sourceType, targetType, expression, null, mappingMethod.Name, mappingMethod.Parameters[0].Name, diagnostics, location, options, isRoot: true);
         }
 
         private static bool RequiresCollectionCopy(ITypeSymbol sourceType, ITypeSymbol targetType, Compilation compilation)
@@ -1300,7 +1300,7 @@ namespace Mammoth.LiteMapper.Generator
                 type.SpecialType == SpecialType.System_IntPtr || type.SpecialType == SpecialType.System_UIntPtr;
         }
 
-        private static ConversionModel? ResolveEnumMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, string targetName, ICollection<Diagnostic> diagnostics, Location? location, EffectiveMappingOptions options, bool isRoot = false, bool isElement = false)
+        private static ConversionModel? ResolveEnumMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, string targetName, string sourceValueName, ICollection<Diagnostic> diagnostics, Location? location, EffectiveMappingOptions options, bool isRoot = false, bool isElement = false)
         {
             var nullableSource = sourceType is INamedTypeSymbol sourceValue && sourceValue.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
             var nullableTarget = targetType is INamedTypeSymbol targetValue && targetValue.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
@@ -1325,7 +1325,7 @@ namespace Mammoth.LiteMapper.Generator
                     valueName += "_";
                 }
 
-                var underlyingMapping = ResolveEnumMapping(mappingMethod, underlyingSource, underlyingTarget, nullableSource ? valueName : expression, sourceMember, targetName, diagnostics, location, options);
+                var underlyingMapping = ResolveEnumMapping(mappingMethod, underlyingSource, underlyingTarget, nullableSource ? valueName : expression, sourceMember, targetName, sourceValueName, diagnostics, location, options);
                 if (underlyingMapping == null)
                 {
                     return null;
@@ -1471,7 +1471,7 @@ namespace Mammoth.LiteMapper.Generator
             }
 
             var captureValue = !(SyntaxFactory.ParseExpression(expression) is IdentifierNameSyntax);
-            arms = arms.Concat(new[] { (captureValue ? "var " + enumValueName : "_") + " => throw new global::System.ArgumentOutOfRangeException(nameof(" + expression + "), " + (captureValue ? enumValueName : expression) + ", \"Unmapped enum value.\")" });
+            arms = arms.Concat(new[] { (captureValue ? "var " + enumValueName : "_") + " => throw new global::System.ArgumentOutOfRangeException(" + Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(sourceValueName, quote: true) + ", " + (captureValue ? enumValueName : expression) + ", \"Unmapped enum value.\")" });
             return new ConversionModel(expression + " switch\n            {\n                " + string.Join(",\n                ", arms) + "\n            }", sourceMember, potentiallyNull: false, targetName, nullCheckExpression: null);
         }
 
@@ -1958,8 +1958,8 @@ namespace Mammoth.LiteMapper.Generator
 
             if (targetShape.IsDictionary)
             {
-                var keyConversion = ResolveElementExpression(method, sourceShape.KeyType!, targetShape.KeyType!, itemLocal + ".Key", null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance);
-                var valueConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, itemLocal + ".Value", null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance);
+                var keyConversion = ResolveElementExpression(method, sourceShape.KeyType!, targetShape.KeyType!, itemLocal + ".Key", null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance, sourceValueName: "Key");
+                var valueConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, itemLocal + ".Value", null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance, sourceValueName: "Value");
                 if (keyConversion == null || valueConversion == null)
                 {
                     return null;
@@ -2076,7 +2076,7 @@ namespace Mammoth.LiteMapper.Generator
             return builder.ToString();
         }
 
-        private static string? ResolveElementExpression(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options, Location? location, ICollection<IMethodSymbol> declaredCalls, ref bool requiresInstance)
+        private static string? ResolveElementExpression(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options, Location? location, ICollection<IMethodSymbol> declaredCalls, ref bool requiresInstance, string sourceValueName = "item")
         {
             if (ReportDuplicateVisibleDefaults(method, sourceType, targetType, compilation, diagnostics, "item", location))
             {
@@ -2127,7 +2127,7 @@ namespace Mammoth.LiteMapper.Generator
                 return null;
             }
 
-            var enumMapping = ResolveEnumMapping(method, sourceType, targetType, expression, sourceMember, "item", diagnostics, location, options, isElement: true);
+            var enumMapping = ResolveEnumMapping(method, sourceType, targetType, expression, sourceMember, "item", sourceValueName, diagnostics, location, options, isElement: true);
             if (enumMapping != null || diagnostics.Count != languageDiagnosticCount)
             {
                 return enumMapping?.Expression;

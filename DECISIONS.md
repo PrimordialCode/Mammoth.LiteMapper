@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #27: separate enum exception metadata from executable expressions (2026-10-09)
+
+- Context: configured nullable traversal renders coalescing/null-conditional expressions that are invalid nameof operands. Nullable enum conversion replaces source expressions with generated captures, leaking private names into exception metadata.
+- Decision: carry the selected source parameter, direct member, configured path, or collection element/key/value name separately through enum planning and nullable recursion. Render it with Roslyn's escaped string literal API. Retain the existing switch-arm value capture, preserving ActualValue and exactly-once getters. The existing root snapshot changes only nameof(source) to the equivalent literal.
+- Contract: sections 9.4, 12.4-12.5, 13.1, 13.4, 16.1, 19.5, and 22.11/22.15 already govern these paths; no public API, enum strategy, null policy, converter precedence, or specification change is introduced.
+- Boundary: a separate pre-existing nullable-intermediate/non-null enum leaf/nullable-target case still lacks runtime null preservation. The original runtime reproduction is retained in task evidence; this change only verifies its compilation and source-name fix. The limitation is disclosed in usage/status/PR evidence, without claiming that runtime case passes.
+
 ## Issue #26: enforce nullability at the structural element boundary (2026-10-09)
 
 - Context: language conversion creates a nullable Throw guard before probing conversion, but discards it when structural mapping is required. The element fallback then passed null directly into a deliberately non-null object helper. Nullable target elements also had no preserving branch.

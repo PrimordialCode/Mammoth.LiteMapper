@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #27: stable enum exception names (2026-10-09)
+
+- Scope: separate by-name enum exception metadata from rendered value expressions. Preserve root parameter/direct source-member names; configured source paths remain identifiable even after null guards or captures.
+- Test-first: compile and execute configured nullable intermediates/leaves for known, unknown, and null values, including creation, constructor binding, updates, patch behavior, flags, and C# 9. Retain Error-policy and root/direct-member controls, ActualValue, single getter evaluation, and determinism checks.
+- Implementation: pass stable source names through nullable enum recursion without re-evaluating values or changing conversion precedence, null policy, exception types, or enum strategy.
+- Validation: focused/full generator, runtime/integration, samples, clean-package consumers and framework/language matrix, available packaging checks, independent review, and exact-head ordinary PR CI.
+- Boundary: issue #27 only; no specification or public API change, other issue, merge, release, tag, package publication, or workflow dispatch. Stop at draft PR/human review. AgentStack CLI is absent; the authorized connector fallback adds/readbacks readiness labels without issue comments or claim writes.
+
 ## Issue #26: nullable structural collection elements (2026-10-09)
 
 - Scope: preserve null elements when structurally mapping distinct source/destination classes; apply the element Error/Throw policy before a non-null structural helper is invoked. Cover arrays, lists, enumerable/interface targets, dictionary values, nested collections, and existing member/update paths.
