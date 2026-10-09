@@ -4,6 +4,7 @@
 
 ## Fixes
 
+- Issue #30: set mappings probe exact accessible HashSet capacity constructors and use portable fallbacks when absent, including on netstandard2.0. Capacity-plus-comparer support is detected independently. [#30](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/30)
 - Issue #28: IgnoreCase rejects multiple case-insensitive source matches even when one is exact; nested structural ambiguity retains LITEMAPPER1004. Exact and ExactThenIgnoreCase keep their existing exact-match priority. [#28](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/28)
 - Issue #27: by-name enum exceptions use stable source names and paths instead of applying `nameof` to guarded expressions; nullable enum captures retain source metadata. [#27](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/27)
 - Issue #26: structural collection mapping preserves nullable elements and applies Throw guards before object helpers; nullable nested collection helper signatures retain their annotations. [#26](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/26)

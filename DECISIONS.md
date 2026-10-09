@@ -1,5 +1,11 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #30: independently select exact HashSet capacity overloads (2026-10-09)
+
+- Context: counted set mappings always emitted a capacity argument without probing the reference API; netstandard2.0 lacks that constructor. Preserved-comparer mappings always omitted capacity, even when the combined overload exists.
+- Decision: inspect the constructed HashSet type in the consumer compilation, requiring an accessible constructor with by-value Int32 and, independently when preserving a comparer, the exact constructed IEqualityComparer element type. Use the parameterless or comparer-only fallback if that overload is unavailable. Unknown-count sources are not enumerated to size a destination.
+- Contract: sections 3.5, 15.3, 15.5-15.9, 19.9, and 22.12/22.17 already require capability-based portable optimization. No public API, comparer-selection, or specification semantics change is introduced; list and dictionary construction remain outside scope.
+
 ## Issue #29: reuse direct patch captures without changing overload binding (2026-10-09)
 
 - Context: patch planning creates a single-evaluation capture for direct nullable members, but nested updater invocation used the original getter. Present values were read twice; changing getters could supply a different value or null after the guard.

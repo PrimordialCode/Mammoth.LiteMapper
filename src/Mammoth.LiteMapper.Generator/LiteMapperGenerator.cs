@@ -2021,15 +2021,17 @@ namespace Mammoth.LiteMapper.Generator
                 builder.Append(ConcreteCollectionType(targetShape, targetType));
                 var countExpression = SourceCountExpression(sourceType, sourceShape, sourceExpression);
                 var preserveComparer = CanPreserveComparer(sourceShape, targetShape, sourceType, targetType);
+                var useCapacity = countExpression != null && (targetShape.Kind != CollectionKind.Set ||
+                    HasHashSetCapacityConstructor(compilation, targetShape.ElementType, method.ContainingType, preserveComparer));
                 builder.Append('(');
-                if (countExpression != null && !(preserveComparer && targetShape.Kind == CollectionKind.Set))
+                if (useCapacity)
                 {
                     builder.Append(countExpression);
                 }
 
                 if (preserveComparer)
                 {
-                    if (countExpression != null && targetShape.Kind == CollectionKind.Dictionary)
+                    if (useCapacity)
                     {
                         builder.Append(", ");
                     }
@@ -2398,6 +2400,19 @@ namespace Mammoth.LiteMapper.Generator
             }
 
             return "new " + ConcreteCollectionType(shape, targetType) + "()";
+        }
+
+        private static bool HasHashSetCapacityConstructor(Compilation compilation, ITypeSymbol elementType, INamedTypeSymbol mapperType, bool preserveComparer)
+        {
+            var setType = compilation.GetTypeByMetadataName("System.Collections.Generic.HashSet`1")?.Construct(elementType);
+            var comparerType = compilation.GetTypeByMetadataName("System.Collections.Generic.IEqualityComparer`1")?.Construct(elementType);
+            return setType != null && setType.InstanceConstructors.Any(constructor =>
+                compilation.IsSymbolAccessibleWithin(constructor, mapperType) &&
+                constructor.Parameters.Length == (preserveComparer ? 2 : 1) &&
+                constructor.Parameters.All(static parameter => parameter.RefKind == RefKind.None) &&
+                constructor.Parameters[0].Type.SpecialType == SpecialType.System_Int32 &&
+                (!preserveComparer || comparerType != null &&
+                    SymbolEqualityComparer.Default.Equals(constructor.Parameters[1].Type, comparerType)));
         }
 
         private static bool HasArrayEmpty(Compilation compilation)

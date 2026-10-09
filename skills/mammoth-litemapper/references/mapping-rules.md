@@ -102,6 +102,8 @@ Name matching uses ordinal comparisons. `Exact` accepts only an exact name; `Exa
 
 ## Collections, enums, and cycles
 
+Set capacity is used only when the consumer compilation exposes the exact accessible constructor. Arrays and lists can map to `HashSet<T>` or `ISet<T>` on `netstandard2.0` through a parameterless/comparer-only fallback; `IReadOnlySet<T>` requires that interface to exist. Capacity selection does not change duplicate collapsing, compatible-comparer preservation, or independent collection identity.
+
 Enum numeric policy applies to declared values and unmatched-name ByValue fallback: Unchecked300 to a byte-backed enum yields44; Checked retains overflow validation. Missing composite flag names may map through their atoms (target Read4 OR Write8 gives12), including signed high-bit source flags; unknown source bits throw. A matching composite name must equal the mapped atomic OR: target Both12 is valid, Both16 reports LITEMAPPER7002 and omits the mapping. Every ordinary source alias must resolve consistently: Known/Alias1 may map to Known/Alias9.
 
 Declare public top-level collection mappings explicitly, for example `public static partial List<CustomerDto> MapCustomers(Customer[] source);` inside a static mapper. Supported shapes include one-dimensional/jagged arrays, common generic sequence/list interfaces, `List<T>`, sets, and dictionaries; `IReadOnlySet<T>` requires the symbol in the compilation.
