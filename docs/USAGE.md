@@ -708,6 +708,8 @@ LiteMapper enumerates arbitrary enumerable sources once. Capacity is preallocate
 
 The [portable set example](../samples/Mammoth.LiteMapper.Samples.Collections/PortableSetExample.cs) maps arrays and lists to `HashSet<long>` and `ISet<long>`, collapsing duplicate converted values. It also verifies detached copies with preserved case-insensitive comparers. `IReadOnlySet<T>` is included only when that interface exists.
 
+The [dictionary comparer example](../samples/Mammoth.LiteMapper.Samples.Collections/DictionaryComparerExample.cs) preserves a concrete dictionary source's case-insensitive key comparer when widening `int` values to `long` or structurally mapping value objects. This applies to `Dictionary`, `IDictionary`, and `IReadOnlyDictionary` destinations. Comparer selection depends on the selected key conversion, independently of value conversion: custom key converters use the destination default comparer even when their input and output key types match. Converted-key collisions throw through normal `Add` semantics. Interface-declared dictionary sources use the default comparer because their declared contracts do not expose a comparer; LiteMapper does not discover it at runtime.
+
 For array results from sources without a cheap, reliable count, mapping uses an O(n) temporary growing buffer and then creates the final array. It does not count by enumerating first, and each element is converted once. Counted sources allocate their final array directly. The same rule applies to interfaces whose concrete result is an array.
 
 Public collection mappings are allowed when the declared mapping method itself maps one supported collection shape to another supported collection shape:

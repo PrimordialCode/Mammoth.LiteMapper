@@ -50,13 +50,15 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             File.WriteAllText(Path.Combine(consumer, "Consumer.cs"), Fixture.Replace("EXPECTED_RUNTIME_MAJOR", runtimeMajor, StringComparison.Ordinal));
             File.Copy(Repository.Path("samples/Mammoth.LiteMapper.Samples.Collections/PortableSetExample.cs"),
                 Path.Combine(consumer, "PortableSetExample.cs"));
+            File.Copy(Repository.Path("samples/Mammoth.LiteMapper.Samples.Collections/DictionaryComparerExample.cs"),
+                Path.Combine(consumer, "DictionaryComparerExample.cs"));
             PackageSources(packageFeed, "https://api.nuget.org/v3/index.json")
                 .Save(Path.Combine(directory, "NuGet.Config"));
 
             Milestone14PackagingAndAotTests.RunDotnet("restore --no-cache", consumer);
             Milestone14PackagingAndAotTests.RunDotnet("build -c Release --no-restore", consumer);
             var generated = Directory.GetFiles(Path.Combine(consumer, "obj", "generated"), "*.g.cs", SearchOption.AllDirectories);
-            Assert.AreEqual(9, generated.Length, "All nine mapper containers must generate in " + framework + "/" + language + ".");
+            Assert.AreEqual(11, generated.Length, "All eleven mapper containers must generate in " + framework + "/" + language + ".");
             var setSource = File.ReadAllText(generated.Single(static file => Path.GetFileName(file).StartsWith(
                 "Mammoth.LiteMapper.Samples.Collections.PortableSetMapper.", StringComparison.Ordinal)));
             StringAssert.Contains(setSource, "new global::System.Collections.Generic.HashSet<long>(" +
@@ -186,6 +188,7 @@ public static class MatrixFixture
     public static void Run()
     {
         Mammoth.LiteMapper.Samples.Collections.PortableSetExample.Run();
+        Mammoth.LiteMapper.Samples.Collections.DictionaryComparerExample.Run();
         EnumPathExample.Run();
         PatchUpdaterExample.Run();
         if (Environment.Version.Major != EXPECTED_RUNTIME_MAJOR) throw new InvalidOperationException(""Wrong runtime was used."");
