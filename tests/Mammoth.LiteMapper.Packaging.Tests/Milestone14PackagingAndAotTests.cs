@@ -227,6 +227,7 @@ Mammoth.LiteMapper.Samples.Collections.PortableSetExample.Run();
 Mammoth.LiteMapper.Samples.Collections.DictionaryComparerExample.Run();
 Mammoth.LiteMapper.Samples.Basic.LazyCyclePathExample.Run();
         Mammoth.LiteMapper.Samples.Basic.ConfiguredUpdaterOverloadExample.Run();
+Mammoth.LiteMapper.Samples.Basic.NullableEnumPathExample.Run();
 EnumPathExample.Run();
         PatchUpdaterExample.Run();
 
@@ -488,6 +489,8 @@ public sealed class PatchUpdaterTarget { public PatchUpdaterChildTarget Child { 
                 Path.Combine(directory, "LazyCyclePathExample.cs"));
             File.Copy(Repository.Path("samples/Mammoth.LiteMapper.Samples.Basic/ConfiguredUpdaterOverloadExample.cs"),
                 Path.Combine(directory, "ConfiguredUpdaterOverloadExample.cs"));
+            File.Copy(Repository.Path("samples/Mammoth.LiteMapper.Samples.Basic/NullableEnumPathExample.cs"),
+                Path.Combine(directory, "NullableEnumPathExample.cs"));
             return directory;
         }
 

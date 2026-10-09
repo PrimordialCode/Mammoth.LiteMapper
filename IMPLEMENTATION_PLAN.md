@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #48: nullable enum source-path intermediates (2026-10-09)
+
+- Scope: preserve missing configured source-path intermediates as null for nullable enum targets. Retain known/unknown enum behavior, stable exception metadata, single evaluation, patch skipping, update order, and converter/null-mismatch precedence. No public API or specification semantics change.
+- Test-first: exercise creation, constructor binding, updates, reference/value/tuple intermediates, by-name/by-value strategies, nullable-leaf/scalar controls, changing getters, and C# 9 deterministic warning-free output. Add a shared normally compiled and package-consumer example.
+- Implementation: carry effective path nullability into enum lowering only after higher-precedence conversions and existing mismatch guards. Reuse the existing nullable enum capture and wrapper.
+- Validation: focused/full generator, runtime/integration, source and clean-package samples, supported framework/language consumers, available packaging checks, independent review, and exact-head ordinary Windows/Linux and Roslyn CI. Disclose unavailable local stages.
+- Boundary: issue #48 only, then draft PR/human review. No merge, release, tag, package publication, workflow dispatch, or user-computer access. AgentStack CLI is absent; authorized connector fallback added/read back readiness labels without issue comments or claim writes. Dependencies, sub-issues and competing PRs are absent.
+
 ## Issue #47: configured nullable updater overload binding (2026-10-09)
 
 - Scope: preserve the selected nullable value-type updater overload after capturing a configured direct or dotted patch source path. Retain single evaluation, null skipping, target identity, and sequential update behavior. No public API or specification semantics change.

@@ -4,6 +4,7 @@
 
 ## Fixes
 
+- Issue #48: configured enum paths preserve missing reference intermediates as null for nullable enum destinations, including constructor-bound and existing-target mappings. By-name errors, by-value conversion, single evaluation, patch skipping, and converter precedence are preserved. [#48](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/48)
 - Issue #32: recursive cycle paths retain compact immutable segments and format the full path only when a cycle is detected, removing quadratic path-prefix allocations while preserving exception metadata and first-edge allocation behavior. [#32](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/32)
 - Issue #31: dictionary mappings preserve compatible key comparers independently of value conversion. Keys transformed by custom converters use the destination default comparer, even when key types match. [#31](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/31)
 - Issue #30: set mappings probe exact accessible HashSet capacity constructors and use portable fallbacks when absent, including on netstandard2.0. Capacity-plus-comparer support is detected independently. [#30](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/30)

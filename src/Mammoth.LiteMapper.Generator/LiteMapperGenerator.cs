@@ -873,7 +873,22 @@ namespace Mammoth.LiteMapper.Generator
                         initializationSource = "(" + initializationSource + " ?? throw new global::System.InvalidOperationException(\"Source member path '" + memberPath + "' was null.\"))";
                     }
 
-                    initializationExpression = conversion.Expression.Replace(sourcePathCaptureName, initializationSource);
+                    if (conversion.IsEnumMapping && IsMaybeNull(GetMemberType(targetMember)))
+                    {
+                        // Construction consumes the original nullable path, not the guarded patch capture.
+                        var initialization = ResolveEnumMapping(method, selected?.Type ?? GetMemberType(match.Member),
+                            GetMemberType(targetMember), initializationSource, match.Member, memberPath, memberPath,
+                            diagnostics, targetMember.Locations.FirstOrDefault() ?? location, options, sourceExpressionMayBeNull: true);
+                        if (initialization == null)
+                        {
+                            continue;
+                        }
+                        initializationExpression = initialization.Expression;
+                    }
+                    else
+                    {
+                        initializationExpression = conversion.Expression.Replace(sourcePathCaptureName, initializationSource);
+                    }
                 }
                 assignments.Add(new AssignmentModel(targetMember.Name, conversion.Expression, guard, initializeDuringConstruction, initializationExpression: initializationExpression, declaredMapping: conversion.DeclaredMapping, requiresInstance: conversion.RequiresInstance));
             }
@@ -1156,7 +1171,7 @@ namespace Mammoth.LiteMapper.Generator
                 return null;
             }
 
-            var enumMapping = ResolveEnumMapping(mappingMethod, sourceType, targetType, expression, sourceMember, sourcePath?.Expression ?? targetMember.Name, sourcePath?.Expression ?? sourceMember!.Name, diagnostics, location, options);
+            var enumMapping = ResolveEnumMapping(mappingMethod, sourceType, targetType, expression, sourceMember, sourcePath?.Expression ?? targetMember.Name, sourcePath?.Expression ?? sourceMember!.Name, diagnostics, location, options, sourceExpressionMayBeNull: sourceExpressionMayBeNull);
             if (enumMapping != null || diagnostics.Count != languageDiagnosticCount)
             {
                 return enumMapping;
@@ -1305,11 +1320,12 @@ namespace Mammoth.LiteMapper.Generator
                 type.SpecialType == SpecialType.System_IntPtr || type.SpecialType == SpecialType.System_UIntPtr;
         }
 
-        private static ConversionModel? ResolveEnumMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, string targetName, string sourceValueName, ICollection<Diagnostic> diagnostics, Location? location, EffectiveMappingOptions options, bool isRoot = false, bool isElement = false)
+        private static ConversionModel? ResolveEnumMapping(IMethodSymbol mappingMethod, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, string targetName, string sourceValueName, ICollection<Diagnostic> diagnostics, Location? location, EffectiveMappingOptions options, bool isRoot = false, bool isElement = false, bool sourceExpressionMayBeNull = false)
         {
             var nullableSource = sourceType is INamedTypeSymbol sourceValue && sourceValue.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
             var nullableTarget = targetType is INamedTypeSymbol targetValue && targetValue.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
-            if (nullableSource || nullableTarget)
+            var nullableExpression = nullableSource || sourceExpressionMayBeNull;
+            if (nullableExpression || nullableTarget)
             {
                 var underlyingSource = nullableSource ? ((INamedTypeSymbol)sourceType).TypeArguments[0] : sourceType;
                 var underlyingTarget = nullableTarget ? ((INamedTypeSymbol)targetType).TypeArguments[0] : targetType;
@@ -1318,7 +1334,7 @@ namespace Mammoth.LiteMapper.Generator
                     return null;
                 }
 
-                if (nullableSource && !nullableTarget && options.NullableMismatch == NullableMismatchPolicyError && !(options.IgnoreNullSourceMembers && !isRoot && !isElement))
+                if (nullableExpression && !nullableTarget && options.NullableMismatch == NullableMismatchPolicyError && !(options.IgnoreNullSourceMembers && !isRoot && !isElement))
                 {
                     diagnostics.Add(Diagnostic.Create(isElement ? Diagnostics.NullableElementMismatch : Diagnostics.NullableToNonNullable, location, targetName));
                     return null;
@@ -1330,14 +1346,14 @@ namespace Mammoth.LiteMapper.Generator
                     valueName += "_";
                 }
 
-                var underlyingMapping = ResolveEnumMapping(mappingMethod, underlyingSource, underlyingTarget, nullableSource ? valueName : expression, sourceMember, targetName, sourceValueName, diagnostics, location, options);
+                var underlyingMapping = ResolveEnumMapping(mappingMethod, underlyingSource, underlyingTarget, nullableExpression ? valueName : expression, sourceMember, targetName, sourceValueName, diagnostics, location, options);
                 if (underlyingMapping == null)
                 {
                     return null;
                 }
 
                 var mappedExpression = nullableTarget ? "(" + DisplayType(targetType) + ")(" + underlyingMapping.Expression + ")" : underlyingMapping.Expression;
-                if (nullableSource)
+                if (nullableExpression)
                 {
                     var nullResult = nullableTarget ? "(" + DisplayType(targetType) + ")null"
                         : isRoot ? "throw new global::System.ArgumentNullException(nameof(" + expression + "))"
@@ -1345,7 +1361,7 @@ namespace Mammoth.LiteMapper.Generator
                     mappedExpression = expression + " switch { " + DisplayType(underlyingSource) + " " + valueName + " => " + mappedExpression + ", _ => " + nullResult + " }";
                 }
 
-                return new ConversionModel(mappedExpression, sourceMember, potentiallyNull: nullableSource && nullableTarget, targetName, nullCheckExpression: null);
+                return new ConversionModel(mappedExpression, sourceMember, potentiallyNull: nullableExpression && nullableTarget, targetName, nullCheckExpression: null, isEnumMapping: true);
             }
 
             if (!(sourceType is INamedTypeSymbol sourceEnum) || !(targetType is INamedTypeSymbol targetEnum) ||
@@ -1360,7 +1376,7 @@ namespace Mammoth.LiteMapper.Generator
                 {
                     ReportEnumValueOverflow(sourceEnum, targetEnum, diagnostics, location);
                 }
-                return new ConversionModel(EnumUnderlyingConversion(expression, sourceEnum, targetEnum, options), sourceMember, potentiallyNull: false, targetName, nullCheckExpression: null);
+                return new ConversionModel(EnumUnderlyingConversion(expression, sourceEnum, targetEnum, options), sourceMember, potentiallyNull: false, targetName, nullCheckExpression: null, isEnumMapping: true);
             }
 
             var members = GetEnumMembers(sourceEnum);
@@ -1477,7 +1493,7 @@ namespace Mammoth.LiteMapper.Generator
 
             var captureValue = !(SyntaxFactory.ParseExpression(expression) is IdentifierNameSyntax);
             arms = arms.Concat(new[] { (captureValue ? "var " + enumValueName : "_") + " => throw new global::System.ArgumentOutOfRangeException(" + Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(sourceValueName, quote: true) + ", " + (captureValue ? enumValueName : expression) + ", \"Unmapped enum value.\")" });
-            return new ConversionModel(expression + " switch\n            {\n                " + string.Join(",\n                ", arms) + "\n            }", sourceMember, potentiallyNull: false, targetName, nullCheckExpression: null);
+            return new ConversionModel(expression + " switch\n            {\n                " + string.Join(",\n                ", arms) + "\n            }", sourceMember, potentiallyNull: false, targetName, nullCheckExpression: null, isEnumMapping: true);
         }
 
         private static string? CreateFlagsCompositeArm(INamedTypeSymbol sourceEnum, INamedTypeSymbol targetEnum, string valueName, IEnumerable<EnumMemberModel> mappedMembers)
@@ -5052,7 +5068,7 @@ namespace Mammoth.LiteMapper.Generator
 
         private sealed class ConversionModel
         {
-            public ConversionModel(string expression, ISymbol? sourceMember, bool potentiallyNull, string memberPath, string? nullCheckExpression, bool requiresNonNullSourceExpression = false, IMethodSymbol? declaredMapping = null, bool requiresInstance = false)
+            public ConversionModel(string expression, ISymbol? sourceMember, bool potentiallyNull, string memberPath, string? nullCheckExpression, bool requiresNonNullSourceExpression = false, IMethodSymbol? declaredMapping = null, bool requiresInstance = false, bool isEnumMapping = false)
             {
                 Expression = expression;
                 SourceMember = sourceMember;
@@ -5062,6 +5078,7 @@ namespace Mammoth.LiteMapper.Generator
                 RequiresNonNullSourceExpression = requiresNonNullSourceExpression;
                 DeclaredMapping = declaredMapping;
                 RequiresInstance = requiresInstance;
+                IsEnumMapping = isEnumMapping;
             }
 
             public string Expression { get; }
@@ -5079,6 +5096,8 @@ namespace Mammoth.LiteMapper.Generator
             public IMethodSymbol? DeclaredMapping { get; }
 
             public bool RequiresInstance { get; }
+
+            public bool IsEnumMapping { get; }
         }
 
         private sealed class EffectiveMappingOptions
