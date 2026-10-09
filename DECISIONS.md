@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #28: apply the selected matching policy before exact priority (2026-10-09)
+
+- Context: MatchSource selected a sole exact candidate even under IgnoreCase. Constructor matching already limits exact priority to Exact and ExactThenIgnoreCase. Structural helper planning also discarded an ambiguous match without reporting its specific member diagnostic.
+- Decision: use the same exact-priority gate in member matching and report LITEMAPPER1004 at the nested target member before rejecting the structural plan. Preserve discovery, hidden-member resolution, explicit configuration, constructor matching, and method failure isolation.
+- Contract: sections 6.5, 9.1-9.3, 10.3, 20.2-20.3, and 28.2 already require unique IgnoreCase matches and non-configurable ambiguity errors. No public API or specification semantics change is required.
+- Evidence: 40 new generator cases on unchanged production yielded 22 failures and 18 controls, zero skips. Cases cover creation, updates, nested mappings, properties/fields, inherited class/interface members, option precedence, exact/unique controls, explicit paths, hiding, diagnostic location, and independent-method generation.
+
 ## Issue #27: separate enum exception metadata from executable expressions (2026-10-09)
 
 - Context: configured nullable traversal renders coalescing/null-conditional expressions that are invalid nameof operands. Nullable enum conversion replaces source expressions with generated captures, leaking private names into exception metadata.

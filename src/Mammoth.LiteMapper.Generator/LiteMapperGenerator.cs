@@ -2235,7 +2235,13 @@ namespace Mammoth.LiteMapper.Generator
                 }
 
                 var match = MatchSource(targetMember, sourceMembers, options.NameMatching);
-                if (match.Ambiguous || match.Member == null)
+                if (match.Ambiguous)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.AmbiguousMemberMatch, targetMember.Locations.FirstOrDefault() ?? rootMethod.Locations.FirstOrDefault(), targetMember.Name));
+                    return null;
+                }
+
+                if (match.Member == null)
                 {
                     return null;
                 }
@@ -3313,7 +3319,7 @@ namespace Mammoth.LiteMapper.Generator
         private static MatchResult MatchSource(ISymbol targetMember, ISymbol[] sourceMembers, string nameMatching)
         {
             var exact = sourceMembers.Where(s => s.Name == targetMember.Name).ToArray();
-            if (nameMatching == NameMatchingExact || exact.Length == 1)
+            if (nameMatching == NameMatchingExact || nameMatching != NameMatchingIgnoreCase && exact.Length == 1)
             {
                 return new MatchResult(exact.Length == 1 ? exact[0] : null, exact.Length > 1);
             }

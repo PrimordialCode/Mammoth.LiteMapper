@@ -230,8 +230,10 @@ Useful options:
 
 - `NameMatching.Exact`: ordinal exact member names only.
 - `NameMatching.ExactThenIgnoreCase`: exact first, then unique ignore-case match.
-- `NameMatching.IgnoreCase`: unique ignore-case match.
+- `NameMatching.IgnoreCase`: unique ordinal ignore-case match, without exact-match priority.
 - `UnmappedMemberPolicy.Ignore`, `Info`, `Warning`, `Error`: controls diagnostics for unmapped source or target members.
+
+If a source exposes both `Value` and `value`, automatic matching to target `Value` under `IgnoreCase` reports `LITEMAPPER1004` and omits the invalid implementation, including in updates and nested structural mappings. `Exact` and `ExactThenIgnoreCase` select the exact `Value` member. An explicit `MapProperty.Source` can select the intended member. Constructor parameters follow the same matching policy.
 
 Member candidates are public instance properties and fields. Hidden members are resolved to the most-derived usable member, with property-over-field preference when needed.
 
