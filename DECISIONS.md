@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #26: enforce nullability at the structural element boundary (2026-10-09)
+
+- Context: language conversion creates a nullable Throw guard before probing conversion, but discards it when structural mapping is required. The element fallback then passed null directly into a deliberately non-null object helper. Nullable target elements also had no preserving branch.
+- Decision: after higher-precedence conversion and collection stages, preserve nullable structural targets with a single-evaluation pattern capture and guard explicitly non-null targets under Throw. Error retains its existing LITEMAPPER2003 rejection. Structural helpers remain normalized to non-null inputs; collection helper signatures retain the nullable types stored by their planner.
+- Contract: sections 12.4, 14.3, 15.5, 15.8, 15.10, and 22.11-22.12 already require these semantics. The fix changes no public API, converter precedence, collection null policy, helper identity, or cycle/instance context.
+- Evidence: 31 initial cases on unchanged production yield 23 failures and eight Error/converter controls, zero skips. Cases assert runtime counts/order, single enumeration and member reads, exception type/path, C# 9 compilation without warnings, nullable containers, patch members, instance converters, and recursive/shared references. The Collections sample independently throws NullReferenceException before the fix.
+
 ## Issue #25: distinguish context carriers from tracked vertices (2026-10-09)
 
 - Context: recursive-helper membership was also used to decide which helpers receive tracker arguments. An acyclic helper calling a recursive helper therefore referenced undeclared context locals. Broadening that same set would incorrectly track acyclic bridge objects.

@@ -4,6 +4,7 @@
 
 ## Fixes
 
+- Issue #26: structural collection mapping preserves nullable elements and applies Throw guards before object helpers; nullable nested collection helper signatures retain their annotations. [#26](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/26)
 - Issue #25: cycle detection now forwards one context through acyclic object and collection bridges, retaining complete member paths without tracking the bridge objects. [#25](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/25)
 - Issue #24: partial mappers with framework attributes or `UseMapper` on another part now generate once; genuine duplicate `LiteMapper` configuration still reports one fatal diagnostic. [#24](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/24)
 - Issue #23: explicit omitted-`Source` converters receive the root object before automatic source-member matching in new-object, constructor-bound, and update mappings. Unrelated source names and patch getters no longer override that selection. [#23](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/23)

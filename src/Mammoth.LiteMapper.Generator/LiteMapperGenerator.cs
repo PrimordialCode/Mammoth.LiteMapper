@@ -2177,6 +2177,21 @@ namespace Mammoth.LiteMapper.Generator
                     helpers.Add(helper);
                 }
 
+                if (IsMaybeNull(sourceType))
+                {
+                    if (IsMaybeNull(targetType))
+                    {
+                        var captureName = CreateExpressionCaptureName(method, "item", expression);
+                        return expression + " is { } " + captureName + " ? " + helperName + "(" + captureName + ") : null";
+                    }
+
+                    if (options.NullableMismatch == NullableMismatchPolicyThrow &&
+                        (targetType.IsValueType || targetType.NullableAnnotation == NullableAnnotation.NotAnnotated))
+                    {
+                        expression = "(" + expression + " ?? throw new global::System.InvalidOperationException(\"Source member '" + expression + "' was null.\"))";
+                    }
+                }
+
                 return helperName + "(" + expression + ")";
             }
 
@@ -4092,7 +4107,7 @@ namespace Mammoth.LiteMapper.Generator
             builder.Append(' ');
             builder.Append(EscapeIdentifier(mapping.HelperName ?? method.Name));
             builder.Append('(');
-            builder.Append(mapping.HelperSourceType == null ? DisplayType(parameter.Type) : DisplayType(mapping.HelperSourceType).TrimEnd('?'));
+            builder.Append(DisplayType(mapping.HelperSourceType ?? parameter.Type));
             builder.Append(' ');
             builder.Append(EscapeIdentifier(parameter.Name));
             if (mapping.IsUpdate && destination != null)
