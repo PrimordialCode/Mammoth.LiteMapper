@@ -653,7 +653,7 @@ For a writable non-null child, select the updater explicitly with `[MapProperty(
 
 Omitting `Source` in `[MapProperty(Target = nameof(Target.Child), Use = nameof(ApplyChild))]` passes the root source to `void ApplyChild(Source source, ChildTarget target)`. No source member named `Child` is required: the updater can copy root `Value == 3` into `target.Child.Value`.
 
-The patch guard and nested updater share one captured source value: a nullable getter is evaluated once, even if another read would return a different object or null. The [Basic sample](../samples/Mammoth.LiteMapper.Samples.Basic/Program.cs) demonstrates this with `PatchUpdaterExample`.
+The patch guard and nested updater share one captured source value: a nullable getter is evaluated once, even if another read would return a different object or null. The [Basic sample](../samples/Mammoth.LiteMapper.Samples.Basic/Program.cs) demonstrates this with `PatchUpdaterExample`. Nullable value captures retain the selected updater overload for automatic direct members and configured direct or dotted source paths. The [configured overload sample](../samples/Mammoth.LiteMapper.Samples.Basic/ConfiguredUpdaterOverloadExample.cs) selects `ApplyChild(ConfiguredUpdaterValue?, ConfiguredUpdaterChild)` even when a competing non-nullable overload exists, and preserves the target for a null leaf or intermediate.
 
 Patch mode also applies to nested updater calls. If `source.Child` is null and `IgnoreNullSourceMembers` is enabled, the updater is skipped and the existing target child remains unchanged. With the default mismatch policy, passing a nullable child to a non-null updater parameter reports `LITEMAPPER2001`; `Throw` raises `InvalidOperationException` whose message includes the `Child` path.
 

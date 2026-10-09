@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #47: configured nullable updater overload binding (2026-10-09)
+
+- Scope: preserve the selected nullable value-type updater overload after capturing a configured direct or dotted patch source path. Retain single evaluation, null skipping, target identity, and sequential update behavior. No public API or specification semantics change.
+- Test-first: reproduce competing nullable/non-nullable overloads across direct/dotted paths, void/returning updaters, missing/changing values, nullable intermediates, instance/external methods, and C# 9 deterministic output. Add a shared normally compiled and package-consumer example.
+- Implementation: extend the existing nullable capture type restoration to configured source paths without changing updater resolution or emission order.
+- Validation: focused/full generator, runtime/integration, source and clean-package samples, supported framework/language consumers, available packaging checks, independent review, and exact-head ordinary Windows/Linux and Roslyn CI. Disclose unavailable local stages.
+- Boundary: issue #47 only, then draft PR/human review. Issue #48 remains open and untouched. No merge, release, tag, publication or workflow dispatch. AgentStack CLI is absent; the authorized connector fallback adds/readbacks readiness labels without issue comments or claim writes.
+
 ## Issue #32: lazy cycle diagnostic paths (2026-10-09)
 
 - Scope: avoid copying full path prefixes on successful recursive descent, preserving exact exception paths and public entry names, active-reference semantics, acyclic bridges, collections, and value-type traversal. No public API or specification semantics change.
