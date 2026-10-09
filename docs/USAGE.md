@@ -867,6 +867,8 @@ public static partial class CycleMapper
 
 `ReferenceHandling.ThrowOnCycle` enables generated cycle tracking for recursive type graphs. A detected cycle throws `LiteMapperCycleException`. Non-recursive mappings do not allocate cycle-tracker state.
 
+Acyclic object and collection wrappers can lead into a recursive graph. The same tracker is forwarded through those wrappers, while only recursive reference objects participate in cycle detection. The Basic sample maps `WrappedSource.Envelope.Nodes`; a self-cycle in a node reports `Envelope.Nodes.Next`, and a shared node in separate collection positions maps independently.
+
 `LiteMapperCycleException` exposes `SourceType`, `DestinationType`, `MappingMethod`, and `MemberPath` for the detected active-path cycle. It does not expose `SourcePath` or `DestinationPath` properties.
 
 Recursive components may pass through value types and declared mapping methods. For example, an `A -> B -> A` graph mapped by declared `MapA` and `MapB` methods uses one tracker; a cycle reports `MapA` and member path `B.A`. A class-to-struct-to-class path forwards the tracker through the struct without tracking or boxing the struct itself.

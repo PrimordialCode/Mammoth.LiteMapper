@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #25: cycle context through acyclic bridges (2026-10-09)
+
+- Scope: separate cycle-context forwarding from active-path vertex tracking. Acyclic object, struct, and collection bridges carry the initiating entry's tracker, member path, and method name to recursive helpers without entering the tracker themselves.
+- Test-first: 19 new cases on unchanged develop yielded 17 failures and two controls; an additional mixed declared/helper component test failed the first candidate's over-tracking assertion before its repair. The Basic sample independently reproduced CS0103 for all three missing context locals.
+- Implementation: preserve structural recursive helper membership and separately seed mixed declared/helper components, then compute the callerward context closure. Only recursive reference vertices Enter/Exit, including a recursive public root; root collections start with an empty path and helper members append without a leading dot.
+- Validation: 20 new generator cases, complete generator/runtime/integration suites, source samples, clean-package samples, all 12 framework/language consumers, trimming/AOT consumer coverage, available packaging checks, independent review, and ordinary exact-head PR CI. Record unavailable stages separately.
+- Boundary: issue #25 only; no public API or specification semantics change. Stop at draft PR/human review; no merge, release, tag, package publication, or workflow dispatch.
+
 ## Issue #24: one discovery per partial mapper (2026-10-09)
 
 - Scope: a single marker-owning declaration per mapper symbol, retaining the established incremental candidate identity. Other partial declarations may carry framework attributes or UseMapper registrations without duplicating planning, diagnostics, or generated source. Genuine duplicate LiteMapper markers remain invalid.

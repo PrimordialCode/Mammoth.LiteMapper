@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #25: distinguish context carriers from tracked vertices (2026-10-09)
+
+- Context: recursive-helper membership was also used to decide which helpers receive tracker arguments. An acyclic helper calling a recursive helper therefore referenced undeclared context locals. Broadening that same set would incorrectly track acyclic bridge objects.
+- Decision: maintain separate recursive-vertex and context-forwarding sets. Identify mixed declared/helper components from declared-call seeds independently of pure helper cycles; take the reverse helper-call closure only for context forwarding. Recursive public roots use the same Enter/finally/Exit contract as recursive helpers, while acyclic roots only create the single context.
+- Paths: public collection bodies forward an empty initial path. Member append handles an empty incoming path, avoiding a leading dot while retaining the public method name and existing member-based collection paths.
+- Contract: sections 14.1, 15, 17.2-17.5, 22.14, and 28.6-28.7 already require these semantics. No public context API, reflection, generated mutable mapper state, or normative change is introduced.
+- Evidence: failing-before-fix compile/runtime/source-structure cases cover object and collection bridges, shared siblings, direct/indirect cycles, mixed declared components, constructors/updates, stateful instance converters, value-type bridges, concurrent calls, and None/acyclic controls. Basic and package consumer fixtures exercise the same wrapped collection cycle.
+
 ## Issue #24: discover the marker-owning partial declaration once (2026-10-09)
 
 - Context: broad attributed-type discovery sees the merged LiteMapper marker on every attributed partial part. Repeated planning yields duplicate diagnostics and source hint collisions that discard unrelated generated output.
