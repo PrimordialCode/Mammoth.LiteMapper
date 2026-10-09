@@ -1963,8 +1963,8 @@ namespace Mammoth.LiteMapper.Generator
 
             if (targetShape.IsDictionary)
             {
-                var keyConversion = ResolveElementExpression(method, sourceShape.KeyType!, targetShape.KeyType!, itemLocal + ".Key", null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance, sourceValueName: "Key");
-                var valueConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, itemLocal + ".Value", null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance, sourceValueName: "Value");
+                var keyConversion = ResolveElementExpression(method, sourceShape.KeyType!, targetShape.KeyType!, itemLocal + ".Key", null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance, out var keyIsIdentity, sourceValueName: "Key");
+                var valueConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, itemLocal + ".Value", null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance, out _, sourceValueName: "Value");
                 if (keyConversion == null || valueConversion == null)
                 {
                     return null;
@@ -1974,7 +1974,7 @@ namespace Mammoth.LiteMapper.Generator
                 builder.Append(ConcreteCollectionType(targetShape, targetType));
                 builder.Append("(");
                 builder.Append(SourceCountExpression(sourceType, sourceShape, sourceExpression) ?? "0");
-                if (CanPreserveComparer(sourceShape, targetShape, sourceType, targetType))
+                if (keyIsIdentity && CanPreserveComparer(sourceShape, targetShape, sourceType, targetType))
                 {
                     builder.Append(", ");
                     builder.Append(sourceExpression);
@@ -2043,7 +2043,7 @@ namespace Mammoth.LiteMapper.Generator
                 builder.AppendLine(");");
             }
 
-            var elementConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, itemLocal, null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance);
+            var elementConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, itemLocal, null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance, out _);
             if (elementConversion == null)
             {
                 return null;
@@ -2083,8 +2083,9 @@ namespace Mammoth.LiteMapper.Generator
             return builder.ToString();
         }
 
-        private static string? ResolveElementExpression(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options, Location? location, ICollection<IMethodSymbol> declaredCalls, ref bool requiresInstance, string sourceValueName = "item")
+        private static string? ResolveElementExpression(IMethodSymbol method, ITypeSymbol sourceType, ITypeSymbol targetType, string expression, ISymbol? sourceMember, Compilation compilation, ICollection<Diagnostic> diagnostics, ImmutableArray<MappingModel>.Builder helpers, HelperNameRegistry helperNames, EffectiveMappingOptions options, Location? location, ICollection<IMethodSymbol> declaredCalls, ref bool requiresInstance, out bool isIdentity, string sourceValueName = "item")
         {
+            isIdentity = false;
             if (ReportDuplicateVisibleDefaults(method, sourceType, targetType, compilation, diagnostics, "item", location))
             {
                 return null;
@@ -2126,6 +2127,7 @@ namespace Mammoth.LiteMapper.Generator
                 ResolveLanguageConversion(sourceType, targetType, expression, compilation, diagnostics, location, options, isElement: true);
             if (languageConversion != null)
             {
+                isIdentity = compilation.ClassifyConversion(sourceType, targetType).IsIdentity;
                 return languageConversion;
             }
 
@@ -2463,12 +2465,9 @@ namespace Mammoth.LiteMapper.Generator
                 return false;
             }
 
-            if (!SymbolEqualityComparer.Default.Equals(sourceShape.ElementType, targetShape.ElementType))
-            {
-                return false;
-            }
-
-            if (sourceShape.IsDictionary && !SymbolEqualityComparer.Default.Equals(sourceShape.KeyType, targetShape.KeyType))
+            if (!SymbolEqualityComparer.Default.Equals(
+                sourceShape.IsDictionary ? sourceShape.KeyType : sourceShape.ElementType,
+                targetShape.IsDictionary ? targetShape.KeyType : targetShape.ElementType))
             {
                 return false;
             }

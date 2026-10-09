@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #31: dictionary key comparer preservation (2026-10-09)
+
+- Scope: preserve a concrete Dictionary source's compatible key comparer when key resolution selects language identity, independently of value conversion. Converted keys use the destination default comparer; retain Add collision semantics and existing set behavior.
+- Test-first: reproduce value widening/structural conversion across concrete and interface destinations, and same-type custom key conversion; retain independent copies, empty/null controls, member/update paths, converter precedence, deterministic C# 9 output, and real package consumers.
+- Implementation: carry the selected key conversion's identity classification from the existing resolver; select the dictionary comparer by key type rather than value type. No public API or specification semantics change.
+- Validation: focused/full generator, runtime/integration, source and clean-package samples, supported framework/language matrix, available package/API/benchmark checks, independent review, and exact-head ordinary Windows/Linux and Roslyn CI.
+- Boundary: issue #31 only, then draft PR/human review. No merge, release, tag, package publication, or workflow dispatch. AgentStack CLI is absent; approved connector fallback adds/readbacks readiness labels without issue comments or claim writes.
+
 ## Issue #30: symbol-proven HashSet capacity constructors (2026-10-09)
 
 - Scope: probe the exact accessible HashSet capacity and capacity-plus-comparer constructors independently; use portable parameterless/comparer-only construction when unavailable. Preserve set contents, comparer selection, independent identity, and one enumeration. Do not change list or dictionary construction.

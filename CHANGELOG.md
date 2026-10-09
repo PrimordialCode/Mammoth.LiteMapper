@@ -4,6 +4,7 @@
 
 ## Fixes
 
+- Issue #31: dictionary mappings preserve compatible key comparers independently of value conversion. Keys transformed by custom converters use the destination default comparer, even when key types match. [#31](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/31)
 - Issue #30: set mappings probe exact accessible HashSet capacity constructors and use portable fallbacks when absent, including on netstandard2.0. Capacity-plus-comparer support is detected independently. [#30](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/30)
 - Issue #28: IgnoreCase rejects multiple case-insensitive source matches even when one is exact; nested structural ambiguity retains LITEMAPPER1004. Exact and ExactThenIgnoreCase keep their existing exact-match priority. [#28](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/28)
 - Issue #27: by-name enum exceptions use stable source names and paths instead of applying `nameof` to guarded expressions; nullable enum captures retain source metadata. [#27](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/27)

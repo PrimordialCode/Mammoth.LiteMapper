@@ -9,6 +9,7 @@ namespace Mammoth.LiteMapper.Samples.Collections
         private static void Main()
         {
             PortableSetExample.Run();
+            DictionaryComparerExample.Run();
 
             var nullableLines = NullableLineMapper.MapNullableLines(new LineSource?[]
             {

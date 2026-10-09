@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #31: classify the selected dictionary key conversion (2026-10-09)
+
+- Context: the shared comparer predicate compared dictionary value types, so widening or structurally mapping values discarded an otherwise compatible key comparer. It also preserved comparers for same-type keys without checking whether a custom conversion was selected.
+- Decision: retain a language-identity flag from the successful element-resolution stage. Dictionary construction requires that flag and matching key types, independently of value types. Earlier converter/mapping stages never claim language identity. Preserve existing concrete-source eligibility, set comparer selection, and Add insertion.
+- Contract: sections 11.1, 15.7, 15.9-15.10, 19.4, and 22.12 already define these semantics. No public API or specification change is introduced; reflection and runtime comparer discovery remain absent.
+- Evidence: the initial 31-case C# 9 fixture on unchanged production produced 19 failures and 12 controls, zero skips. Cases distinguish value-only conversion from same-type custom key conversion, verify all dictionary destinations, and retain collision, copying, null, helper/update, and deterministic same-driver behavior.
+
 ## Issue #30: independently select exact HashSet capacity overloads (2026-10-09)
 
 - Context: counted set mappings always emitted a capacity argument without probing the reference API; netstandard2.0 lacks that constructor. Preserved-comparer mappings always omitted capacity, even when the combined overload exists.

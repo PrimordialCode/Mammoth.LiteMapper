@@ -224,6 +224,7 @@ using System.Collections.Generic;
 using Mammoth.LiteMapper;
 
 Mammoth.LiteMapper.Samples.Collections.PortableSetExample.Run();
+Mammoth.LiteMapper.Samples.Collections.DictionaryComparerExample.Run();
 EnumPathExample.Run();
         PatchUpdaterExample.Run();
 
@@ -479,6 +480,8 @@ public sealed class PatchUpdaterTarget { public PatchUpdaterChildTarget Child { 
 ");
             File.Copy(Repository.Path("samples/Mammoth.LiteMapper.Samples.Collections/PortableSetExample.cs"),
                 Path.Combine(directory, "PortableSetExample.cs"));
+            File.Copy(Repository.Path("samples/Mammoth.LiteMapper.Samples.Collections/DictionaryComparerExample.cs"),
+                Path.Combine(directory, "DictionaryComparerExample.cs"));
             return directory;
         }
 
