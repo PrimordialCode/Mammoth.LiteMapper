@@ -25,7 +25,10 @@ namespace Mammoth.LiteMapper.Packaging.Tests
                 Directory.CreateDirectory(directory);
 
                 // Execute the documented source unchanged, including its mapping assertions.
-                File.Copy(Path.Combine(sampleDirectory, "Program.cs"), Path.Combine(directory, "Program.cs"));
+                foreach (var sourceFile in Directory.EnumerateFiles(sampleDirectory, "*.cs"))
+                {
+                    File.Copy(sourceFile, Path.Combine(directory, Path.GetFileName(sourceFile)));
+                }
                 var properties = new XElement("PropertyGroup",
                     new XElement("OutputType", "Exe"),
                     new XElement("RestorePackagesPath", Path.Combine(directory, ".packages")));

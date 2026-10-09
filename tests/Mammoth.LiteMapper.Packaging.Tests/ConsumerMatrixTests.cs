@@ -48,13 +48,21 @@ namespace Mammoth.LiteMapper.Packaging.Tests
                     new XAttribute("Include", "Mammoth.LiteMapper"), new XAttribute("Version", "1.0.0")))))
                 .Save(Path.Combine(consumer, "Consumer.csproj"));
             File.WriteAllText(Path.Combine(consumer, "Consumer.cs"), Fixture.Replace("EXPECTED_RUNTIME_MAJOR", runtimeMajor, StringComparison.Ordinal));
+            File.Copy(Repository.Path("samples/Mammoth.LiteMapper.Samples.Collections/PortableSetExample.cs"),
+                Path.Combine(consumer, "PortableSetExample.cs"));
             PackageSources(packageFeed, "https://api.nuget.org/v3/index.json")
                 .Save(Path.Combine(directory, "NuGet.Config"));
 
             Milestone14PackagingAndAotTests.RunDotnet("restore --no-cache", consumer);
             Milestone14PackagingAndAotTests.RunDotnet("build -c Release --no-restore", consumer);
             var generated = Directory.GetFiles(Path.Combine(consumer, "obj", "generated"), "*.g.cs", SearchOption.AllDirectories);
-            Assert.AreEqual(8, generated.Length, "All eight mapper containers must generate in " + framework + "/" + language + ".");
+            Assert.AreEqual(9, generated.Length, "All nine mapper containers must generate in " + framework + "/" + language + ".");
+            var setSource = File.ReadAllText(generated.Single(static file => Path.GetFileName(file).StartsWith(
+                "Mammoth.LiteMapper.Samples.Collections.PortableSetMapper.", StringComparison.Ordinal)));
+            StringAssert.Contains(setSource, "new global::System.Collections.Generic.HashSet<long>(" +
+                (standard ? "" : "source.Length") + ")");
+            StringAssert.Contains(setSource, "new global::System.Collections.Generic.HashSet<string>(" +
+                (standard ? "" : "source.Count, ") + "source.Comparer)");
 
             var executable = consumer;
             if (standard)
@@ -177,6 +185,7 @@ public static class MatrixFixture
 
     public static void Run()
     {
+        Mammoth.LiteMapper.Samples.Collections.PortableSetExample.Run();
         EnumPathExample.Run();
         PatchUpdaterExample.Run();
         if (Environment.Version.Major != EXPECTED_RUNTIME_MAJOR) throw new InvalidOperationException(""Wrong runtime was used."");

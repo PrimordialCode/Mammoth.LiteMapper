@@ -8,6 +8,8 @@ namespace Mammoth.LiteMapper.Samples.Collections
     {
         private static void Main()
         {
+            PortableSetExample.Run();
+
             var nullableLines = NullableLineMapper.MapNullableLines(new LineSource?[]
             {
                 null, new LineSource { Sku = "A", Quantity = 7 }, null,

@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #30: symbol-proven HashSet capacity constructors (2026-10-09)
+
+- Scope: probe the exact accessible HashSet capacity and capacity-plus-comparer constructors independently; use portable parameterless/comparer-only construction when unavailable. Preserve set contents, comparer selection, independent identity, and one enumeration. Do not change list or dictionary construction.
+- Test-first: synthetic missing/inaccessible/inexact/asymmetric constructor fixtures, C# 9 runtime controls, same-driver capability changes, and actual clean-package netstandard2.0/net8.0/net9.0/net10.0 consumers.
+- Implementation: select the constructor from the target element type and consumer Roslyn symbols, never from a target-framework name. Add a normally compiled Collections sample reused by package/matrix/trim/AOT consumers.
+- Validation: focused/full generator, runtime/integration, source and clean-package samples, supported framework/language matrix, available packaging/API/benchmark checks, independent review, and exact-head ordinary Windows/Linux and Roslyn CI.
+- Boundary: issue #30 only; stop at draft PR/human review. No merge, release, tag, package publication, or workflow dispatch. AgentStack CLI is absent; authorized connector fallback adds/readbacks readiness labels without issue comments or claim writes.
+
 ## Issue #29: captured patch-mode nested updater input (2026-10-09)
 
 - Scope: pass the existing per-member patch capture to direct nested updater calls so the guard and invocation consume the same value exactly once. Preserve configured paths, Throw captures, null skipping, updater selection, and per-member update order.
