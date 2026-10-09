@@ -2,6 +2,26 @@
 
 These notes are non-authoritative follow-up candidates. `SPECIFICATION.md` remains the product contract.
 
+## Issue #32: lazy cycle-path allocation evidence (2026-10-09)
+
+- Baseline: unchanged develop `7b19def74753df90cb3770c7410ff5d7a3951244`. Candidate: issue #32's private inline-leaf/immutable-link diagnostic path representation.
+- Environment: Debian 13 Linux x64 cloud container, AMD EPYC 9V74 host as exposed by `/proc/cpuinfo`, SDK 10.0.401, runtime 10.0.12, Roslyn 4.8.0, Release compilation, C# 9, `DOTNET_PROCESSOR_COUNT=1`. This is not a controlled release throughput benchmark.
+- Harness: `LazyCyclePathTests.SuccessfulChainAllocationsScaleLinearlyAtSafeDepths`, using `GC.GetAllocatedBytesForCurrentThread`. Each depth uses 40 warmups followed by three rounds of 100 mappings. Source construction and reporting are outside measurement; each mapped chain is validated without allocating. All three rounds give identical values. The no-tracking control allocates destination nodes only.
+
+| Chain depth | Previous ThrowOnCycle bytes/op | Lazy-path bytes/op | None bytes/op (unchanged) |
+|---:|---:|---:|---:|
+| 16 | 3,032 | 1,744 | 512 |
+| 32 | 9,200 | 3,560 | 1,024 |
+| 64 | 31,000 | 7,440 | 2,048 |
+| 128 | 111,792 | 15,528 | 4,096 |
+| 256 | 421,520 | 32,392 | 8,192 |
+
+`ShallowAndWideTraversalAllocationControls` additionally measures depths 1 and 2 at 232 and 264 bytes/op, and an array of 256 sibling depth-2 chains at 18,656 bytes/op. These values are unchanged by the optimization. Runtime manual controls verify that first named edges introduce no path-object allocation and that shallow siblings share only one tracker overhead.
+
+Generated source retains one literal segment per immutable link and no materialized prefix; formatting occurs only in the duplicate-reference throwing branch. This establishes linear active diagnostic-path storage by code structure. The numbers above are total managed allocations, including destination objects and tracker/HashSet growth, not isolated diagnostic allocations or peak-memory measurements. No latency, throughput, release acceptance, or general stack-safety improvement is claimed. Safe test depth is capped at 256.
+
+Reproduce after explicit restore/build with `dotnet test tests/Mammoth.LiteMapper.Generator.Tests/Mammoth.LiteMapper.Generator.Tests.csproj -c Release --no-build --no-restore --filter LazyCyclePathTests --logger trx`; per-round measurements are retained in TRX standard output. The existing `RecursiveCycleAllocationBenchmarks` remains available for controlled BenchmarkDotNet throughput comparison; its historical manual tracker does not build public exception paths and is not a diagnostic-path allocation baseline.
+
 ## Flat-object benchmark observations
 
 - Benchmark: `FlatObjectBenchmarks`.

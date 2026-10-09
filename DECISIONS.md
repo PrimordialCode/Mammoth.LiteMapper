@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #32: immutable diagnostic paths with an inline first segment (2026-10-09)
+
+- Context: each tracked member descent concatenated the complete prefix even when mapping succeeded. Current-develop measurements confirm increasing allocation at safe depths; collection bodies and acyclic/value bridges must retain the same path without adding segments.
+- Decision: pass a private readonly Path value containing its literal leaf and an immutable ancestor link. The first segment stays inline; only extension of a nonempty path allocates a link. This preserves shallow and wide first-edge allocation behavior without mutable path-stack cleanup. The existing active-reference Enter/finally/Exit scopes and single tracker field remain unchanged.
+- Formatting: only duplicate-reference Enter calls Path.ToString; two iterative passes count and reverse-fill a segment array, then join once. Successful active-path storage and total chain-link allocation are O(depth), with no copied full prefixes, source-object retention, reflection, or public API. Empty root collection paths and method metadata keep their existing meaning.
+- Contract: sections 5.9, 14.1, 17.2-17.6, 19.5, 22.14, 23.3, and 28.7 already permit this private representation; no specification semantics change is needed. A mutable push/pop stack was avoided because context-only bridges and failed Enter calls would require new cleanup scopes.
+- Evidence: the initial 13-case suite has two allocation/storage failures and 11 controls on unchanged production. At depth 256 total allocations fall from 421,520 to 32,392 bytes per mapping; depth 1/2 and 256 shallow sibling chains are unchanged. These are allocation measurements, not throughput or general stack-safety claims. See PERFORMANCE_OPTIMIZATION_NOTES.md for method and full results.
+
 ## Issue #31: classify the selected dictionary key conversion (2026-10-09)
 
 - Context: the shared comparer predicate compared dictionary value types, so widening or structurally mapping values discarded an otherwise compatible key comparer. It also preserved comparers for same-type keys without checking whether a custom conversion was selected.

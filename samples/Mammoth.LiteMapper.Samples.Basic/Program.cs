@@ -8,6 +8,7 @@ namespace Mammoth.LiteMapper.Samples.Basic
     {
         private static void Main()
         {
+            LazyCyclePathExample.Run();
             EnumPathExample.Run();
             PatchUpdaterExample.Run();
             var staticTarget = StaticMapper.Map(new StaticSource

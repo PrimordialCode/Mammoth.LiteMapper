@@ -4033,7 +4033,7 @@ namespace Mammoth.LiteMapper.Generator
             {
                 builder.Append(", ");
             }
-            builder.AppendLine(trackerLocal + ", string.Empty, \"" + method.Name + "\");");
+            builder.AppendLine(trackerLocal + ", default(__LiteMapperCycleTracker.Path), \"" + method.Name + "\");");
             builder.AppendLine("    }");
         }
 
@@ -4149,7 +4149,7 @@ namespace Mammoth.LiteMapper.Generator
             }
             if (trackedHelper)
             {
-                builder.Append(", __LiteMapperCycleTracker " + trackerLocal + ", string " + memberPathLocal + ", string " + mappingMethodLocal);
+                builder.Append(", __LiteMapperCycleTracker " + trackerLocal + ", __LiteMapperCycleTracker.Path " + memberPathLocal + ", string " + mappingMethodLocal);
             }
 
             builder.AppendLine(")");
@@ -4205,7 +4205,7 @@ namespace Mammoth.LiteMapper.Generator
 
             if (trackedSource)
             {
-                builder.AppendLine("        " + trackerLocal + ".Enter(" + EscapeIdentifier(parameter.Name) + "!, typeof(" + DisplayType(sourceType).TrimEnd('?') + "), typeof(" + DisplayType(targetType).TrimEnd('?') + "), " + mappingMethodExpression + ", " + (trackedPublicEntry ? "string.Empty" : memberPathLocal) + ");");
+                builder.AppendLine("        " + trackerLocal + ".Enter(" + EscapeIdentifier(parameter.Name) + "!, typeof(" + DisplayType(sourceType).TrimEnd('?') + "), typeof(" + DisplayType(targetType).TrimEnd('?') + "), " + mappingMethodExpression + ", " + (trackedPublicEntry ? "default(__LiteMapperCycleTracker.Path)" : memberPathLocal) + ");");
                 builder.AppendLine("        try");
                 builder.AppendLine("        {");
             }
@@ -4213,7 +4213,7 @@ namespace Mammoth.LiteMapper.Generator
             if (mapping.CustomBody != null)
             {
                 builder.Append(RenderTrackedCalls(mapping.CustomBody, trackerHelperNames, recursiveDeclaredMappings, trackedMapping,
-                    mapping.DeclaredCalls, mapping.HelperName == null ? "string.Empty" : memberPathLocal, trackerLocal, mappingMethodExpression));
+                    mapping.DeclaredCalls, mapping.HelperName == null ? "default(__LiteMapperCycleTracker.Path)" : memberPathLocal, trackerLocal, mappingMethodExpression));
                 if (trackedSource)
                 {
                     builder.AppendLine("        }");
@@ -4517,11 +4517,10 @@ namespace Mammoth.LiteMapper.Generator
 
         private static string PathExpression(MappingModel mapping, string memberName, string memberPathName)
         {
-            if (mapping.HelperName == null)
-            {
-                return "\"" + memberName + "\"";
-            }
-            return "(" + memberPathName + ".Length == 0 ? \"" + memberName + "\" : " + memberPathName + " + \"." + memberName + "\")";
+            var member = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(memberName, quote: true);
+            return mapping.HelperName == null
+                ? "new __LiteMapperCycleTracker.Path(" + member + ")"
+                : memberPathName + ".Append(" + member + ")";
         }
 
         private static IEnumerable<IMethodSymbol> DeclaredCallSequence(IMethodSymbol? declaredMapping)
@@ -4636,17 +4635,50 @@ namespace Mammoth.LiteMapper.Generator
             builder.AppendLine("    {");
             builder.AppendLine("        private readonly global::System.Collections.Generic.HashSet<object> _active = new global::System.Collections.Generic.HashSet<object>(__ReferenceIdentityComparer.Instance);");
             builder.AppendLine();
-            builder.AppendLine("        public void Enter(object source, global::System.Type sourceType, global::System.Type destinationType, string mappingMethod, string memberPath)");
+            builder.AppendLine("        public void Enter(object source, global::System.Type sourceType, global::System.Type destinationType, string mappingMethod, Path memberPath)");
             builder.AppendLine("        {");
             builder.AppendLine("            if (!_active.Add(source))");
             builder.AppendLine("            {");
-            builder.AppendLine("                throw new global::Mammoth.LiteMapper.LiteMapperCycleException(sourceType, destinationType, mappingMethod, memberPath);");
+            builder.AppendLine("                throw new global::Mammoth.LiteMapper.LiteMapperCycleException(sourceType, destinationType, mappingMethod, memberPath.ToString());");
             builder.AppendLine("            }");
             builder.AppendLine("        }");
             builder.AppendLine();
             builder.AppendLine("        public void Exit(object source)");
             builder.AppendLine("        {");
             builder.AppendLine("            _active.Remove(source);");
+            builder.AppendLine("        }");
+            builder.AppendLine();
+            builder.AppendLine("        public readonly struct Path");
+            builder.AppendLine("        {");
+            builder.AppendLine("            private readonly Link? _parent;");
+            builder.AppendLine("            private readonly string? _member;");
+            builder.AppendLine();
+            builder.AppendLine("            public Path(string member) : this(null, member) { }");
+            builder.AppendLine("            private Path(Link? parent, string member) { _parent = parent; _member = member; }");
+            builder.AppendLine();
+            builder.AppendLine("            public Path Append(string member) => new Path(_member == null ? null : new Link(this), member);");
+            builder.AppendLine();
+            builder.AppendLine("            public override string ToString()");
+            builder.AppendLine("            {");
+            builder.AppendLine("                var count = 0;");
+            builder.AppendLine("                for (var path = this; path._member != null; path = path._parent == null ? default : path._parent.Value)");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    count++;");
+            builder.AppendLine("                }");
+            builder.AppendLine("                if (count == 0) return string.Empty;");
+            builder.AppendLine("                var segments = new string[count];");
+            builder.AppendLine("                for (var path = this; path._member != null; path = path._parent == null ? default : path._parent.Value)");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    segments[--count] = path._member;");
+            builder.AppendLine("                }");
+            builder.AppendLine("                return string.Join(\".\", segments);");
+            builder.AppendLine("            }");
+            builder.AppendLine();
+            builder.AppendLine("            private sealed class Link");
+            builder.AppendLine("            {");
+            builder.AppendLine("                public readonly Path Value;");
+            builder.AppendLine("                public Link(Path value) { Value = value; }");
+            builder.AppendLine("            }");
             builder.AppendLine("        }");
             builder.AppendLine("    }");
             builder.AppendLine();
