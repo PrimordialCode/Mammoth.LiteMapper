@@ -8,6 +8,7 @@ namespace Mammoth.LiteMapper.Samples.Basic
     {
         private static void Main()
         {
+            EnumPathExample.Run();
             var staticTarget = StaticMapper.Map(new StaticSource
             {
                 Name = "Ada",
@@ -186,4 +187,49 @@ namespace Mammoth.LiteMapper.Samples.Basic
     {
         public NodeTarget? Next { get; set; }
     }
+}
+
+namespace Mammoth.LiteMapper.Samples.Basic
+{
+    public static class EnumPathExample
+    {
+        public static void Run()
+        {
+            var source = new EnumPathSource { Child = new EnumPathChild { State = InputState.Ready } };
+            if (EnumPathMapper.Map(source).State != OutputState.Ready)
+                throw new System.InvalidOperationException("Enum source-path mapping failed.");
+            source.Child.State = (InputState)99;
+            try
+            {
+                EnumPathMapper.Map(source);
+                throw new System.InvalidOperationException("Unknown enum value was accepted.");
+            }
+            catch (System.ArgumentOutOfRangeException error) when (
+                error.ParamName == "Child.State" && error.ActualValue is InputState value && value == (InputState)99)
+            {
+            }
+            source.Child = null;
+            try
+            {
+                EnumPathMapper.Map(source);
+                throw new System.InvalidOperationException("Missing enum source path was accepted.");
+            }
+            catch (System.InvalidOperationException error) when (error.Message.Contains("Child.State"))
+            {
+            }
+        }
+    }
+
+    [LiteMapper(NullableMismatch = NullableMismatchPolicy.Throw)]
+    public static partial class EnumPathMapper
+    {
+        [MapProperty(Source = "Child.State", Target = nameof(EnumPathTarget.State))]
+        public static partial EnumPathTarget Map(EnumPathSource source);
+    }
+
+    public enum InputState { Ready = 1 }
+    public enum OutputState { Ready = 10 }
+    public sealed class EnumPathSource { public EnumPathChild? Child { get; set; } }
+    public sealed class EnumPathChild { public InputState State { get; set; } }
+    public sealed class EnumPathTarget { public OutputState State { get; set; } }
 }

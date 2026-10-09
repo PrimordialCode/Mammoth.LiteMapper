@@ -861,6 +861,21 @@ public static partial class NullableStatusMapper
 
 The same name matching and null preservation apply to members and collection elements. A nullable source targeting a non-null enum follows `Error` or `Throw`; unknown numeric values still throw `ArgumentOutOfRangeException` under by-name mapping. Patch mappings with `IgnoreNullSourceMembers` preserve the existing enum value when the source is null.
 
+The Basic sample includes a configured enum path with a nullable intermediate:
+
+```csharp
+[LiteMapper(NullableMismatch = NullableMismatchPolicy.Throw)]
+public static partial class EnumPathMapper
+{
+    [MapProperty(Source = "Child.State", Target = nameof(EnumPathTarget.State))]
+    public static partial EnumPathTarget Map(EnumPathSource source);
+}
+```
+
+For this non-null enum target, `Ready = 1` maps by name to `Ready = 10`, a missing `Child` follows the Throw policy, and an unknown value throws `ArgumentOutOfRangeException` with `ParamName` equal to `Child.State` and the original enum in `ActualValue`. Root mappings retain their declared parameter name; direct members retain their source-member name. Exception metadata does not cause another getter evaluation.
+
+Known limitation: a nullable intermediate with a non-nullable enum leaf mapped to a nullable enum target still throws when the intermediate is null. Null preservation for this specific configured-path shape is not yet supported correctly.
+
 ## Recursive mappings and cycle detection
 
 From `samples/Mammoth.LiteMapper.Samples.Basic/Program.cs`:
