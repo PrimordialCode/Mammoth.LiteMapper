@@ -63,7 +63,7 @@ public sealed class NodeDto { public string? Name { get; set; } public NodeDto? 
             var generated = SingleGeneratedSource(result.RunResult);
             StringAssert.Contains(generated, "__LiteMapperCycleTracker");
             StringAssert.Matches(generated, new System.Text.RegularExpressions.Regex(
-                "source\\.Child is \\{ \\} (__sourcePath_Child_[0-9A-F]{8}) \\? MapNested_Node_To_NodeDto_[0-9A-F]{8}\\(\\1, __tracker, \\\"Child\\\", \\\"ToDto\\\"\\)"));
+                "source\\.Child is \\{ \\} (__sourcePath_Child_[0-9A-F]{8}) \\? MapNested_Node_To_NodeDto_[0-9A-F]{8}\\(\\1, __tracker, new __LiteMapperCycleTracker\\.Path\\(\\\"Child\\\"\\), \\\"ToDto\\\"\\)"));
             AssertNoRuntimeFeatures(generated);
 
             var assembly = Emit(result.Compilation);

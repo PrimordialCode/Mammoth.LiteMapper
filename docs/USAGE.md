@@ -898,6 +898,8 @@ public static partial class CycleMapper
 
 `ReferenceHandling.ThrowOnCycle` enables generated cycle tracking for recursive type graphs. A detected cycle throws `LiteMapperCycleException`. Non-recursive mappings do not allocate cycle-tracker state.
 
+Successful recursive traversal retains compact diagnostic path segments rather than allocating a full path string at every level. The complete `MemberPath` is formatted only when a cycle is detected; active diagnostic-path storage grows linearly with depth. This does not remove the call-stack limit of recursive mapping. The [Basic cycle example](../samples/Mammoth.LiteMapper.Samples.Basic/LazyCyclePathExample.cs) exercises finite chains, exact direct/indirect/collection paths, shared siblings, and later calls after exceptions.
+
 Acyclic object and collection wrappers can lead into a recursive graph. The same tracker is forwarded through those wrappers, while only recursive reference objects participate in cycle detection. The Basic sample maps `WrappedSource.Envelope.Nodes`; a self-cycle in a node reports `Envelope.Nodes.Next`, and a shared node in separate collection positions maps independently.
 
 `LiteMapperCycleException` exposes `SourceType`, `DestinationType`, `MappingMethod`, and `MemberPath` for the detected active-path cycle. It does not expose `SourcePath` or `DestinationPath` properties.

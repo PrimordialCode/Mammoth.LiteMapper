@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #32: lazy cycle diagnostic paths (2026-10-09)
+
+- Scope: avoid copying full path prefixes on successful recursive descent, preserving exact exception paths and public entry names, active-reference semantics, acyclic bridges, collections, and value-type traversal. No public API or specification semantics change.
+- Test-first: measure current allocations at safe depths 16/32/64/128/256, then add linear-storage/scaling checks and exact-path, sibling, concurrency, cleanup, deterministic C# 9, and nonrecursive allocation controls before production edits.
+- Implementation: use compact private path state and format the full string only on cycle detection. Keep reference Enter/finally/Exit behavior and one tracker per recursive call.
+- Validation: focused/full generator, runtime/integration, source and clean-package consumers, framework/language matrix, available packaging/API/benchmark checks, independent review, and exact-head ordinary Windows/Linux and Roslyn CI. Report allocation evidence separately from throughput.
+- Boundary: issue #32 only, then draft PR/human review. No merge, release, tag, package publication, or workflow dispatch. AgentStack CLI is absent; authorized connector fallback adds/readbacks readiness labels without issue comments or claim writes.
+
 ## Issue #31: dictionary key comparer preservation (2026-10-09)
 
 - Scope: preserve a concrete Dictionary source's compatible key comparer when key resolution selects language identity, independently of value conversion. Converted keys use the destination default comparer; retain Add collision semantics and existing set behavior.
