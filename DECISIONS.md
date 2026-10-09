@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #24: discover the marker-owning partial declaration once (2026-10-09)
+
+- Context: broad attributed-type discovery sees the merged LiteMapper marker on every attributed partial part. Repeated planning yields duplicate diagnostics and source hint collisions that discard unrelated generated output.
+- Decision: retain the existing incremental syntax-provider identity and select the declaration containing the symbol's first LiteMapper marker before planning. The owner check also handles genuinely repeated markers, allowing existing merged-symbol validation to report LITEMAPPER0013 once. No compilation-wide collect/deduplicate stage or mutable generator state is introduced. A first ForAttributeWithMetadataName candidate recreated output identities for cross-file removal and tree reordering on Roslyn 4.8; the narrower owner filter preserves the established caching contract without weakening existing tests.
+- Contract: sections 7, 19.2, 19.3, 19.7, 20.2, and 21.4 already require one file per mapper, duplicate-configuration validation, and incremental isolation. All members and registrations still come from the merged symbol; no public API or specification semantics change is required.
+- Evidence: 24 initial tests on unchanged production yielded 23 failures and one unattributed-part control, zero skips; the Basic sample separately failed with CS8785 and three CS8795 errors. Focused cases cover declaration shapes, aliases, registrations, warning/fault diagnostic counts, duplicate markers, ordering, and same-driver changes.
+
 ## Issue #23: resolve explicit root input before member matching (2026-10-08)
 
 - Context: new-object planning rejected absent source-member matches before resolving a root converter. Constructor/update planning also allowed automatic ambiguity or patch captures to override the explicit selection.

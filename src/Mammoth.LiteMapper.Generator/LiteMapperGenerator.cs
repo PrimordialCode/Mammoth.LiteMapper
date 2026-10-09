@@ -225,7 +225,10 @@ namespace Mammoth.LiteMapper.Generator
         {
             var typeSyntax = (TypeDeclarationSyntax)context.Node;
             var symbol = context.SemanticModel.GetDeclaredSymbol(typeSyntax, cancellationToken) as INamedTypeSymbol;
-            if (symbol == null || !HasAttribute(symbol, LiteMapperAttributeName))
+            // Only the part owning the first marker plans the merged mapper. Other
+            // attributed parts must not duplicate source or configuration diagnostics.
+            var marker = symbol?.GetAttributes().FirstOrDefault(static attribute => IsAttribute(attribute, LiteMapperAttributeName))?.ApplicationSyntaxReference;
+            if (symbol == null || marker == null || marker.SyntaxTree != typeSyntax.SyntaxTree || !typeSyntax.Span.Contains(marker.Span))
             {
                 return null;
             }

@@ -59,6 +59,11 @@ namespace Mammoth.LiteMapper.Samples.Basic
         private static string BuildDisplayName(StaticSource source) => "Name: " + source.Name;
     }
 
+    [System.Diagnostics.DebuggerDisplay("Static mapper")]
+    public static partial class StaticMapper
+    {
+    }
+
     [LiteMapper]
     public sealed partial class InstanceMapper
     {
