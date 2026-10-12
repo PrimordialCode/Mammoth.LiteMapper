@@ -4,6 +4,18 @@
 
 The following changes are not included in the published `3.0.0` package. No next release version is assigned here.
 
+### Breaking Changes
+
+These are conditional source/runtime compatibility changes from `3.0.0`, even though public package API compatibility checks pass. They correct unintended behavior and affect consumers using the described shapes; they are not universal API removals.
+
+- **Ambiguous name matching (#28):** `IgnoreCase` mappings that previously selected an exact member from multiple case-insensitive matches now fail with `LITEMAPPER1004`. Select the intended source with `MapProperty.Source`, or use `Exact`/`ExactThenIgnoreCase` when exact-name priority is intended.
+- **Collection equality (#31, #51):** dictionary value-only conversion now preserves a compatible source key comparer; custom key or set-element conversion uses the destination default comparer. Lookups, duplicate-key exceptions, set membership, and element counts can change. Recheck equality-sensitive mappings and collision expectations after upgrading.
+- **Per-entry policies (#21):** mappings sharing model pairs now consistently honor each entry's numeric, enum, null, and cycle policies. Previously masked nullable/null-collection errors can surface as `LITEMAPPER2001` or `LITEMAPPER2002`; checked/unchecked, by-name/by-value, and preserve/empty results can differ. Review each entry's intended policies and satisfy reported nullability obligations instead of relying on another entry's helper behavior.
+- **Explicit root-source converters (#23):** omitted-`Source` configuration invokes the root converter even when no matching source member exists and unmapped targets are ignored; a former default value can become the converter result. Patch calls no longer depend on an unrelated same-name nullable member. Recheck converter outputs and patch null behavior; select a source member explicitly when member-based input is intended.
+- **Patch getter and overload behavior (#29, #47):** guarded source getters are consumed once, and captured nullable values retain the selected nullable updater overload instead of binding a competing non-nullable overload. Side effects, selected updater results, and exceptions from a second getter read can change. Recheck stateful getters and overloaded updaters; do not rely on a second read or the previously incorrect overload.
+- **Null structural elements (#26):** built-in structural collection mapping now preserves null for nullable element targets. For nonnullable element targets under `Throw`, it raises `InvalidOperationException` before constructing the target object or reading source members, rather than dereferencing null in the helper. Higher-precedence nullable converters still receive null. Recheck null handling, side effects, and exception expectations.
+- **Enum exception metadata (#27):** nullable-root by-name enum failures now identify the declared input parameter instead of a generated capture name. Update assertions or error handling that inspect `ParamName` or related exception text.
+
 ### Fixed
 
 - Issue #51: set mappings use the destination default comparer after custom element conversion, including same-type converters, preventing incorrect collapse of distinct mapped values. Identity-mapped sets retain compatible source comparers. [#51](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/51)
@@ -23,12 +35,6 @@ The following changes are not included in the published `3.0.0` package. No next
 - Issue #21: nested and collection helpers retain each entry method's effective mapping policies and nullable shape. Equivalent recursive helpers remain shared while preserving the initiating entry's cycle metadata. [#21](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/21)
 - Issue #20: release validation and each NuGet package push now stop immediately on a nonzero native exit, reporting the failed operation or package before later successes can conceal it. [#20](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/20)
 - Issue #19: tag-selected manual workflow dry runs no longer enter the NuGet publish job. Automatic tag publishing requires a push event; manual branch publishing retains its explicit publish and dry-run gates. [#19](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/19)
-
-### Upgrade considerations
-
-- #28: ambiguous `IgnoreCase` mappings that compiled in `3.0.0` can now fail with `LITEMAPPER1004`. Select the intended source with `MapProperty.Source`, or use `Exact`/`ExactThenIgnoreCase` when exact-name priority is intentional.
-- #31: corrected dictionary comparer selection can change key lookup and collision behavior. Value-only conversion now preserves a compatible source key comparer; custom key conversion uses the destination default comparer. Verify lookups and duplicate-key exceptions.
-- #51: corrected set comparer selection can change membership and element counts after custom conversion. Values distinct under the destination default comparer are retained; duplicates under that comparer still collapse. Verify membership and collision expectations before upgrading.
 
 ## 3.0.0
 
