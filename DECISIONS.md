@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #51: classify the selected set element conversion (2026-10-12)
+
+- Context: set construction chose comparer preservation from matching types before resolving element conversion. A same-type custom converter could therefore inherit incompatible equality behavior and silently collapse values distinct under the destination default comparer.
+- Decision: resolve the element before construction and retain the existing successful language-conversion identity flag. Require that flag alongside the existing compatible concrete-source predicate when preserving a set comparer. Continue probing the exact capacity overload for whichever comparer path is selected.
+- Contract: sections 11.1, 15.5-15.9, 19.9 and 22.12 already require these semantics; no public API or specification change is needed. Dictionary key classification remains unchanged. Do not inspect user converter bodies to infer identity or discover interface-source comparers at runtime.
+- Evidence: the normally compiled portable set example fails its default-comparer/value-preservation assertion on unchanged production after a zero-warning build. Generator and package matrix red/green evidence is recorded in STATUS and the PR.
+
 ## Issue #48: effective nullability at the enum boundary (2026-10-09)
 
 - Context: a configured source path can evaluate to null even when its terminal enum symbol is non-nullable. Enum lowering previously considered only Nullable<T> symbol wrappers, so a missing reference intermediate entered by-name unknown-value handling or a by-value unwrapping cast.
