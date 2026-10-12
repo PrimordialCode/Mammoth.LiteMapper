@@ -1,11 +1,12 @@
 # Mammoth.LiteMapper Implementation Plan
 
-## Consumer documentation release boundaries (2026-10-12)
+## Consumer documentation release guidance (2026-10-12)
 
-- Scope: correct README/usage/consumer-skill installation and version boundaries, analyzer-property exports, and unreleased changelog placement. Preserve published `3.0.0` installation; no product source, public API, specification semantics, or package version changes.
-- Plan: distinguish tagged `3.0.0` from the unreleased f0d4bee snapshot, pin supporting source links, document central package management separately, and explain upgrade effects for ambiguity and comparer fixes. Keep consumer guidance focused on recipes, configuration, diagnostics, and compatibility.
-- Validation: run stable-package quickstart and analyzer-option probes, central-package restore/build, skill format/discovery/install checks where available, source-backed usage validation, and a scoped diff/line-ending review. Final PR-SHA release validation is tracked separately.
-- Operations: isolated cloud worktree `codex-consumer-release-docs`; AgentStack CLI is absent and the authorized connector fallback omits issue comments/claim writes. Stop at draft PR/human review; no merge, tag, package publication, or workflow dispatch.
+- Scope: correct README/usage installation, analyzer-property exports, consumer-skill guidance, and prominent changelog compatibility warnings. No product source, public API, specification semantics, or package version changes.
+- Review correction: describe the current library behavior directly as the release contract in the consumer skill and its reference. Mention previous versions only for breaking-change migration, not ordinary recipes. Use factual package-install commands without claiming an unpublished package is available. Keep the distributable skill self-contained: all document references and links stay within its own folder, with essential consumer guidance bundled locally.
+- Validation: preserve the completed published-package quickstart/analyzer/central-management probes, repeat changed-skill format/discovery/install/link checks, including isolated installation and every bundled document target and source-backed usage validation, then verify exact-head Windows/Linux and Roslyn CI. Bind artifact/release evidence to its actual SHA and version rather than carrying it forward as final-head acceptance.
+- Release readiness: separately track final-version artifact validation, nonpublishing workflow rehearsal, and administrator-controlled release safeguards. Performance evidence is separate and does not authorize changing its policy.
+- Operations: isolated cloud worktree `codex-consumer-release-docs`; AgentStack CLI is absent and the authorized connector fallback omits issue comments/claim writes. Stop at draft PR/human review. No merge, release, tag, package publication, protection changes, or duplicate login request.
 
 ## Issue #51: comparer selection after set element conversion (2026-10-12)
 

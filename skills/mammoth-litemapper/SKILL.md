@@ -5,25 +5,25 @@ description: Use Mammoth.LiteMapper in C# applications to declare compile-time o
 
 # Mammoth.LiteMapper
 
-Generate ordinary C# mapping calls from bodyless partial methods. This skill covers consumer usage of published `3.0.0` and explicitly marked unreleased corrections, not development of the generator.
+Generate ordinary C# mapping calls from bodyless partial methods. This skill describes the current Mammoth.LiteMapper release contract for consumer applications.
 
 ## Start with the consumer
 
 Inspect the consumer's package version, target framework, language version, nullable context, source/destination models, and existing mapper conventions. Preserve the application's intended null, update, and conversion semantics. Ask when those semantics are unclear.
 
-Use the primary `Mammoth.LiteMapper` NuGet package. One package reference supplies the abstractions and generator analyzer; do not add Roslyn runtime dependencies or install the generator package as the normal consumer route. Follow existing central package management when present. Use `3.0.0` for the stable install shown below and verify availability in the consumer's configured feed before changing versions. Unreleased guidance is not a package-version recommendation; installing this skill does not upgrade the generator.
+Use the primary `Mammoth.LiteMapper` NuGet package. One package reference supplies the abstractions and generator analyzer; do not add Roslyn runtime dependencies or install the generator package as the normal consumer route. Follow existing central package management when present. From the consuming project directory:
 
-```xml
-<PackageReference Include="Mammoth.LiteMapper" Version="3.0.0" />
+```sh
+dotnet add package Mammoth.LiteMapper
 ```
 
-Before relying on an advanced mapping, read [version boundaries](references/mapping-rules.md#version-boundaries). In particular, the stricter `IgnoreCase` ambiguity check, corrected dictionary/set comparer selection, and nullable enum-path fixes are unreleased. Do not promise them for `3.0.0` or invent a published next version.
+Use the application's selected release version from its configured package feed; pass `--version` when pinning a specific version. Installing this skill does not change the project's package references.
 
 The documented support matrix is `netstandard2.0`, `net8.0`, `net9.0`, and `net10.0`, with C# 9+ and a Roslyn 4.8.0+ compiler host. Shipping assemblies target `netstandard2.0`. Newer model syntax such as `required` still needs the corresponding compiler capabilities.
 
 ## Declare and call a mapping
 
-Adapt this complete example from the Basic sample's instance mapping:
+Adapt this complete instance-mapping example:
 
 ```csharp
 using Mammoth.LiteMapper;
@@ -55,9 +55,9 @@ Call `new InstanceMapper().Map(new InstanceSource { Id = 42 })`. Static mappers 
 
 ## Choose the relevant mapping rules
 
-Read [references/mapping-rules.md](references/mapping-rules.md) for member configuration, construction, converter precedence and defaults, null policies, collections, patch updates, enums, cycles, or diagnostic troubleshooting. It includes source links and version-specific verification limits.
+Read [references/mapping-rules.md](references/mapping-rules.md) for member configuration, construction, converter precedence and defaults, null policies, collections, patch updates, enums, cycles, or diagnostic troubleshooting. It includes compatibility guidance.
 
-When upgrading from 1.x or 2.x, re-check any reliance on implicit root null guards, convention-only handwritten helpers, interface collection result types, tuple member names, former diagnostic IDs, or unmapped target members. In 3.0.0, root guards are opt-in through `GuardNonNullSource`, handwritten helpers need an explicit eligibility mechanism, equal-arity tuples map positionally, read-only sequence interfaces use array results, ordinary unmapped target members default to `LITEMAPPER1001` errors, and the specification's current diagnostic catalogue is canonical.
+When upgrading, review [breaking-change migration](references/mapping-rules.md#breaking-change-migration) for changes that can affect compilation, null behavior, and collection equality.
 
 For simple matching, public instance properties and fields map by name. The default is exact matching followed by a unique case-insensitive match. Ordinary unmapped targets are errors; unmapped sources are ignored. Explicit `UnmappedTargetMembers` values (`Ignore`, `Info`, `Warning`, or `Error`) override that default, and standard compiler severity configuration can also relax configurable `LITEMAPPER1001`. That suppression or downgrade does not suppress valid generation and is not proof of complete mapping. Required, non-nullable, inaccessible, invalid, and otherwise mandatory targets still cause hard errors. `IgnoreTarget` and `UseTargetDefault` are explicit member-level opt-outs that retain their validation.
 
@@ -73,4 +73,4 @@ Build the affected consumer project and inspect the actual `LITEMAPPER` diagnost
 
 Do not edit generated files, depend on private helper names or signatures, or assume extra public collection overloads exist. Call the mapping methods declared by the consumer. Identical non-collection reference types reuse the source reference unless an explicit mapping is selected; mutable collections are copied.
 
-Use the [pinned upstream sources](references/mapping-rules.md#upstream-sources) for the installed release or the identified unreleased revision. Build examples against that package; report a mismatch rather than treating the newer documentation as proof of released behavior.
+Build against the consumer's selected package and report any discrepancy with these bundled mapping rules rather than inventing alternate mapping semantics.
