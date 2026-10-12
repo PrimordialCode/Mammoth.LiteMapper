@@ -64,13 +64,19 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             Milestone14PackagingAndAotTests.RunDotnet("restore --no-cache", consumer);
             Milestone14PackagingAndAotTests.RunDotnet("build -c Release --no-restore", consumer);
             var generated = Directory.GetFiles(Path.Combine(consumer, "obj", "generated"), "*.g.cs", SearchOption.AllDirectories);
-            Assert.AreEqual(14, generated.Length, "All fourteen mapper containers must generate in " + framework + "/" + language + ".");
+            Assert.AreEqual(15, generated.Length, "All fifteen mapper containers must generate in " + framework + "/" + language + ".");
             var setSource = File.ReadAllText(generated.Single(static file => Path.GetFileName(file).StartsWith(
                 "Mammoth.LiteMapper.Samples.Collections.PortableSetMapper.", StringComparison.Ordinal)));
             StringAssert.Contains(setSource, "new global::System.Collections.Generic.HashSet<long>(" +
                 (standard ? "" : "source.Length") + ")");
             StringAssert.Contains(setSource, "new global::System.Collections.Generic.HashSet<string>(" +
                 (standard ? "" : "source.Count, ") + "source.Comparer)");
+
+            var convertedSetSource = File.ReadAllText(generated.Single(static file => Path.GetFileName(file).StartsWith(
+                "Mammoth.LiteMapper.Samples.Collections.ConvertedSetMapper.", StringComparison.Ordinal)));
+            StringAssert.Contains(convertedSetSource, "new global::System.Collections.Generic.HashSet<string>(" +
+                (standard ? "" : "source.Count") + ")");
+            Assert.IsFalse(convertedSetSource.Contains("source.Comparer", StringComparison.Ordinal));
 
             var executable = consumer;
             if (standard)

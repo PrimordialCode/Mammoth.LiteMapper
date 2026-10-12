@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #51: comparer selection after set element conversion (2026-10-12)
+
+- Scope: use the destination default comparer whenever set-element resolution selects a non-identity conversion, including same-type custom converters. Preserve identity comparer reuse, constructor capability selection, collection copying, single enumeration, null policy, and converter precedence. No public API or specification semantics change.
+- Test-first: reproduce same-type local/registered conversion across HashSet/ISet/IReadOnlySet, distinguish converted duplicates from values distinct under the target default comparer, and retain identity/empty/null/member/update/determinism controls. Extend the normally compiled portable set sample already shared by package, matrix, trim and AOT consumers.
+- Implementation: resolve the element before construction and reuse its existing language-identity flag when choosing set comparer preservation. Keep dictionary, array, and list semantics unchanged.
+- Validation: focused/full generator, runtime/integration, source/clean-package samples, all supported framework/language consumers, available packaging checks, independent review, and exact-head Windows/Linux and Roslyn CI. Disclose local infrastructure limits.
+- Boundary: issue #51 only, then draft PR/human review. No merge, release, tag, package publication, workflow dispatch, other issue, performance gate change, or user-computer access. AgentStack CLI is absent; authorized connector fallback applied/read back readiness labels without issue comments or claim writes. No blocked-by dependencies or sub-issues.
+
 ## Issue #48: nullable enum source-path intermediates (2026-10-09)
 
 - Scope: preserve missing configured source-path intermediates as null for nullable enum targets. Retain known/unknown enum behavior, stable exception metadata, single evaluation, patch skipping, update order, and converter/null-mismatch precedence. No public API or specification semantics change.

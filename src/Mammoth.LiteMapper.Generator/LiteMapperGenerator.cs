@@ -2012,6 +2012,12 @@ namespace Mammoth.LiteMapper.Generator
                 return builder.ToString();
             }
 
+            var elementConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, itemLocal, null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance, out var elementIsIdentity);
+            if (elementConversion == null)
+            {
+                return null;
+            }
+
             if (targetShape.Kind == CollectionKind.Array)
             {
                 var countExpression = SourceCountExpression(sourceType, sourceShape, sourceExpression);
@@ -2036,7 +2042,7 @@ namespace Mammoth.LiteMapper.Generator
                 builder.Append("        var " + targetLocal + " = new ");
                 builder.Append(ConcreteCollectionType(targetShape, targetType));
                 var countExpression = SourceCountExpression(sourceType, sourceShape, sourceExpression);
-                var preserveComparer = CanPreserveComparer(sourceShape, targetShape, sourceType, targetType);
+                var preserveComparer = elementIsIdentity && CanPreserveComparer(sourceShape, targetShape, sourceType, targetType);
                 var useCapacity = countExpression != null && (targetShape.Kind != CollectionKind.Set ||
                     HasHashSetCapacityConstructor(compilation, targetShape.ElementType, method.ContainingType, preserveComparer));
                 builder.Append('(');
@@ -2057,12 +2063,6 @@ namespace Mammoth.LiteMapper.Generator
                 }
 
                 builder.AppendLine(");");
-            }
-
-            var elementConversion = ResolveElementExpression(method, sourceShape.ElementType, targetShape.ElementType, itemLocal, null, compilation, diagnostics, helpers, helperNames, options, location, declaredCalls, ref requiresInstance, out _);
-            if (elementConversion == null)
-            {
-                return null;
             }
 
             builder.Append("        foreach (var " + itemLocal + " in ");
