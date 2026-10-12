@@ -4,9 +4,7 @@ Mammoth.LiteMapper is a convention-first, compile-time object mapping library fo
 
 Consumers declare partial mapping methods on classes marked with `[LiteMapper]`. A Roslyn incremental source generator emits direct C# implementations using constructors, assignments, loops, casts, and ordinary method calls. LiteMapper is not a runtime mapping container and does not provide runtime mapper registration, assembly scanning, reflection fallback, or dynamic dispatch.
 
-Assembly-wide defaults and external mapper registrations are compile-time inputs. When they change, the incremental generator reevaluates affected generated mappings and diagnostics while preserving unrelated output where Roslyn can preserve its candidate identity.
-
-Generated nested and collection helpers are private implementation details of each generated mapper. Their names are allocated deterministically within that mapper, reserve handwritten and other generated helper signatures, reuse names for identical closed source/destination pairs with equivalent effective options, nullable shape, and execution context, and disambiguate distinct semantic identities without depending on syntax-tree order. Consumers must not depend on generated helper names or signatures.
+Assembly-wide defaults and external mapper registrations are compile-time configuration. Rebuild after changing them. Generated helpers are private; call only the mapping methods you declare and do not depend on helper names or signatures.
 
 ## Compilation Status
 
@@ -16,11 +14,13 @@ Generated nested and collection helpers are private implementation details of ea
 
 ## Quickstart
 
-Install the primary package:
+Install the published stable primary package, `3.0.0`, in a project without central package management:
 
 ```xml
-<PackageReference Include="Mammoth.LiteMapper" />
+<PackageReference Include="Mammoth.LiteMapper" Version="3.0.0" />
 ```
+
+For central package management, put the version in `Directory.Packages.props` instead; see [installation](docs/USAGE.md#installation). The [version notes](docs/USAGE.md#versions-and-upgrading) distinguish `3.0.0` from unreleased fixes in this checkout.
 
 Declare a mapper:
 
@@ -53,10 +53,10 @@ Ordinary unmapped target members are reported as `LITEMAPPER1001` errors by defa
 
 The [mammoth-litemapper skill](skills/mammoth-litemapper/SKILL.md) provides consumer mapping guidance for compatible coding agents using the [Skills CLI](https://skills.sh/docs).
 
-Once this skill is published on the repository's default branch, install it from your consuming project:
+Install the skill from the explicit `develop` branch, which includes guidance for `3.0.0` and clearly marked unreleased corrections:
 
 ```sh
-npx skills add PrimordialCode/Mammoth.LiteMapper --skill mammoth-litemapper
+npx skills add https://github.com/PrimordialCode/Mammoth.LiteMapper/tree/develop/skills/mammoth-litemapper --skill mammoth-litemapper
 ```
 
-Append `--agent codex` to target Codex or `--global` for user-level installation. To preview this checkout's discoverable skills without installing, run `npx skills add . --list` from the repository root. The skill contains its own supporting reference; consumers do not need a LiteMapper source checkout. Local validation does not establish a skills.sh directory listing.
+Append `--agent codex` to target Codex or `--global` for user-level installation. To preview this checkout without installing, run `npx skills add ./skills/mammoth-litemapper --list` from the repository root. The skill includes its supporting reference and needs no source checkout. Installing the skill does not upgrade the NuGet package; verify the package version before using an unreleased correction.

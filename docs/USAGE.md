@@ -8,15 +8,43 @@ Runnable examples:
 - `samples/Mammoth.LiteMapper.Samples.Collections/Program.cs`
 - `samples/Mammoth.LiteMapper.Samples.AspNetCore/Program.cs`
 
+## Versions and upgrading
+
+The stable package example installs `3.0.0`. This checkout also documents unreleased corrections implemented at [f0d4bee](https://github.com/PrimordialCode/Mammoth.LiteMapper/commit/f0d4beedc1c0f0105c0e2a5c37c283969ac23f96); they are not included in that package. The next package version has not been assigned here. For the released snapshot, see the [3.0.0 usage guide](https://github.com/PrimordialCode/Mammoth.LiteMapper/blob/3.0.0/docs/USAGE.md) and [3.0.0 samples](https://github.com/PrimordialCode/Mammoth.LiteMapper/tree/3.0.0/samples).
+
+Unreleased paragraphs below identify affected cases. In particular:
+
+- `IgnoreCase` will reject multiple case-insensitive member matches even if one is exact. Code that compiled under `3.0.0` may require an explicit source selection or a different matching policy (#28).
+- Dictionary comparer preservation will depend on the selected key conversion, independently of value conversion. Recheck lookup and duplicate-key behavior (#31).
+- Custom set element converters will use the destination default comparer even for the same element type. Recheck membership, element counts, and duplicate collapse (#51).
+- Nullable enum source paths, captured patch updaters, nullable structural elements, and portable set construction have additional fixes. Check the [unreleased changelog](../CHANGELOG.md#unreleased) before relying on these shapes in `3.0.0`.
+
+Installing a newer skill or reading this branch's guide does not change the installed generator. Build and test the affected mappings against the package you actually reference.
+
 ## Installation
 
 For coding-agent assistance, use the repository's [mammoth-litemapper skill](../skills/mammoth-litemapper/SKILL.md). See [agent skill installation](../README.md#agent-skill) for the Skills CLI command. Installing the skill does not install the NuGet package in your application.
 
-Normal consumers reference the primary package only:
+Normal consumers reference the primary package only. Without central package management, include the stable version:
 
 ```xml
-<PackageReference Include="Mammoth.LiteMapper" />
+<PackageReference Include="Mammoth.LiteMapper" Version="3.0.0" />
 ```
+
+With NuGet central package management, enable it and declare the version in `Directory.Packages.props`:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Mammoth.LiteMapper" Version="3.0.0" />
+  </ItemGroup>
+</Project>
+```
+
+Then use `<PackageReference Include="Mammoth.LiteMapper" />` inside the consuming project's `ItemGroup`. A versionless reference without a central version fails restore; do not copy the repository's centrally managed reference into a standalone project.
 
 `Mammoth.LiteMapper.Abstractions` is pulled in as a dependency and contains the public attributes, enums, and `LiteMapperCycleException`. The generator is included as an analyzer asset and is not a runtime dependency.
 
@@ -24,7 +52,7 @@ Normal consumers reference the primary package only:
 
 A generated mapper is a partial method inside a class marked with `[LiteMapper]`.
 
-Apply `[LiteMapper]` once across the mapper's partial declarations. Other parts may contain mapping methods, `[UseMapper]` registrations, or unrelated attributes. LiteMapper combines those parts into one generated file. Repeating `[LiteMapper]` is invalid and reports `LITEMAPPER0013`. The Basic sample includes a separate partial part with `[DebuggerDisplay]`.
+Unreleased (#24): Apply `[LiteMapper]` once across the mapper's partial declarations. Other parts may contain mapping methods, `[UseMapper]` registrations, or unrelated attributes. LiteMapper combines those parts into one generated file. Repeating `[LiteMapper]` is invalid and reports `LITEMAPPER0013`. The Basic sample includes a separate partial part with `[DebuggerDisplay]`.
 
 From `samples/Mammoth.LiteMapper.Samples.Basic/Program.cs`:
 
@@ -54,7 +82,7 @@ A containing type can also be a partial record, record struct, or interface. For
 
 Instance mappers may use fields, properties, constructor-injected dependencies, and instance converter methods. Static mapper classes may use static converters only.
 
-Automatic nested and collection mappings keep access to the same mapper instance when a selected converter or mapping method needs it. Helpers without instance-dependent calls remain static. A static mapping method declared inside an instance mapper can use only static converters and mapping methods.
+Unreleased (#22): Automatic nested and collection mappings keep access to the same mapper instance when a selected converter or mapping method needs it. Helpers without instance-dependent calls remain static. A static mapping method declared inside an instance mapper can use only static converters and mapping methods.
 
 The [Basic sample](../samples/Mammoth.LiteMapper.Samples.Basic/Program.cs) passes a prefix into `InstanceMapper`: `new InstanceMapper("first:")` formats nested child value `7` as `"first:7"` and collection child value `8` as `"first:8"`. A separate `new InstanceMapper("second:")` uses its own prefix. User-owned mutable state remains the consumer's thread-safety responsibility.
 
@@ -158,7 +186,7 @@ Configuration resolves from the most specific scope to the least specific scope:
 3. `[assembly: LiteMapperDefaults(...)]` for assembly-level defaults.
 4. Library defaults.
 
-Assembly-level defaults and external mapper registrations are compile-time configuration inputs. When either changes during an incremental build, LiteMapper reevaluates affected generated mappings and diagnostics; unrelated output can remain cached where Roslyn preserves the relevant candidate identity. This affects build invalidation only and does not create a runtime mapper registry.
+Assembly-level defaults and external mapper registrations are compile-time configuration. Rebuild after changing them so generated mappings and diagnostics reflect the new values.
 
 ```csharp
 [assembly: LiteMapperDefaults(
@@ -233,13 +261,13 @@ Useful options:
 - `NameMatching.IgnoreCase`: unique ordinal ignore-case match, without exact-match priority.
 - `UnmappedMemberPolicy.Ignore`, `Info`, `Warning`, `Error`: controls diagnostics for unmapped source or target members.
 
-If a source exposes both `Value` and `value`, automatic matching to target `Value` under `IgnoreCase` reports `LITEMAPPER1004` and omits the invalid implementation, including in updates and nested structural mappings. `Exact` and `ExactThenIgnoreCase` select the exact `Value` member. An explicit `MapProperty.Source` can select the intended member. Constructor parameters follow the same matching policy.
+Unreleased (#28): If a source exposes both `Value` and `value`, automatic matching to target `Value` under `IgnoreCase` reports `LITEMAPPER1004` and omits the invalid implementation, including in updates and nested structural mappings. `Exact` and `ExactThenIgnoreCase` select the exact `Value` member. An explicit `MapProperty.Source` can select the intended member. Constructor parameters follow the same matching policy.
 
 Member candidates are public instance properties and fields. Hidden members are resolved to the most-derived usable member, with property-over-field preference when needed.
 
 Source paths in `[MapProperty]` may use dotted member paths such as `"Email.Value"`. Source paths must resolve to members and cannot use method-call syntax. Source methods are not discovered automatically; use a converter or root-source `MapProperty.Use` method when a method-derived value is needed.
 
-Omitting `Source` with an explicit `Use` passes the complete root object to that converter. This selection takes priority over automatic name matching, so an unrelated source member with the target name is not read and no same-name source member is required. The same rule applies to constructor-bound members and existing-target mappings, including patch mode.
+Unreleased (#23): Omitting `Source` with an explicit `Use` passes the complete root object to that converter. This selection takes priority over automatic name matching, so an unrelated source member with the target name is not read and no same-name source member is required. The same rule applies to constructor-bound members and existing-target mappings, including patch mode.
 
 The [Basic sample](../samples/Mammoth.LiteMapper.Samples.Basic/Program.cs) maps `StaticSource.Name == "Ada"` to `StaticTarget.DisplayName == "Name: Ada"`:
 
@@ -627,7 +655,7 @@ Visible handwritten or generated mapping methods for the same nested pair are re
 
 Nested helpers are closed over the concrete source/destination type pair. Closed generic model types can be mapped when the containing mapper and mapping method are not generic. Nullable nested objects follow the same nullability policy as other members.
 
-Nested and collection helpers are private implementation details within the generated mapper. Helper names are allocated deterministically per mapper: handwritten members and other generated helper signatures are reserved, identical closed source/destination pairs share helpers only when their effective options, relevant nullable shape, and execution context are equivalent, and distinct semantic identities are disambiguated even when their preferred shape-plus-hash names collide. Allocation does not depend on syntax-tree order or equivalent compilation order. Consumer code must not reference or depend on helper names or signatures.
+Nested and collection helpers are private implementation details. Consumer code must not reference or depend on their names or signatures. Unreleased correction (#21): nested and collection mappings consistently retain each entry method's effective options and nullable shape; test mappings that share model types but use different policies when upgrading.
 
 For existing-target nested objects, LiteMapper replaces writable nested targets by default. Mutation of an existing nested object requires an explicit compatible existing-target nested mapping method.
 
@@ -653,7 +681,7 @@ For a writable non-null child, select the updater explicitly with `[MapProperty(
 
 Omitting `Source` in `[MapProperty(Target = nameof(Target.Child), Use = nameof(ApplyChild))]` passes the root source to `void ApplyChild(Source source, ChildTarget target)`. No source member named `Child` is required: the updater can copy root `Value == 3` into `target.Child.Value`.
 
-The patch guard and nested updater share one captured source value: a nullable getter is evaluated once, even if another read would return a different object or null. The [Basic sample](../samples/Mammoth.LiteMapper.Samples.Basic/Program.cs) demonstrates this with `PatchUpdaterExample`. Nullable value captures retain the selected updater overload for automatic direct members and configured direct or dotted source paths. The [configured overload sample](../samples/Mammoth.LiteMapper.Samples.Basic/ConfiguredUpdaterOverloadExample.cs) selects `ApplyChild(ConfiguredUpdaterValue?, ConfiguredUpdaterChild)` even when a competing non-nullable overload exists, and preserves the target for a null leaf or intermediate.
+Unreleased (#29, #47): The patch guard and nested updater share one captured source value: a nullable getter is evaluated once, even if another read would return a different object or null. The [Basic sample](../samples/Mammoth.LiteMapper.Samples.Basic/Program.cs) demonstrates this with `PatchUpdaterExample`. Nullable value captures retain the selected updater overload for automatic direct members and configured direct or dotted source paths. The [configured overload sample](../samples/Mammoth.LiteMapper.Samples.Basic/ConfiguredUpdaterOverloadExample.cs) selects `ApplyChild(ConfiguredUpdaterValue?, ConfiguredUpdaterChild)` even when a competing non-nullable overload exists, and preserves the target for a null leaf or intermediate.
 
 Patch mode also applies to nested updater calls. If `source.Child` is null and `IgnoreNullSourceMembers` is enabled, the updater is skipped and the existing target child remains unchanged. With the default mismatch policy, passing a nullable child to a non-null updater parameter reports `LITEMAPPER2001`; `Throw` raises `InvalidOperationException` whose message includes the `Child` path.
 
@@ -702,13 +730,15 @@ Supported collection mapping includes:
 - nested collections and collections of nested objects;
 - dictionary key and value conversion.
 
-Nullable structural elements preserve null without calling an object-mapping helper. In the Collections sample, `MapNullableLines` maps a three-element source containing null, a line with quantity 7, and null to three elements with the same null positions and mapped quantity. This also applies to dictionary values and nested collections. Mapping a nullable element to a non-null target reports `LITEMAPPER2003` under `NullableMismatchPolicy.Error`; `Throw` checks the element before mapping and raises `InvalidOperationException` with its source element path. `NullCollectionStrategy.Empty` applies to the collection itself and does not replace or remove null object elements.
+Unreleased (#26): Nullable structural elements preserve null without calling an object-mapping helper. In the Collections sample, `MapNullableLines` maps a three-element source containing null, a line with quantity 7, and null to three elements with the same null positions and mapped quantity. This also applies to dictionary values and nested collections. Mapping a nullable element to a non-null target reports `LITEMAPPER2003` under `NullableMismatchPolicy.Error`; `Throw` checks the element before mapping and raises `InvalidOperationException` with its source element path. `NullCollectionStrategy.Empty` applies to the collection itself and does not replace or remove null object elements.
 
-LiteMapper enumerates arbitrary enumerable sources once. Capacity is preallocated only when cheap count or length information and the exact accessible constructor are available. Set mappings use parameterless or comparer-only construction on targets such as `netstandard2.0` where capacity overloads are absent. Comparers are preserved for compatible set and dictionary shapes when element or key mapping uses language identity. Unsupported shapes include custom collections, immutable collections, queues, stacks, and rectangular multidimensional arrays.
+LiteMapper enumerates arbitrary enumerable sources once. Unsupported shapes include custom collections, immutable collections, queues, stacks, and rectangular multidimensional arrays.
 
-The [portable set example](../samples/Mammoth.LiteMapper.Samples.Collections/PortableSetExample.cs) maps arrays and lists to `HashSet<long>` and `ISet<long>`, collapsing duplicate converted values. It also verifies detached identity-mapped copies with preserved case-insensitive comparers. A selected custom element converter uses the destination default comparer even when its input and output types match: mapping `A`, `B`, and `C` to `x`, `X`, and `x` retains both `x` and `X` while collapsing the duplicate `x`. `IReadOnlySet<T>` is included only when that interface exists. Interface-declared set sources use the default comparer because their declared contracts do not expose a comparer.
+Unreleased (#30): set capacity is preallocated only when cheap count or length information and the exact accessible constructor are available. Set mappings use parameterless or comparer-only construction on targets such as `netstandard2.0` where capacity overloads are absent. Comparer corrections are described below.
 
-The [dictionary comparer example](../samples/Mammoth.LiteMapper.Samples.Collections/DictionaryComparerExample.cs) preserves a concrete dictionary source's case-insensitive key comparer when widening `int` values to `long` or structurally mapping value objects. This applies to `Dictionary`, `IDictionary`, and `IReadOnlyDictionary` destinations. Comparer selection depends on the selected key conversion, independently of value conversion: custom key converters use the destination default comparer even when their input and output key types match. Converted-key collisions throw through normal `Add` semantics. Interface-declared dictionary sources use the default comparer because their declared contracts do not expose a comparer; LiteMapper does not discover it at runtime.
+Unreleased (#30, #51): The [portable set example](../samples/Mammoth.LiteMapper.Samples.Collections/PortableSetExample.cs) maps arrays and lists to `HashSet<long>` and `ISet<long>`, collapsing duplicate converted values. It also verifies detached identity-mapped copies with preserved case-insensitive comparers. A selected custom element converter uses the destination default comparer even when its input and output types match: mapping `A`, `B`, and `C` to `x`, `X`, and `x` retains both `x` and `X` while collapsing the duplicate `x`. `IReadOnlySet<T>` is included only when that interface exists. Interface-declared set sources use the default comparer because their declared contracts do not expose a comparer.
+
+Unreleased (#31): The [dictionary comparer example](../samples/Mammoth.LiteMapper.Samples.Collections/DictionaryComparerExample.cs) preserves a concrete dictionary source's case-insensitive key comparer when widening `int` values to `long` or structurally mapping value objects. This applies to `Dictionary`, `IDictionary`, and `IReadOnlyDictionary` destinations. Comparer selection depends on the selected key conversion, independently of value conversion: custom key converters use the destination default comparer even when their input and output key types match. Converted-key collisions throw through normal `Add` semantics. Interface-declared dictionary sources use the default comparer because their declared contracts do not expose a comparer; LiteMapper does not discover it at runtime.
 
 For array results from sources without a cheap, reliable count, mapping uses an O(n) temporary growing buffer and then creates the final array. It does not count by enumerating first, and each element is converted once. Counted sources allocate their final array directly. The same rule applies to interfaces whose concrete result is an array.
 
@@ -869,7 +899,7 @@ public static partial class NullableStatusMapper
 
 The same name matching and null preservation apply to members and collection elements. A nullable source targeting a non-null enum follows `Error` or `Throw`; unknown numeric values still throw `ArgumentOutOfRangeException` under by-name mapping. Patch mappings with `IgnoreNullSourceMembers` preserve the existing enum value when the source is null.
 
-The Basic sample includes a configured enum path with a nullable intermediate:
+Unreleased (#27): The Basic sample includes a configured enum path with a nullable intermediate:
 
 ```csharp
 [LiteMapper(NullableMismatch = NullableMismatchPolicy.Throw)]
@@ -882,7 +912,7 @@ public static partial class EnumPathMapper
 
 For this non-null enum target, `Ready = 1` maps by name to `Ready = 10`, a missing `Child` follows the Throw policy, and an unknown value throws `ArgumentOutOfRangeException` with `ParamName` equal to `Child.State` and the original enum in `ActualValue`. Root mappings retain their declared parameter name; direct members retain their source-member name. Exception metadata does not cause another getter evaluation.
 
-For a nullable enum target, a missing reference intermediate preserves null even when the enum leaf is non-nullable. The Basic sample's `NullableEnumPathExample.cs` demonstrates creation, constructor binding, existing-target updates, and patch skipping for `Child.State`. By-name mapping converts `Ready = 1` to `Ready = 10` and retains the exception metadata above for unknown non-null values; by-value mapping preserves null and converts the underlying value according to the enum numeric policy. Explicit converters still take precedence and a nullable-input converter receives a missing path as null.
+Unreleased (#48): For a nullable enum target, a missing reference intermediate preserves null even when the enum leaf is non-nullable. The Basic sample's `NullableEnumPathExample.cs` demonstrates creation, constructor binding, existing-target updates, and patch skipping for `Child.State`. By-name mapping converts `Ready = 1` to `Ready = 10` and retains the exception metadata above for unknown non-null values; by-value mapping preserves null and converts the underlying value according to the enum numeric policy. Explicit converters still take precedence and a nullable-input converter receives a missing path as null.
 
 ## Recursive mappings and cycle detection
 
@@ -898,9 +928,9 @@ public static partial class CycleMapper
 
 `ReferenceHandling.ThrowOnCycle` enables generated cycle tracking for recursive type graphs. A detected cycle throws `LiteMapperCycleException`. Non-recursive mappings do not allocate cycle-tracker state.
 
-Successful recursive traversal retains compact diagnostic path segments rather than allocating a full path string at every level. The complete `MemberPath` is formatted only when a cycle is detected; active diagnostic-path storage grows linearly with depth. This does not remove the call-stack limit of recursive mapping. The [Basic cycle example](../samples/Mammoth.LiteMapper.Samples.Basic/LazyCyclePathExample.cs) exercises finite chains, exact direct/indirect/collection paths, shared siblings, and later calls after exceptions.
+Unreleased (#32): Successful recursive traversal retains compact diagnostic path segments rather than allocating a full path string at every level. The complete `MemberPath` is formatted only when a cycle is detected; active diagnostic-path storage grows linearly with depth. This does not remove the call-stack limit of recursive mapping. The [Basic cycle example](../samples/Mammoth.LiteMapper.Samples.Basic/LazyCyclePathExample.cs) exercises finite chains, exact direct/indirect/collection paths, shared siblings, and later calls after exceptions.
 
-Acyclic object and collection wrappers can lead into a recursive graph. The same tracker is forwarded through those wrappers, while only recursive reference objects participate in cycle detection. The Basic sample maps `WrappedSource.Envelope.Nodes`; a self-cycle in a node reports `Envelope.Nodes.Next`, and a shared node in separate collection positions maps independently.
+Unreleased (#25): Acyclic object and collection wrappers can lead into a recursive graph. The same tracker is forwarded through those wrappers, while only recursive reference objects participate in cycle detection. The Basic sample maps `WrappedSource.Envelope.Nodes`; a self-cycle in a node reports `Envelope.Nodes.Next`, and a shared node in separate collection positions maps independently.
 
 `LiteMapperCycleException` exposes `SourceType`, `DestinationType`, `MappingMethod`, and `MemberPath` for the detected active-path cycle. It does not expose `SourcePath` or `DestinationPath` properties.
 
@@ -949,19 +979,24 @@ Windows and Linux are supported. A `netstandard2.0` library runs inside an appli
 
 The primary `Mammoth.LiteMapper` package is the normal install path. `Mammoth.LiteMapper.Generator` is the generator implementation package and is not the normal consumer install route.
 
-The release workflow validates package API compatibility and clean-consumer execution, including trimming and Native AOT, before promoting artifacts. Each native validation and package push must succeed immediately; a failure stops the stage and reports the affected operation or package. See [the release checklist](RELEASE_CHECKLIST.md).
-
 ## Analyzer options
 
-The generator recognizes these build properties for diagnostics and development:
+The generator recognizes these optional build properties for diagnostics and development. In the consuming project, set each value and export it with `CompilerVisibleProperty` so Roslyn passes it to the generator:
 
-```text
-LiteMapper_EmitDebugMetadata
-LiteMapper_IncludeGeneratedSourceComments
-LiteMapper_TreatInternalGeneratorErrorsAsExceptions
+```xml
+<PropertyGroup>
+  <LiteMapper_EmitDebugMetadata>true</LiteMapper_EmitDebugMetadata>
+  <LiteMapper_IncludeGeneratedSourceComments>true</LiteMapper_IncludeGeneratedSourceComments>
+  <LiteMapper_TreatInternalGeneratorErrorsAsExceptions>false</LiteMapper_TreatInternalGeneratorErrorsAsExceptions>
+</PropertyGroup>
+<ItemGroup>
+  <CompilerVisibleProperty Include="LiteMapper_EmitDebugMetadata" />
+  <CompilerVisibleProperty Include="LiteMapper_IncludeGeneratedSourceComments" />
+  <CompilerVisibleProperty Include="LiteMapper_TreatInternalGeneratorErrorsAsExceptions" />
+</ItemGroup>
 ```
 
-These options must not change mapping semantics.
+Setting a property alone does not make it visible to the generator. These options do not change mapping semantics. Leave `LiteMapper_TreatInternalGeneratorErrorsAsExceptions` disabled except when investigating a generator failure.
 
 Unexpected mapper validation, planning, or rendering failures normally produce one sanitized `LITEMAPPER9001` at that mapper while unrelated mappers continue. `LiteMapper_TreatInternalGeneratorErrorsAsExceptions=true` exposes the original exception through the compiler's generator-failure reporting for development and tests. Exception details can contain local paths; remove sensitive details before sharing a report.
 

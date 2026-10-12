@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Consumer documentation release boundaries (2026-10-12)
+
+- Scope: correct README/usage/consumer-skill installation and version boundaries, analyzer-property exports, and unreleased changelog placement. Preserve published `3.0.0` installation; no product source, public API, specification semantics, or package version changes.
+- Plan: distinguish tagged `3.0.0` from the unreleased f0d4bee snapshot, pin supporting source links, document central package management separately, and explain upgrade effects for ambiguity and comparer fixes. Keep consumer guidance focused on recipes, configuration, diagnostics, and compatibility.
+- Validation: run stable-package quickstart and analyzer-option probes, central-package restore/build, skill format/discovery/install checks where available, source-backed usage validation, and a scoped diff/line-ending review. Final PR-SHA release validation is tracked separately.
+- Operations: isolated cloud worktree `codex-consumer-release-docs`; AgentStack CLI is absent and the authorized connector fallback omits issue comments/claim writes. Stop at draft PR/human review; no merge, tag, package publication, or workflow dispatch.
+
 ## Issue #51: comparer selection after set element conversion (2026-10-12)
 
 - Scope: use the destination default comparer whenever set-element resolution selects a non-identity conversion, including same-type custom converters. Preserve identity comparer reuse, constructor capability selection, collection copying, single enumeration, null policy, and converter precedence. No public API or specification semantics change.

@@ -2,13 +2,17 @@
 
 ## Unreleased
 
-## Fixes
+The following changes are not included in the published `3.0.0` package. No next release version is assigned here.
+
+### Fixed
 
 - Issue #51: set mappings use the destination default comparer after custom element conversion, including same-type converters, preventing incorrect collapse of distinct mapped values. Identity-mapped sets retain compatible source comparers. [#51](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/51)
 - Issue #48: configured enum paths preserve missing reference intermediates as null for nullable enum destinations, including constructor-bound and existing-target mappings. By-name errors, by-value conversion, single evaluation, patch skipping, and converter precedence are preserved. [#48](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/48)
+- Issue #47: configured direct and dotted nullable-value patch captures retain their source type when invoking nested updaters, preserving the selected nullable overload when a competing non-nullable overload exists. [#47](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/47)
 - Issue #32: recursive cycle paths retain compact immutable segments and format the full path only when a cycle is detected, removing quadratic path-prefix allocations while preserving exception metadata and first-edge allocation behavior. [#32](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/32)
 - Issue #31: dictionary mappings preserve compatible key comparers independently of value conversion. Keys transformed by custom converters use the destination default comparer, even when key types match. [#31](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/31)
 - Issue #30: set mappings probe exact accessible HashSet capacity constructors and use portable fallbacks when absent, including on netstandard2.0. Capacity-plus-comparer support is detected independently. [#30](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/30)
+- Issue #29: patch-mode nested updaters consume the captured direct source value once, preserving null skips, overload selection, and sequential update behavior. [#29](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/29)
 - Issue #28: IgnoreCase rejects multiple case-insensitive source matches even when one is exact; nested structural ambiguity retains LITEMAPPER1004. Exact and ExactThenIgnoreCase keep their existing exact-match priority. [#28](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/28)
 - Issue #27: by-name enum exceptions use stable source names and paths instead of applying `nameof` to guarded expressions; nullable enum captures retain source metadata. [#27](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/27)
 - Issue #26: structural collection mapping preserves nullable elements and applies Throw guards before object helpers; nullable nested collection helper signatures retain their annotations. [#26](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/26)
@@ -19,6 +23,12 @@
 - Issue #21: nested and collection helpers retain each entry method's effective mapping policies and nullable shape. Equivalent recursive helpers remain shared while preserving the initiating entry's cycle metadata. [#21](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/21)
 - Issue #20: release validation and each NuGet package push now stop immediately on a nonzero native exit, reporting the failed operation or package before later successes can conceal it. [#20](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/20)
 - Issue #19: tag-selected manual workflow dry runs no longer enter the NuGet publish job. Automatic tag publishing requires a push event; manual branch publishing retains its explicit publish and dry-run gates. [#19](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/19)
+
+### Upgrade considerations
+
+- #28: ambiguous `IgnoreCase` mappings that compiled in `3.0.0` can now fail with `LITEMAPPER1004`. Select the intended source with `MapProperty.Source`, or use `Exact`/`ExactThenIgnoreCase` when exact-name priority is intentional.
+- #31: corrected dictionary comparer selection can change key lookup and collision behavior. Value-only conversion now preserves a compatible source key comparer; custom key conversion uses the destination default comparer. Verify lookups and duplicate-key exceptions.
+- #51: corrected set comparer selection can change membership and element counts after custom conversion. Values distinct under the destination default comparer are retained; duplicates under that comparer still collapse. Verify membership and collision expectations before upgrading.
 
 ## 3.0.0
 
@@ -36,8 +46,6 @@
 - Issue #2: assembly-wide `LiteMapperDefaultsAttribute` values and `UseMapperAttribute` registrations now participate explicitly in incremental mapper planning and emission invalidation. Same-driver regressions cover affected generated content and diagnostics while preserving unrelated cached output where Roslyn permits. [#2](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/2)
 
 ### Fixed
-
-- Issue #29: patch-mode nested updaters consume the captured direct source value once, preserving null skips, overload selection, and sequential update behavior. [#29](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/29)
 
 - Issue #11: existing-target mappings with `NullableMismatch.Throw` now evaluate and enforce nullable preconditions in deterministic per-member order, preserving earlier assignments when a later member fails. [#11](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/11)
 - Issue #12: declared cycle tracking now identifies mappings by symbol identity instead of method name, preventing overload false positives, invalid tracker arguments, and unnecessary tracking state. [#12](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/12)
