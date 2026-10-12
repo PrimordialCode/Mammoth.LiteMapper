@@ -5,17 +5,19 @@ description: Use Mammoth.LiteMapper in C# applications to declare compile-time o
 
 # Mammoth.LiteMapper
 
-Generate ordinary C# mapping calls from bodyless partial methods. This skill targets consumer usage of Mammoth.LiteMapper 3.0.0, not development of the generator.
+Generate ordinary C# mapping calls from bodyless partial methods. This skill covers consumer usage of published `3.0.0` and explicitly marked unreleased corrections, not development of the generator.
 
 ## Start with the consumer
 
 Inspect the consumer's package version, target framework, language version, nullable context, source/destination models, and existing mapper conventions. Preserve the application's intended null, update, and conversion semantics. Ask when those semantics are unclear.
 
-Use the primary `Mammoth.LiteMapper` NuGet package. One package reference supplies the abstractions and generator analyzer; do not add Roslyn runtime dependencies or install the generator package as the normal consumer route. Follow existing central package management when present. This skill documents release `3.0.0`; verify availability in the consumer's configured feed before changing versions.
+Use the primary `Mammoth.LiteMapper` NuGet package. One package reference supplies the abstractions and generator analyzer; do not add Roslyn runtime dependencies or install the generator package as the normal consumer route. Follow existing central package management when present. Use `3.0.0` for the stable install shown below and verify availability in the consumer's configured feed before changing versions. Unreleased guidance is not a package-version recommendation; installing this skill does not upgrade the generator.
 
 ```xml
 <PackageReference Include="Mammoth.LiteMapper" Version="3.0.0" />
 ```
+
+Before relying on an advanced mapping, read [version boundaries](references/mapping-rules.md#version-boundaries). In particular, the stricter `IgnoreCase` ambiguity check, corrected dictionary/set comparer selection, and nullable enum-path fixes are unreleased. Do not promise them for `3.0.0` or invent a published next version.
 
 The documented support matrix is `netstandard2.0`, `net8.0`, `net9.0`, and `net10.0`, with C# 9+ and a Roslyn 4.8.0+ compiler host. Shipping assemblies target `netstandard2.0`. Newer model syntax such as `required` still needs the corresponding compiler capabilities.
 
@@ -49,7 +51,7 @@ Call `new InstanceMapper().Map(new InstanceSource { Id = 42 })`. Static mappers 
 - New-object methods take one by-value source parameter and return the destination. Use explicit `public`, `internal`, or `private` accessibility.
 - Reference updates take source and destination and return `void` or the destination. Value-type updates require `ref` on the destination.
 - Instance mappers can use their own dependencies and converters. External `[UseMapper(typeof(...))]` containers must be static; closed constructed generic containers are allowed, while unbound generic containers and generic methods are not. No library DI registration extension exists.
-- Assembly-level `LiteMapperDefaults` values and `UseMapper` registrations are compile-time inputs. Changing one replans affected generated mappings and diagnostics during an incremental build; unrelated output remains cached where the host preserves candidate identity. Never describe `UseMapper` as runtime registration.
+- Assembly-level `LiteMapperDefaults` values and `UseMapper` registrations are compile-time configuration. Rebuild after changing them; `UseMapper` does not register anything at runtime.
 
 ## Choose the relevant mapping rules
 
@@ -69,6 +71,6 @@ Do not invent runtime `IMapper`, `Map<TDestination>(object)`, registration/scann
 
 Build the affected consumer project and inspect the actual `LITEMAPPER` diagnostic before changing configuration. Test the behavior relevant to the request: null preservation or throwing, destination identity, collection replacement/copying, converter results, and cycles where applicable. Use the consumer's existing test conventions. Do not suppress hard semantic errors or insert `default!` to fabricate a valid mapping.
 
-Source-generated implementations are private build artifacts apart from the methods the consumer declared. Nested and collection helper names are private, allocated within each generated mapper, and deterministic. Handwritten members and other generated helper signatures reserve names; identical closed source/destination identities with equivalent effective options, nullable shape, and execution context reuse one name, while distinct semantic identities are disambiguated even if preferred shape-plus-hash names collide. Allocation is independent of syntax-tree or equivalent compilation order. Do not edit generated files or assume extra public collection overloads exist, and do not depend on helper names or signatures. Do not infer deep copies of identical non-collection reference types; absent an explicit mapping, the same reference is assigned.
+Do not edit generated files, depend on private helper names or signatures, or assume extra public collection overloads exist. Call the mapping methods declared by the consumer. Identical non-collection reference types reuse the source reference unless an explicit mapping is selected; mutable collections are copied.
 
-For version-specific behavior, consult the matching upstream revision. For 3.0.0, `SPECIFICATION.md` is the product contract, `docs/USAGE.md` is the consumer guide, and the public API, compiling samples, and tests establish demonstrated usage. Report discrepancies rather than silently treating documentation or implementation drift as a new contract.
+Use the [pinned upstream sources](references/mapping-rules.md#upstream-sources) for the installed release or the identified unreleased revision. Build examples against that package; report a mismatch rather than treating the newer documentation as proof of released behavior.
