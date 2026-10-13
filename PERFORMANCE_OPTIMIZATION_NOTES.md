@@ -2,6 +2,25 @@
 
 These notes are non-authoritative follow-up candidates. `SPECIFICATION.md` remains the product contract.
 
+## Compact cycle tracker allocation evidence (2026-10-13)
+
+The private generated tracker has one object slot. Its own instance denotes empty state, an ordinary first source is stored inline (including null), and a private sealed HashSet subtype denotes spill storage. Reserved sentinel/type-tag sources escape into a fresh set. Promotion populates a local set before publishing it; failed duplicate entry leaves occupancy intact. Spill sets use reference identity and remain available after unwind. Existing Enter-before-try/finally-Exit calls and lazy exception paths are unchanged. No public API, mapping reflection, runtime code generation or specification semantics change.
+
+Source comparison: merged develop `221459f715f2c4a864212ea6838eebacdf067157`, the earlier inline-first prototype, and this compact design. On SPECTRE_GRD (Windows 11 x64, i7-1260P, SDK 10.0.401/runtime 10.0.12), a separate typed allocation probe used 5,000 warmups and five rounds of 1,000 mappings per depth; every round validated mapped shape, cycle failures and tracker reuse. Source construction and assertions were outside measurement.
+
+| Chain depth | Develop bytes/op | Inline-first prototype bytes/op | Compact bytes/op |
+|---:|---:|---:|---:|
+| 1 | 232 | 72 | 56 |
+| 2 | 264 | 280 | 264 |
+| 16 | 1,744 | 1,760 | 1,744 |
+| 128 | 15,528 | 15,544 | 15,528 |
+
+These are total managed allocations per mapping, not peak memory. The fieldless private spill subtype matches the original HashSet allocation footprint; direct constructor probes measured 24 bytes for the tracker and 64 for either empty set type. Generator tests verify deferred storage and reuse relative to runtime allocation controls.
+
+A separate six-pass BenchmarkDotNet experiment used develop/inline-first/compact/compact/inline-first/develop, 16 cases per pass, two launches, five warmups and ten measured iterations. It retained default CLR policies, affinity mask 4, a 45-second cooldown and a start-CPU check of at most 10%. `DontEnforcePowerPlan` (Guid.Empty) kept Balanced unchanged. Actual iterations were at least 164.905 ms. Timing controls drifted by up to 94.14%; compact depth-1 mappings were faster than develop in all four cross-pass comparisons, while deeper cases produced slowdown signals. Compact versus inline-first shallow ordering reversed between passes. The repository gate blocked all four compact/develop comparisons. This is allocation evidence with inconclusive throughput attribution, not a general speed win or release acceptance. The earlier 3.0.0/develop shallow tracked slowdown remains a separate historical concern; measurements from other PCs are not pooled.
+
+Raw JSON, normalized results, all twelve gate reports, launch statistics, environment, hashes, source patch and test evidence are preserved in `LiteMapper-compact-state-SPECTRE_GRD-20261013.zip` (SHA256 `1D78057FA23247A5A3637132A9B9A5FFBE0A4E445C4C7F4A91588EDA6B995F59`). No diagnostic harness, binaries or benchmark thresholds are part of this shipping change. Final-head CI and stable same-binary controls remain necessary before a release performance decision.
+
 ## Issue #32: lazy cycle-path allocation evidence (2026-10-09)
 
 - Baseline: unchanged develop `7b19def74753df90cb3770c7410ff5d7a3951244`. Candidate: issue #32's private inline-leaf/immutable-link diagnostic path representation.

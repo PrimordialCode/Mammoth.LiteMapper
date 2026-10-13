@@ -16,6 +16,10 @@ These are conditional source/runtime compatibility changes from `3.0.0`, even th
 - **Null structural elements (#26):** built-in structural collection mapping now preserves null for nullable element targets. For nonnullable element targets under `Throw`, it raises `InvalidOperationException` before constructing the target object or reading source members, rather than dereferencing null in the helper. Higher-precedence nullable converters still receive null. Recheck null handling, side effects, and exception expectations.
 - **Enum exception metadata (#27):** nullable-root by-name enum failures now identify the declared input parameter instead of a generated capture name. Update assertions or error handling that inspect `ParamName` or related exception text.
 
+### Performance
+
+- Cycle tracking stores the first active source inline and creates reference-identity spill storage only for a second simultaneous source. Spill storage is retained for later siblings. This reduces measured depth-1 tracked allocations from 232 to 56 bytes per mapping on Windows x64; measured depths 2, 16 and 128 retain their previous allocations. Timing comparisons showed unstable controls and deeper slowdown signals, so this change does not establish an overall throughput improvement or release performance acceptance. Public cycle behavior and statically generated mapping remain unchanged.
+
 ### Fixed
 
 - Issue #51: set mappings use the destination default comparer after custom element conversion, including same-type converters, preventing incorrect collapse of distinct mapped values. Identity-mapped sets retain compatible source comparers. [#51](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/51)
