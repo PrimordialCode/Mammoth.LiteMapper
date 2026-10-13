@@ -79,15 +79,33 @@ public static class Probe
         }
         return values;
     }
+    public static long SpillStorageBytes()
+    {
+        var source = new object();
+        for (var warmup = 0; warmup < 40; warmup++) GC.KeepAlive(Spill(source));
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 100; i++) GC.KeepAlive(Spill(source));
+        return (GC.GetAllocatedBytesForCurrentThread() - before) / 100;
+    }
+    private static object Spill(object source)
+    {
+        var spill = new System.Collections.Generic.HashSet<object>(System.Collections.Generic.ReferenceEqualityComparer.Instance);
+        spill.Add(source);
+        return spill;
+    }
     private static NodeDto Manual(Node source) => new NodeDto { Value = source.Value, Child = source.Child == null ? null : Manual(source.Child) };
 }
 ");
-            var measure = Compile(result).GetType("Probe")!.GetMethod("Measure")!;
+            var probe = Compile(result).GetType("Probe")!;
+            var measure = probe.GetMethod("Measure")!;
+            var spillBytes = (long)probe.GetMethod("SpillStorageBytes")!.Invoke(null, null)!;
             var values = (long[])measure.Invoke(null, new object[] { true })!;
             var manual = (long[])measure.Invoke(null, new object[] { false })!;
             Console.WriteLine("ThrowOnCycle bytes/op at depth 1/2: " + string.Join(", ", values));
-            // The first named edge already used a literal; it must not gain a path-node allocation.
-            for (var round = 0; round < 3; round++) Assert.AreEqual(manual[round * 2 + 1] - manual[round * 2], values[round * 2 + 1] - values[round * 2]);
+            // The first named edge is a literal; the only extra overhead at depth 2 is one populated spill set.
+            for (var round = 0; round < 3; round++) Assert.AreEqual(spillBytes,
+                (values[round * 2 + 1] - manual[round * 2 + 1]) - (values[round * 2] - manual[round * 2]),
+                "The second simultaneous reference must allocate exactly the deferred spill storage, without a path node.");
 
             var wide = Generate(ChainFixture(true).Replace("NodeDto Map(Node source)", "NodeDto[] Map(Node[] source)") + @"
 public static class Probe
@@ -117,7 +135,7 @@ public static class Probe
             var bytes = (long)wideMeasure.Invoke(null, new object[] { true })!;
             var manualBytes = (long)wideMeasure.Invoke(null, new object[] { false })!;
             Console.WriteLine("ThrowOnCycle bytes/op for 256 sibling depth-2 chains: " + bytes);
-            Assert.AreEqual(values[0] - manual[0], bytes - manualBytes, "Shallow siblings may share one tracker, but must not allocate a path object for every first edge.");
+            Assert.AreEqual(values[1] - manual[1], bytes - manualBytes, "Depth-2 siblings must reuse one tracker and one spill set, without a path object or a set per sibling.");
         }
 
         [TestMethod]
@@ -238,11 +256,13 @@ public static class Probe
             var error = Assert.ThrowsExactly<TargetInvocationException>(() => helper.Invoke(null, new[] { broken, tracker, EmptyPath(), "Map" }));
             if (converterFailure) Assert.AreSame(mapper.GetField("Failure")!.GetValue(null), error.InnerException);
             else Assert.IsInstanceOfType<LiteMapperCycleException>(error.InnerException);
-            var active = trackerType.GetField("_active", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(tracker)!;
-            Assert.AreEqual(0, active.GetType().GetProperty("Count")!.GetValue(active), "Every entered reference must unwind after failure.");
+            var state = trackerType.GetField("_state", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var active = (System.Collections.Generic.HashSet<object>)state.GetValue(tracker)!;
+            Assert.AreEqual(0, active.Count, "Every entered reference must unwind after failure.");
             var fresh = probe.GetMethod("Create")!.Invoke(null, null)!;
             Assert.IsNotNull(helper.Invoke(null, new[] { fresh, tracker, EmptyPath(), "Map" }));
-            Assert.AreEqual(0, active.GetType().GetProperty("Count")!.GetValue(active));
+            Assert.AreSame(active, state.GetValue(tracker), "Failure recovery must reuse existing spill storage without demotion.");
+            Assert.AreEqual(0, active.Count);
         }
 
         [TestMethod]

@@ -355,8 +355,9 @@ public static class Probe
             AssertNoDiagnostics(result);
             var tracker = result.RunResult.GeneratedTrees.SelectMany(tree => tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>())
                 .Single(type => type.Identifier.ValueText == "__LiteMapperCycleTracker");
-            Assert.AreEqual(1, tracker.Members.OfType<FieldDeclarationSyntax>().Count(),
-                "Entry metadata must be forwarded without growing the per-call tracker state.");
+            CollectionAssert.AreEqual(new[] { "object? _state" }, tracker.Members.OfType<FieldDeclarationSyntax>()
+                .Select(field => field.Declaration.Type + " " + field.Declaration.Variables.Single().Identifier.ValueText).ToArray(),
+                "Only compact active-reference state belongs in the tracker; entry metadata remains forwarded through calls.");
             Assert.AreEqual(1, Helpers(result, "MapNested_").Length, GeneratedSource(result));
             // Keep a missing-tracker regression from invoking a cyclic graph without protection.
             foreach (var entry in GeneratedMethods(result).Where(method => method.Modifiers.Any(SyntaxKind.PublicKeyword) && method.Modifiers.Any(SyntaxKind.PartialKeyword)))
