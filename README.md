@@ -14,13 +14,13 @@ Assembly-wide defaults and external mapper registrations are compile-time config
 
 ## Quickstart
 
-Install the published stable primary package, `3.0.0`, in a project without central package management:
+Install the 4.0.0 primary package in a project without central package management:
 
 ```xml
-<PackageReference Include="Mammoth.LiteMapper" Version="3.0.0" />
+<PackageReference Include="Mammoth.LiteMapper" Version="4.0.0" />
 ```
 
-For central package management, put the version in `Directory.Packages.props` instead; see [installation](docs/USAGE.md#installation). The [version notes](docs/USAGE.md#versions-and-upgrading) distinguish `3.0.0` from unreleased fixes in this checkout.
+For central package management, put the version in `Directory.Packages.props` instead; see [installation](docs/USAGE.md#installation). When upgrading from an earlier release, follow the [migration guide](docs/USAGE.md#versions-and-upgrading), covering 1.0.0 to 2.0.0, 2.0.0 to 3.0.0, and 3.0.0 to 4.0.0. Corrected member matching, collection equality, null handling, and converter selection can affect existing mappings.
 
 Declare a mapper:
 
@@ -53,10 +53,10 @@ Ordinary unmapped target members are reported as `LITEMAPPER1001` errors by defa
 
 The [mammoth-litemapper skill](skills/mammoth-litemapper/SKILL.md) provides consumer mapping guidance for compatible coding agents using the [Skills CLI](https://skills.sh/docs).
 
-Install the skill from the explicit `develop` branch, which includes guidance for `3.0.0` and clearly marked unreleased corrections:
+Install the skill from the `4.0.0` release tag for matching consumer guidance:
 
 ```sh
-npx skills add https://github.com/PrimordialCode/Mammoth.LiteMapper/tree/develop/skills/mammoth-litemapper --skill mammoth-litemapper
+npx skills add https://github.com/PrimordialCode/Mammoth.LiteMapper/tree/4.0.0/skills/mammoth-litemapper --skill mammoth-litemapper
 ```
 
-Append `--agent codex` to target Codex or `--global` for user-level installation. To preview this checkout without installing, run `npx skills add ./skills/mammoth-litemapper --list` from the repository root. The skill includes its supporting reference and needs no source checkout. Installing the skill does not upgrade the NuGet package; verify the package version before using an unreleased correction.
+Append `--agent codex` to target Codex or `--global` for user-level installation. To preview this checkout without installing, run `npx skills add ./skills/mammoth-litemapper --list` from the repository root. The skill includes its supporting reference and needs no source checkout. Installing the skill does not upgrade the NuGet package; check the application's package version and follow the migration steps when upgrading.

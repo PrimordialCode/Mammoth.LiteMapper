@@ -5,7 +5,7 @@ description: Use Mammoth.LiteMapper in C# applications to declare compile-time o
 
 # Mammoth.LiteMapper
 
-Generate ordinary C# mapping calls from bodyless partial methods. This skill describes the current Mammoth.LiteMapper release contract for consumer applications.
+Generate ordinary C# mapping calls from bodyless partial methods.
 
 ## Start with the consumer
 
@@ -57,7 +57,7 @@ Call `new InstanceMapper().Map(new InstanceSource { Id = 42 })`. Static mappers 
 
 Read [references/mapping-rules.md](references/mapping-rules.md) for member configuration, construction, converter precedence and defaults, null policies, collections, patch updates, enums, cycles, or diagnostic troubleshooting. It includes compatibility guidance.
 
-When upgrading, review [breaking-change migration](references/mapping-rules.md#breaking-change-migration) for changes that can affect compilation, null behavior, and collection equality.
+When upgrading, review [breaking-change migration](references/mapping-rules.md#breaking-change-migration) for each transition you cross: 1.0.0 to 2.0.0, 2.0.0 to 3.0.0, and 3.0.0 to 4.0.0. These changes can affect compilation, null behavior, update failures, and collection equality.
 
 For simple matching, public instance properties and fields map by name. The default is exact matching followed by a unique case-insensitive match. Ordinary unmapped targets are errors; unmapped sources are ignored. Explicit `UnmappedTargetMembers` values (`Ignore`, `Info`, `Warning`, or `Error`) override that default, and standard compiler severity configuration can also relax configurable `LITEMAPPER1001`. That suppression or downgrade does not suppress valid generation and is not proof of complete mapping. Required, non-nullable, inaccessible, invalid, and otherwise mandatory targets still cause hard errors. `IgnoreTarget` and `UseTargetDefault` are explicit member-level opt-outs that retain their validation.
 

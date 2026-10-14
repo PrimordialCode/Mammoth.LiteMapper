@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 4.0.1
+
+- Updated readme, usage guide and agent skill to reflect 4.0.x changes.
+
 ## 4.0.0
 
 ### Breaking Changes
