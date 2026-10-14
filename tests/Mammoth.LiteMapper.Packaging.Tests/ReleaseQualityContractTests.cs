@@ -85,10 +85,10 @@ function dotnet {
     }
     if ($joined -like '*nuget push*') { Set-Content -Path (Join-Path (Get-Location) 'push.marker') -Value pushed }
 }
-& '" + Path.Combine(Repository.Root, "publish-nuget.ps1") + @"' -Source local -OutputDirectory '" + relativeOutput.Replace("'", "''") + @"' -SkipValidation -DryRun
+& '" + Path.Combine(Repository.Root, "publish-nuget.ps1") + @"' -ApiKey '' -Source local -OutputDirectory '" + relativeOutput.Replace("'", "''") + @"' -SkipValidation -DryRun
 ";
                 var encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(command));
-                var result = TestProcess.Run("pwsh", "-NoProfile -EncodedCommand " + encoded, Repository.Root, TimeSpan.FromMinutes(1));
+                var result = TestProcess.Run("pwsh", "-NoProfile -NonInteractive -EncodedCommand " + encoded, Repository.Root, TimeSpan.FromMinutes(1));
                 Assert.AreEqual(0, result.ExitCode, result.Output + Environment.NewLine + result.Error);
                 Assert.IsFalse(File.Exists(Path.Combine(Repository.Root, "push.marker")), "Dry-run invoked NuGet push.");
                 Assert.AreEqual("must remain", File.ReadAllText(sentinel));

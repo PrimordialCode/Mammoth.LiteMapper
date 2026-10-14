@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "root_dir": ".",
   "exclude": [
     "target/**",
@@ -16,6 +16,7 @@
     "**/obj/**"
   ],
   "include": [],
+  "force_include": [],
   "max_file_size": 1048576,
   "extract_docstrings": true,
   "track_call_sites": true,
@@ -24,7 +25,7 @@
   "default_path_exclude": [],
   "source_path_overrides": [],
   "docs_dir": "tokensave-docs",
-  "last_indexed_version": "7.12.1",
+  "last_indexed_version": "7.15.0",
   "auto_track": true,
   "strict_tree": false,
   "max_auto_sync_files": 2000,
@@ -40,5 +41,6 @@
     "graphql",
     "md"
   ],
-  "suppress_scope_warning": false
+  "suppress_scope_warning": false,
+  "_comment": "TOKENSAVE_* environment variables override matching config values when set."
 }

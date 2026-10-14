@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-The following changes are not included in the published `3.0.0` package. No next release version is assigned here.
+## 4.0.0
 
 ### Breaking Changes
 
