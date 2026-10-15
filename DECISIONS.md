@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #58 follow-up: benchmark smoke liveness (2026-10-15)
+
+- The user approved a benchmark-only five-minute process deadline after exact-head Windows CI 38739919081 exceeded the old 60-second limit. This bounds startup, outer build, BenchmarkDotNet generated restore/build, Dry execution, reporting and pipe closure; it is not a throughput gate or a measured runtime percentile. Sample process limits remain 60 seconds.
+- Packaging TestProcess keeps complete successful stdout/stderr. Timeout messages retain only the last 4,096 characters of each stream, configured/elapsed time, termination action and cleanup status. Execution and pipe completion share the primary deadline; a separate one-second cleanup wait allows post-kill exit and draining without an unbounded retry.
+- A direct process that has already exited cannot provide a reliable portable descendant-termination handle. Bound and cancel local pipe reads, report cleanup incomplete when handles remain open, and do not claim orphan cleanup was confirmed. Fixtures explicitly clean up their own known descendants.
+- Preserve the existing assertions, normal-GC coverage, allocation host and symbols/publication checks. The allocation host's separate deadline is unchanged. No product/specification semantics, benchmark algorithms, numeric performance thresholds, workflow gates or system settings change.
+
 ## Issue #58: allocation-only GC isolation (2026-10-15)
 
 - No product contract, public API, mapping semantics or performance acceptance policy changes. Test-only reflection dispatch reuses the existing test assembly; emitted mapper code remains static.

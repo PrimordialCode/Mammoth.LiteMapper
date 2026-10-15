@@ -17,7 +17,7 @@ namespace Mammoth.LiteMapper.Packaging.Tests
         [TestMethod]
         public void BenchmarkHarnessRunsDryJobAndRecordsPinnedComparisons()
         {
-            var result = RunDotnet("run --project benchmarks\\Mammoth.LiteMapper.Benchmarks\\Mammoth.LiteMapper.Benchmarks.csproj -c Release --no-restore -- --filter *FlatObjectBenchmarks* --job Dry --warmupCount 1 --iterationCount 1", Repository.Root);
+            var result = RunDotnet("run --project benchmarks\\Mammoth.LiteMapper.Benchmarks\\Mammoth.LiteMapper.Benchmarks.csproj -c Release --no-restore -- --filter *FlatObjectBenchmarks* --job Dry --warmupCount 1 --iterationCount 1", Repository.Root, TimeSpan.FromSeconds(300));
 
             StringAssert.Contains(result.Output, "Manual");
             StringAssert.Contains(result.Output, "LiteMapper");
@@ -29,9 +29,9 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             Assert.IsFalse(result.Output.Contains("There are not any results runs", StringComparison.OrdinalIgnoreCase), result.Output);
         }
 
-        private static ProcessResult RunDotnet(string arguments, string workingDirectory)
+        private static ProcessResult RunDotnet(string arguments, string workingDirectory, TimeSpan? timeout = null)
         {
-            var result = TestProcess.Run("dotnet", arguments, workingDirectory, TimeSpan.FromSeconds(60));
+            var result = TestProcess.Run("dotnet", arguments, workingDirectory, timeout ?? TimeSpan.FromSeconds(60));
             Assert.AreEqual(0, result.ExitCode, "dotnet " + arguments + Environment.NewLine + result.Output + Environment.NewLine + result.Error);
             return result;
         }

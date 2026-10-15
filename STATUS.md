@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Status
 
+## Issue #58 follow-up: smoke timeout diagnostics (2026-10-15)
+
+- User-approved scope: only BenchmarkHarnessRunsDryJobAndRecordsPinnedComparisons receives a 300-second process deadline; sample calls retain 60 seconds. All existing success assertions, allocation isolation, symbols/publication validation, benchmark algorithms and workflow settings remain unchanged.
+- Red-first: all three new subprocess cases fail against the old helper while four existing controls pass. Integrated tests retain full successful 1 MiB stderr output, bound timeout tails to 4,096 characters per stream, confirm direct/tree cleanup and distinguish an exited parent with inherited pipe holders.
+- Implementation: incremental concurrent capture, one execution deadline for process exit and both pipes, then at most one second for cleanup/draining after a termination request. Timeout diagnostics include configured/elapsed time, termination action and cleanup status. When the direct process already exited, descendant termination remains unconfirmed and incomplete cleanup is reported explicitly. Test fixtures clean up only recorded PID/start-time identities.
+- Validation: Release solution build passes with zero errors and two existing transitive dependency audit warnings. Final process regressions pass three complete repetitions (21/21), allocation preservation 8/8, and broader process/release/publication safeguards 248/248, zero failures/skips. Independent read-only static review is clean after correcting Windows fixture handle inheritance and ordering readiness before the new fixture deadlines.
+- Limits and delivery: local timing benchmarks and nested real-build/package-launching cases are excluded; final full Windows/Linux, Roslyn, package, trim and required Native AOT evidence belongs to the exact-head PR CI. Five minutes is a bounded smoke liveness budget, not a measured percentile or performance gate. Update existing PR #60 for human review only; no merge, closure, publication or machine/system settings changes.
+
 ## Issue #58: isolated allocation regressions (2026-10-15)
 
 - Scope: test-only allocation host disables background GC, validates effective configuration, reuses the selected existing assertion body once and fails the parent on child errors or a bounded timeout. Only three existing methods/four rows dispatch through it. Exact assertions, default-GC functional coverage, product sources, workflows and performance gates are unchanged.
