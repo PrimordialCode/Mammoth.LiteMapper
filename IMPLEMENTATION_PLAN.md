@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Generator symbol package repair (2026-10-15)
+
+- Scope: user-authorized packaging maintenance on an isolated branch from develop after the 4.0.1 release. Prepare corrected 4.0.1 symbols separately, then open a draft PR against develop; the release branch has been removed. This is direct maintenance, not a claimed tracker item.
+- Test-first: validate every shipping nupkg/snupkg pair, reproducing the generator PDB path mismatch before changing its pack configuration. Reject mismatched PE/PDB identity, compiler checksum, nonportable symbols, and inconsistent package metadata.
+- Implementation: disable automatic generator build-output packing and explicitly place its DLL and portable PDB together under analyzers/dotnet/cs. Reuse one archive/identity/checksum validator in tests, release CI and the manual publishing script before publication.
+- Validation: focused regressions, full correctness and packaging coverage excluding local benchmark-launching tests, independent review, and terminal exact-head Windows/Linux and Roslyn CI. Preserve existing CI gates, skill content, and performance tests.
+- Boundary: corrected symbols are delivered for a separate human upload. No NuGet push, package replacement/unlisting, tag, merge, credential changes, machine settings, or local timing benchmarks are authorized.
+
 ## Release 4.0.1 corrections: issues #55 and #56 (2026-10-15)
 
 - Scope: user-authorized combined repair on an isolated branch from release/4.0.1 at d7d8c3bbc578470ddb9403c2a9064b96d8d87b25, with a draft PR back to that release branch.

@@ -175,6 +175,19 @@ if ($unexpected.Count -ne 0 -or $missing.Count -ne 0 -or $artifacts.Count -ne $e
     throw "Expected exactly $($expectedArtifacts.Count) versioned package artifacts for $version; missing: $($missing -join ', '); unexpected: $($unexpected.Name -join ', ')."
 }
 
+$symbolValidator = 'tools/Mammoth.LiteMapper.PackageValidation/Mammoth.LiteMapper.PackageValidation.csproj'
+if ($SkipValidation) {
+    & dotnet restore $symbolValidator
+    Assert-NativeSuccess 'Restore package symbol validator'
+}
+$symbolPairs = @()
+foreach ($packageId in $packageIds) {
+    $symbolPairs += Join-Path $resolvedOutput "$packageId.$version.nupkg"
+    $symbolPairs += Join-Path $resolvedOutput "$packageId.$version.snupkg"
+}
+& dotnet run --project $symbolValidator -c Release --no-restore -- @symbolPairs
+Assert-NativeSuccess 'Validate package symbols'
+
 foreach ($packageId in $packageIds) {
     $artifactName = "$packageId.$version.nupkg"
     $artifactPath = Join-Path $resolvedOutput $artifactName

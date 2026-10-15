@@ -24,4 +24,7 @@
     <Project Path="tests/Mammoth.LiteMapper.Packaging.Tests/ProcessFixture/Mammoth.LiteMapper.ProcessFixture.csproj" />
     <Project Path="tests/Mammoth.LiteMapper.Runtime.Tests/Mammoth.LiteMapper.Runtime.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Mammoth.LiteMapper.PackageValidation/Mammoth.LiteMapper.PackageValidation.csproj" />
+  </Folder>
 </Solution>

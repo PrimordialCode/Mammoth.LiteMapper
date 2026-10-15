@@ -7,6 +7,7 @@
   <ItemGroup>
     <Compile Remove="ProcessFixture\**\*.cs" />
     <ProjectReference Include="ProcessFixture\Mammoth.LiteMapper.ProcessFixture.csproj" />
+    <ProjectReference Include="..\..\tools\Mammoth.LiteMapper.PackageValidation\Mammoth.LiteMapper.PackageValidation.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

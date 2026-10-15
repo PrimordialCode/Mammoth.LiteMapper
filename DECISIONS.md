@@ -1,5 +1,14 @@
 # Mammoth.LiteMapper Decision Log
 
+## Generator symbol package layout (2026-10-15)
+
+- Contract: specification sections 4.1, 22.19 and 24.6 require analyzer isolation, valid shipping packages and portable reproducible symbols. No public API or mapping semantic change is needed.
+- Cause: the published 4.0.1 generator DLL lives under analyzers/dotnet/cs, while automatic debug-output packing placed its matching PDB under lib/netstandard2.0. Removing BuiltProjectOutputGroupOutput did not remove the separate debug-symbol output group.
+- Packing: disable automatic generator build-output packing and explicitly pack its DLL and PDB at the analyzer path. The PDB is also included beside the analyzer DLL in the regular generator package; neither becomes a runtime lib/ref asset.
+- Validation: use one standalone .NET validator in package tests, release CI before artifact promotion, and the manual publication script, including -SkipValidation and dry runs. Check metadata, path pairing, portable format, PE/PDB association and the compiler checksum with the PDB ID zeroed. Determinism and checksum manifests remain required but do not prove symbol validity.
+- Coverage follows NuGet's supplied-PDB-to-assembly rule; it does not require a duplicate PDB for every packaged DLL. Shipping tests require the Abstractions and primary runtime PDBs plus the standalone generator's analyzer PDB. The primary package's duplicated analyzer DLL does not need a second copy of those globally indexed symbols.
+- Recovery: the original release PDB matches the immutable 4.0.1 DLL. A separately prepared snupkg changes only that entry's path and can be submitted independently at the existing ID/version. Preparation and PR creation do not authorize publication. The PR targets develop because 4.0.1 is published and its release branch was removed.
+
 ## Issues #55 and #56: legal target accessors and required construction (2026-10-15)
 
 - Contract: specification sections 6.4, 9.1, 10.4-10.5, 14.1, 16.1 and 20.1-20.3 already define legal target assignment and mandatory required-member diagnostics. No normative change or new API is needed.

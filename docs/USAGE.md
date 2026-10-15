@@ -1005,6 +1005,8 @@ Windows and Linux are supported. A `netstandard2.0` library runs inside an appli
 
 The primary `Mammoth.LiteMapper` package is the normal install path. `Mammoth.LiteMapper.Generator` is the generator implementation package and is not the normal consumer install route.
 
+The generator DLL is an analyzer asset under `analyzers/dotnet/cs`, outside runtime `lib` and `ref` assets. Portable symbols must match the exact compiled DLL and use the same archive-relative path in the corresponding `.snupkg`, replacing `.dll` with `.pdb`. Symbol-package corrections do not require changing an application's package reference.
+
 ## Analyzer options
 
 The generator recognizes these optional build properties for diagnostics and development. In the consuming project, set each value and export it with `CompilerVisibleProperty` so Roslyn passes it to the generator:
