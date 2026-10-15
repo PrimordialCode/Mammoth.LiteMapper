@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using Mammoth.LiteMapper.ProcessFixture;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Mammoth.LiteMapper.Packaging.Tests
@@ -9,6 +10,26 @@ namespace Mammoth.LiteMapper.Packaging.Tests
     [TestClass]
     public sealed class TestProcessTests
     {
+        [TestMethod]
+        [DataRow("fixture")]
+        [DataRow("fixture with spaces")]
+        [DataRow("fixture ) with (parentheses)")]
+        public void LinuxFixtureIdentityUsesKernelStartTicksAfterTheCompleteCommandName(string commandName)
+        {
+            var stat = "123 (" + commandName + ") S 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 987654 23";
+            Assert.AreEqual(987654L, FixtureProcessIdentity.ParseLinuxStartStamp(stat), "Ownership must use field 22 directly, independent of wall-clock boot-time estimates.");
+        }
+
+        [TestMethod]
+        [DataRow("123 missing-command S 4 5")]
+        [DataRow("123 (fixture) S 4 5")]
+        [DataRow("123 (fixture) S 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 invalid 23")]
+        [DataRow("123 (fixture) S 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 -1 23")]
+        public void MalformedLinuxFixtureIdentityFailsLoudly(string stat)
+        {
+            Assert.ThrowsExactly<InvalidDataException>(() => FixtureProcessIdentity.ParseLinuxStartStamp(stat));
+        }
+
         [TestMethod]
         public void ConcurrentDrainingHandlesStderrPressureBeforeStdoutCloses()
         {
@@ -174,15 +195,16 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             var identity = File.ReadAllText(identityFile).Split('|');
             if (identity.Length != 2 ||
                 !int.TryParse(identity[0], NumberStyles.None, CultureInfo.InvariantCulture, out var processId) ||
-                !long.TryParse(identity[1], NumberStyles.None, CultureInfo.InvariantCulture, out var startTimeTicks))
+                !long.TryParse(identity[1], NumberStyles.None, CultureInfo.InvariantCulture, out var startStamp))
             {
                 throw new AssertFailedException("Fixture process identity was malformed.");
             }
 
+            Process? process = null;
             try
             {
-                var process = Process.GetProcessById(processId);
-                if (process.StartTime.ToUniversalTime().Ticks != startTimeTicks)
+                process = Process.GetProcessById(processId);
+                if (FixtureProcessIdentity.GetStartStamp(process) != startStamp)
                 {
                     process.Dispose();
                     return null;
@@ -190,9 +212,16 @@ namespace Mammoth.LiteMapper.Packaging.Tests
 
                 return process;
             }
-            catch (ArgumentException)
+            catch (Exception exception) when (exception is ArgumentException || exception is InvalidOperationException ||
+                exception is FileNotFoundException || exception is DirectoryNotFoundException)
             {
+                process?.Dispose();
                 return null;
+            }
+            catch
+            {
+                process?.Dispose();
+                throw;
             }
         }
     }
