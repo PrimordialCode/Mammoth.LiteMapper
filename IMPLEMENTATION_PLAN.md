@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Linux fixture termination observation (2026-10-15)
+
+- Scope: user-approved test-only follow-up on develop 1489dad after merged PR #60. Preserve TestProcess kill requests, execution/cleanup deadlines, output capture, pipe checks and workflow gates. No product or performance semantics change.
+- Test-first: cover a consistent procfs snapshot, exact PID/start-token ownership, terminal/nonterminal/malformed states, zombie leaders with sibling threads, and persistent active work. Keep the real killed-tree and live-orphan controls.
+- Implementation: observe Linux state and thread count alongside the kernel start token; require Z/X with one thread before classifying the same process as terminated. Bound exit observation inside the existing outer test budget and report the last snapshot. Fixture cleanup must use the same distinction without waiting on an external zombie reaper.
+- Validation: red-first snapshot cases, repeated focused process tests, broader affected safeguards, independent read-only review, draft PR to develop and terminal exact-head CI. No local timing benchmarks, machine settings, workflow retries, merge or publication.
+
 ## Issue #58 follow-up: smoke process deadlines (2026-10-15)
 
 - CI follow-up: correct Linux fixture ownership with the kernel start token, cover procfs command names and malformed records with red-first parser cases, preserve every existing cleanup/liveness assertion, and rerun exact-head Windows/Linux validation. This is test infrastructure only.

@@ -4,7 +4,7 @@ Use Mammoth.LiteMapper to declare compile-time mappings, configure conversions, 
 
 This guide describes Mammoth.LiteMapper 4.0.1. The installation examples pin that version, and the [compiling samples](../samples/) demonstrate the supported mappings. See the [4.0.1 changelog](../CHANGELOG.md#401) for the patch changes and the [migration guide](#versions-and-upgrading) for earlier releases.
 
-Repository contributors can follow the [allocation regression validation guide](ALLOCATION_TESTS.md). Its GC isolation applies only to test processes; applications need no GC configuration for LiteMapper. Contributor process validation gives the BenchmarkDotNet smoke test a five-minute completion deadline and sample runs 60 seconds; timeout diagnostics include bounded output tails and cleanup status. These are process liveness checks, not throughput gates.
+Repository contributors can follow the [allocation regression validation guide](ALLOCATION_TESTS.md). Its GC isolation applies only to test processes; applications need no GC configuration for LiteMapper. Contributor process validation gives the BenchmarkDotNet smoke test a five-minute completion deadline and sample runs 60 seconds; timeout diagnostics include bounded output tails and cleanup status. Linux fixture checks distinguish process termination from zombie reaping and reject a dead leader with live sibling threads. These are process liveness checks, not throughput gates.
 
 Runnable examples:
 

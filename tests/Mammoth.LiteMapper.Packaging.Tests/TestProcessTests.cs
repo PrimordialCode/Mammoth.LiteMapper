@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using Mammoth.LiteMapper.ProcessFixture;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -10,6 +11,18 @@ namespace Mammoth.LiteMapper.Packaging.Tests
     [TestClass]
     public sealed class TestProcessTests
     {
+        [TestMethod]
+        public void TerminationObservationRejectsPersistentActiveWorkWithinItsBudget()
+        {
+            var elapsed = Stopwatch.StartNew();
+            var terminated = WaitForFixtureTermination(() => (true, "PID 123 state S threads 2 start 987654"),
+                elapsed, TimeSpan.FromMilliseconds(50), out var lastObservation);
+
+            Assert.IsFalse(terminated, "A deadline must fail while the owned process still has potentially executable work.");
+            StringAssert.Contains(lastObservation, "state S threads 2");
+            Assert.IsTrue(elapsed.Elapsed < TimeSpan.FromSeconds(1), "Observation must remain bounded instead of waiting for active work to finish.");
+        }
+
         [TestMethod]
         [DataRow("fixture")]
         [DataRow("fixture with spaces")]
@@ -96,7 +109,9 @@ namespace Mammoth.LiteMapper.Packaging.Tests
                 Assert.IsTrue(File.Exists(parentIdentityFile), "The direct fixture process must report that it started.");
                 Assert.IsTrue(File.Exists(childIdentityFile), "The descendant fixture process must report that it started.");
                 Assert.IsFalse(IsOwnedFixtureProcessAlive(parentIdentityFile), "The direct fixture process must be terminated before Run returns.");
-                Assert.IsFalse(IsOwnedFixtureProcessAlive(childIdentityFile), "The direct process tree must be terminated before Run returns.");
+                Assert.IsTrue(WaitForFixtureTermination(() => ObserveOwnedFixtureProcess(childIdentityFile),
+                    elapsed, TimeSpan.FromSeconds(6), out var lastObservation),
+                    "The owned descendant must terminate within the existing test budget. Last observation: " + lastObservation);
                 Assert.IsTrue(elapsed.Elapsed < TimeSpan.FromSeconds(6), "Process-tree cleanup must remain bounded.");
             }
             finally
@@ -166,8 +181,57 @@ namespace Mammoth.LiteMapper.Packaging.Tests
 
         private static bool IsOwnedFixtureProcessAlive(string identityFile)
         {
+            return ObserveOwnedFixtureProcess(identityFile).IsAlive;
+        }
+
+        private static (bool IsAlive, string Details) ObserveOwnedFixtureProcess(string identityFile)
+        {
+            var identity = ReadFixtureIdentity(identityFile);
+            if (identity == null)
+            {
+                return (false, "Fixture identity file is absent.");
+            }
+
+            if (OperatingSystem.IsLinux())
+            {
+                try
+                {
+                    var snapshot = FixtureProcessIdentity.ReadLinuxSnapshot(identity.Value.ProcessId);
+                    return (snapshot.IsAliveFor(identity.Value.ProcessId, identity.Value.StartStamp),
+                        snapshot + "; expected start " + identity.Value.StartStamp.ToString(CultureInfo.InvariantCulture));
+                }
+                catch (Exception exception) when (exception is FileNotFoundException || exception is DirectoryNotFoundException)
+                {
+                    return (false, "Owned PID " + identity.Value.ProcessId.ToString(CultureInfo.InvariantCulture) + " is absent from procfs.");
+                }
+            }
+
             using var process = OpenOwnedFixtureProcess(identityFile);
-            return process != null && !process.HasExited;
+            var isAlive = process != null && !process.HasExited;
+            return (isAlive, "Owned PID " + identity.Value.ProcessId.ToString(CultureInfo.InvariantCulture) +
+                " active=" + isAlive + "; expected start " + identity.Value.StartStamp.ToString(CultureInfo.InvariantCulture));
+        }
+
+        private static bool WaitForFixtureTermination(Func<(bool IsAlive, string Details)> observe,
+            Stopwatch elapsed, TimeSpan deadline, out string lastObservation)
+        {
+            while (true)
+            {
+                var observation = observe();
+                lastObservation = observation.Details;
+                if (!observation.IsAlive)
+                {
+                    return true;
+                }
+
+                var remaining = deadline - elapsed.Elapsed;
+                if (remaining <= TimeSpan.Zero)
+                {
+                    return false;
+                }
+
+                Thread.Sleep(remaining < TimeSpan.FromMilliseconds(10) ? remaining : TimeSpan.FromMilliseconds(10));
+            }
         }
 
         private static void CleanupOwnedFixtureProcess(string identityFile)
@@ -176,7 +240,16 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             if (process != null && !process.HasExited)
             {
                 process.Kill(entireProcessTree: true);
-                Assert.IsTrue(process.WaitForExit(3000), "The owned fixture process did not exit during test cleanup.");
+                if (OperatingSystem.IsLinux())
+                {
+                    Assert.IsTrue(WaitForFixtureTermination(() => ObserveOwnedFixtureProcess(identityFile),
+                        Stopwatch.StartNew(), TimeSpan.FromSeconds(3), out var lastObservation),
+                        "The owned fixture process did not terminate during test cleanup. Last observation: " + lastObservation);
+                }
+                else
+                {
+                    Assert.IsTrue(process.WaitForExit(3000), "The owned fixture process did not exit during test cleanup.");
+                }
             }
 
             if (File.Exists(identityFile))
@@ -187,24 +260,17 @@ namespace Mammoth.LiteMapper.Packaging.Tests
 
         private static Process? OpenOwnedFixtureProcess(string identityFile)
         {
-            if (!File.Exists(identityFile))
+            var identity = ReadFixtureIdentity(identityFile);
+            if (identity == null)
             {
                 return null;
-            }
-
-            var identity = File.ReadAllText(identityFile).Split('|');
-            if (identity.Length != 2 ||
-                !int.TryParse(identity[0], NumberStyles.None, CultureInfo.InvariantCulture, out var processId) ||
-                !long.TryParse(identity[1], NumberStyles.None, CultureInfo.InvariantCulture, out var startStamp))
-            {
-                throw new AssertFailedException("Fixture process identity was malformed.");
             }
 
             Process? process = null;
             try
             {
-                process = Process.GetProcessById(processId);
-                if (FixtureProcessIdentity.GetStartStamp(process) != startStamp)
+                process = Process.GetProcessById(identity.Value.ProcessId);
+                if (FixtureProcessIdentity.GetStartStamp(process) != identity.Value.StartStamp)
                 {
                     process.Dispose();
                     return null;
@@ -223,6 +289,24 @@ namespace Mammoth.LiteMapper.Packaging.Tests
                 process?.Dispose();
                 throw;
             }
+        }
+
+        private static (int ProcessId, long StartStamp)? ReadFixtureIdentity(string identityFile)
+        {
+            if (!File.Exists(identityFile))
+            {
+                return null;
+            }
+
+            var identity = File.ReadAllText(identityFile).Split('|');
+            if (identity.Length != 2 ||
+                !int.TryParse(identity[0], NumberStyles.None, CultureInfo.InvariantCulture, out var processId) || processId <= 0 ||
+                !long.TryParse(identity[1], NumberStyles.None, CultureInfo.InvariantCulture, out var startStamp))
+            {
+                throw new AssertFailedException("Fixture process identity was malformed.");
+            }
+
+            return (processId, startStamp);
         }
     }
 }

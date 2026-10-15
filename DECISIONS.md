@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Linux termination versus reaping (2026-10-15)
+
+- .NET 10.0.13 attached non-child HasExited uses kill(pid, 0), which also observes unreaped zombies as present. Kill(entireProcessTree: true) sends signals without waiting for descendant reaping; direct-process exit and pipe EOFs do not imply that every descendant PID entry is gone.
+- Test fixtures retain exact PID/kernel-start-token ownership. A same-token Linux process is terminal only for state Z/X with exactly one thread, avoiding a false pass when a zombie group leader still has live siblings. Missing/reused PIDs are no longer the owned process; malformed snapshots fail loudly. Other states and thread counts remain active or unconfirmed.
+- Observe asynchronous termination within the existing outer test budget, without retrying the command or sending extra kill requests before assertions. Preserve the helper's direct-child and pipe completion contract. Zombie PID metadata reaping is outside that contract.
+- Historic merge CI 38753576372 is consistent with this defect but recorded no procfs state, PPID or thread count. The zombie/reaping explanation remains strongly supported, not proven. No product specification change is needed.
+
 ## Issue #58 follow-up: benchmark smoke liveness (2026-10-15)
 
 - Linux fixture ownership uses PID plus the exact kernel start token from procfs stat field 22. Cross-process Process.StartTime comparisons are unsuitable on Linux because .NET caches independently estimated wall-clock boot times (dotnet/runtime#108959). Non-Linux fixtures retain exact UTC start ticks. Missing processes are treated as exited; malformed accessible procfs records fail validation. Keep the orphan-alive assertion and exact identity check without a tolerance.
