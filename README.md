@@ -14,10 +14,10 @@ Assembly-wide defaults and external mapper registrations are compile-time config
 
 ## Quickstart
 
-Install the 4.0.0 primary package in a project without central package management:
+Install the latest stable primary package in a project without central package management:
 
-```xml
-<PackageReference Include="Mammoth.LiteMapper" Version="4.0.0" />
+```sh
+dotnet add package Mammoth.LiteMapper
 ```
 
 For central package management, put the version in `Directory.Packages.props` instead; see [installation](docs/USAGE.md#installation). When upgrading from an earlier release, follow the [migration guide](docs/USAGE.md#versions-and-upgrading), covering 1.0.0 to 2.0.0, 2.0.0 to 3.0.0, and 3.0.0 to 4.0.0. Corrected member matching, collection equality, null handling, and converter selection can affect existing mappings.

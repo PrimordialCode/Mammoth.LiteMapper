@@ -4,8 +4,20 @@
 
 ## 4.0.1
 
+### Breaking Changes
+
+These are conditional source/runtime or diagnostic-compatibility changes for affected mapping shapes.
+
+- **Accessible target setters (#55):** target properties whose accessors are accessible from generated mapper code, including internal `set` and `init` accessors in the same assembly, now participate where C# permits. Creation can use accessible `set` or `init`; updates can use accessible non-`init` setters. These members were previously skipped, so affected destination values and unmapped-target diagnostics can change. [#55](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/55)
+- **Nested required diagnostics (#56):** a constructor-bound required member whose selected constructor lacks `SetsRequiredMembers` now reports the canonical non-configurable `LITEMAPPER1002` diagnostic instead of leaking compiler `CS9035` from generated code. The invalid mapping implementation is omitted. Update diagnostic assertions or tooling that inspect the ID. [#56](https://github.com/PrimordialCode/Mammoth.LiteMapper/issues/56)
+
+### Changed
+
 - Updated readme, usage guide and agent skill to reflect 4.0.x changes.
 - Updated the specification's release framing and documented the historical diagnostic-ID reconciliation while retaining future diagnostic stability.
+
+### Fixed
+
 - Fixed automatic nested object helpers to honor `UnmappedTargetMembers`, including collection elements and existing-target replacements. Ordinary configurable diagnostics preserve valid implementations; mandatory targets remain hard errors.
 
 ## 4.0.0
@@ -69,21 +81,27 @@ These are conditional source/runtime compatibility changes from `3.0.0`, even th
 
 ## 2.0.0
 
+### Breaking Changes
+
+These changes affect consumers using the described converter, nullability, collection, or diagnostic behavior.
+
+- **Converter selection and precedence:** unmarked local helpers are no longer selected solely because their signatures are compatible. Select them with `MapProperty.Use`, `[MappingConverter]`, `[DefaultMapping]`, or the documented `Map{TargetMember}` convention. Local mappings and their defaults are resolved before registered external converters, and method-level conversion options apply throughout the selected path; affected mappings can select a different method, value, diagnostic, or exception.
+- **Null and collection behavior:** nullable source paths and converter results now follow the configured nullable and numeric policies consistently, including once-only evaluation. `IEnumerable<T>`, `IReadOnlyCollection<T>`, and `IReadOnlyList<T>` destinations materialize as arrays, and unknown-count enumerable-to-array mappings use a single enumeration plus temporary O(n) buffering. Recheck null outcomes, exception paths, runtime collection types, casts, mutation assumptions, and allocation expectations.
+- **Diagnostic compatibility:** `LITEMAPPER2005`, `LITEMAPPER2006`, and `LITEMAPPER2007` changed from invalid member configuration, invalid converter, and ambiguous converter to ambiguous conversion, disabled explicit operator, and disabled narrowing numeric conversion. `LITEMAPPER4003`, `LITEMAPPER6002`, and `LITEMAPPER6003` were retired. Update severity rules, assertions, and diagnostic-based tooling. Invalid member configuration now uses `LITEMAPPER1006`, `LITEMAPPER1007`, `LITEMAPPER1008`, `LITEMAPPER1014`, or `LITEMAPPER1015`; invalid and ambiguous converters use `LITEMAPPER2009` and `LITEMAPPER2011`; unsupported custom collections use `LITEMAPPER4006`; invalid mapper and method options use `LITEMAPPER0008` and `LITEMAPPER0009`.
+
 ### Added
 
-- Added `GuardNonNullSource` to mapper and method options. For example, `[LiteMapper(GuardNonNullSource = true)]` generates an `ArgumentNullException` guard for a non-nullable root source parameter.
 - Added positional tuple-to-tuple mapping when arity matches and every element is convertible. For example, `(Number: 7, Text: "seven")` can map to `(long Id, string Label)` as `(7L, "seven")`; automatic tuple-to-object and object-to-tuple structural mapping remain unsupported.
 - Added an installable Mammoth.LiteMapper agent skill with source-backed guidance for declarations, configuration, nullability, converters, collections, recursion, diagnostics, and package usage.
 - Added Windows and Linux CI matrix jobs for Roslyn 4.8, 4.14, and 5.9, plus clean-package consumer coverage for `netstandard2.0`, .NET 8, .NET 9, and .NET 10 with C# 9, C# 14, and `latest`.
 
 ### Changed
 
-- Non-nullable root source parameters no longer receive a runtime null guard by default. Enable `GuardNonNullSource` when runtime rejection is required.
-- Converter and mapping selection now applies method-level options, local-before-registered precedence, exact and nullable source-pair rules, inherited accessibility, and explicit `Use` configuration consistently at root, member, collection-element, and dictionary boundaries.
-- Unmarked handwritten local methods participate only when explicitly selected, marked with `[MappingConverter]` or `[DefaultMapping]`, or matched by the documented `Map{TargetMember}` convention. Registering an external mapper container explicitly opts its compatible methods into selection.
-- Unknown-count enumerable sources are enumerated once when producing arrays. LiteMapper uses an O(n) temporary growing buffer before creating the final array; counted sources allocate the final array directly.
 - Package consumer tests now map all `Mammoth.LiteMapper*` packages exclusively to the local package source, preventing another feed from masking a missing package.
-- Diagnostic compatibility changed: `LITEMAPPER2005`, `LITEMAPPER2006`, and `LITEMAPPER2007` now represent ambiguous conversion, disabled explicit operators, and disabled narrowing numeric conversion. Unreachable diagnostics `LITEMAPPER4003`, `LITEMAPPER6002`, and `LITEMAPPER6003` were removed; unsupported custom collections continue to use `LITEMAPPER4006`, and invalid option values use `LITEMAPPER0008`.
+
+### Notes
+
+- Root-source guard behavior is unchanged from 1.0.0: `GuardNonNullSource` was already available on mapper and method options, and non-nullable root parameters did not receive a runtime null guard by default. The option remains an explicit opt-in for `ArgumentNullException` validation.
 
 ### Fixed
 

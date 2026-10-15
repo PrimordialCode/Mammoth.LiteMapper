@@ -29,7 +29,7 @@ namespace Mammoth.LiteMapper.Samples.Basic
     internal sealed class NestedPolicyTarget { public NestedPolicyChildTarget Child { get; set; } = null!; }
     internal sealed class NestedPolicyChildTarget
     {
-        public int Value { get; set; }
+        public int Value { get; internal set; }
         public int Extra { get; set; } = 12;
         public string? Note { get; set; }
     }

@@ -517,7 +517,7 @@ namespace Mammoth.LiteMapper.Generator
                     continue;
                 }
 
-                if (!CanAssignInInitializer(targetMember))
+                if (!CanAssignInInitializer(targetMember, method.ContainingType, targetType, compilation))
                 {
                     if (IsRequired(targetMember) || TargetIsNonNullable(targetMember))
                     {
@@ -541,7 +541,7 @@ namespace Mammoth.LiteMapper.Generator
                     continue;
                 }
 
-                if (IsRequired(targetMember) && !CanAssignInInitializer(targetMember) && (construction == null || !construction.SetsRequiredMembers))
+                if (IsRequired(targetMember) && !CanAssignInInitializer(targetMember, method.ContainingType, targetType, compilation) && (construction == null || !construction.SetsRequiredMembers))
                 {
                     diagnostics.Add(Diagnostic.Create(Diagnostics.RequiredTargetMemberNotMapped, targetMember.Locations.FirstOrDefault() ?? location, targetMember.Name));
                     continue;
@@ -741,10 +741,10 @@ namespace Mammoth.LiteMapper.Generator
                     sourcePathCaptureGuard = directExpression + " is { } " + sourcePathCaptureName;
                 }
 
-                if (!CanAssignAfterConstruction(targetMember) || explicitConfiguration?.Use != null)
+                if (!CanAssignAfterConstruction(targetMember, method.ContainingType, targetType, compilation) || explicitConfiguration?.Use != null)
                 {
                     var memberType = GetMemberType(targetMember);
-                    if (targetMember is IPropertySymbol nestedProperty && (nestedProperty.SetMethod == null || CanAssignAfterConstruction(targetMember)) &&
+                    if (targetMember is IPropertySymbol nestedProperty && (nestedProperty.SetMethod == null || CanAssignAfterConstruction(targetMember, method.ContainingType, targetType, compilation)) &&
                         memberType.IsReferenceType && !IsCollectionType(memberType, compilation) &&
                         !(nestedProperty.SetMethod == null && IsMaybeNull(memberType)))
                     {
@@ -799,7 +799,7 @@ namespace Mammoth.LiteMapper.Generator
                             }
                             assignments.Add(new AssignmentModel(targetMember.Name,
                                 receiver + EscapeIdentifier(updater.Name) + "(" + argument + ", " + EscapeIdentifier(destination.Name) + "." + EscapeIdentifier(targetMember.Name) + ")",
-                                guard: updaterGuard, isStatement: updater.ReturnsVoid || !CanAssignAfterConstruction(targetMember), precondition: updaterPrecondition));
+                                guard: updaterGuard, isStatement: updater.ReturnsVoid || !CanAssignAfterConstruction(targetMember, method.ContainingType, targetType, compilation), precondition: updaterPrecondition));
                             usedSources.Add(match.Member);
                             continue;
                         }
@@ -808,7 +808,7 @@ namespace Mammoth.LiteMapper.Generator
                             continue;
                         }
                     }
-                    if (!CanAssignAfterConstruction(targetMember))
+                    if (!CanAssignAfterConstruction(targetMember, method.ContainingType, targetType, compilation))
                     {
                         var descriptor = targetMember is IPropertySymbol property && property.SetMethod?.IsInitOnly == true
                             ? Diagnostics.InitOnlyMemberCannotBeUpdated
@@ -2243,10 +2243,15 @@ namespace Mammoth.LiteMapper.Generator
             {
                 if (construction.BoundTargetMembers.Any(m => SymbolEqualityComparer.Default.Equals(m, targetMember)))
                 {
+                    if (IsRequired(targetMember) && !construction.SetsRequiredMembers)
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.RequiredTargetMemberNotMapped, targetMember.Locations.FirstOrDefault() ?? rootMethod.Locations.FirstOrDefault(), targetMember.Name));
+                    }
+
                     continue;
                 }
 
-                if (!CanAssignInInitializer(targetMember))
+                if (!CanAssignInInitializer(targetMember, rootMethod.ContainingType, targetType, compilation))
                 {
                     if (IsRequired(targetMember) || TargetIsNonNullable(targetMember))
                     {
@@ -3597,16 +3602,17 @@ namespace Mammoth.LiteMapper.Generator
             return member is IPropertySymbol property && property.IsRequired || member is IFieldSymbol field && field.IsRequired;
         }
 
-        private static bool CanAssignInInitializer(ISymbol member)
+        private static bool CanAssignInInitializer(ISymbol member, INamedTypeSymbol mapperType, ITypeSymbol targetType, Compilation compilation)
         {
             return member is IFieldSymbol field && !field.IsReadOnly && !field.IsConst ||
-                member is IPropertySymbol property && property.SetMethod != null && property.SetMethod.DeclaredAccessibility == Accessibility.Public;
+                member is IPropertySymbol property && property.SetMethod != null &&
+                compilation.IsSymbolAccessibleWithin(property.SetMethod, mapperType, throughType: targetType);
         }
 
-        private static bool CanAssignAfterConstruction(ISymbol member)
+        private static bool CanAssignAfterConstruction(ISymbol member, INamedTypeSymbol mapperType, ITypeSymbol targetType, Compilation compilation)
         {
-            return member is IFieldSymbol field && !field.IsReadOnly && !field.IsConst ||
-                member is IPropertySymbol property && property.SetMethod != null && property.SetMethod.DeclaredAccessibility == Accessibility.Public && !property.SetMethod.IsInitOnly;
+            return CanAssignInInitializer(member, mapperType, targetType, compilation) &&
+                !(member is IPropertySymbol property && property.SetMethod!.IsInitOnly);
         }
 
         private static bool IsMaybeNull(IParameterSymbol parameter)
