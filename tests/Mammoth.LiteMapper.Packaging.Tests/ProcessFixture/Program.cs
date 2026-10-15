@@ -42,8 +42,83 @@ switch (args[0])
         using (var child = Process.Start(start)) { }
         Console.Out.Write("parent-exited");
         break;
+    case "timeout-output":
+        WriteIdentity(args[1]);
+        Console.Out.Write("stdout-head-marker|" + new string('o', 8192) + "|stdout-tail-marker");
+        Console.Error.Write("stderr-head-marker|" + new string('e', 8192) + "|stderr-tail-marker");
+        Console.Out.Flush();
+        Console.Error.Flush();
+        Thread.Sleep(8000);
+        break;
+    case "tree-timeout":
+        WriteIdentity(args[1]);
+        using (var child = StartFixture("tree-child", args[2]))
+        {
+            WaitForIdentity(args[2], child);
+            Console.Out.Write("tree-parent-stdout-ready");
+            Console.Error.Write("tree-parent-stderr-ready");
+            Console.Out.Flush();
+            Console.Error.Flush();
+            Thread.Sleep(8000);
+        }
+        break;
+    case "tree-child":
+        WriteIdentity(args[1]);
+        Console.Out.Write("tree-child-stdout-ready");
+        Console.Error.Write("tree-child-stderr-ready");
+        Console.Out.Flush();
+        Console.Error.Flush();
+        Thread.Sleep(8000);
+        break;
+    case "orphan-pipe":
+        using (var child = StartFixture("orphan-pipe-holder", args[1]))
+        {
+            WaitForIdentity(args[1], child);
+        }
+        Console.Out.Write("orphan-parent-stdout-exited");
+        Console.Error.Write("orphan-parent-stderr-exited");
+        break;
+    case "orphan-pipe-holder":
+        WriteIdentity(args[1]);
+        Console.Out.Write("orphan-child-stdout-ready");
+        Console.Error.Write("orphan-child-stderr-ready");
+        Console.Out.Flush();
+        Console.Error.Flush();
+        Thread.Sleep(8000);
+        break;
     case "environment":
         Console.Write(Environment.GetEnvironmentVariable("MSBUILDDISABLENODEREUSE") + ":" + Environment.GetEnvironmentVariable("DOTNET_CLI_USE_MSBUILD_SERVER"));
         break;
 }
 return 0;
+
+static Process StartFixture(string mode, string identityFile)
+{
+    // Redirecting stdin explicitly passes the inherited stdout/stderr handles on
+    // Windows even though the fixture runs without a console window.
+    var start = new ProcessStartInfo(Environment.ProcessPath!)
+    {
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardInput = true,
+    };
+    start.ArgumentList.Add(Assembly.GetExecutingAssembly().Location);
+    start.ArgumentList.Add(mode);
+    start.ArgumentList.Add(identityFile);
+    return Process.Start(start)!;
+}
+
+static void WriteIdentity(string path)
+{
+    using var process = Process.GetCurrentProcess();
+    File.WriteAllText(path, Environment.ProcessId + "|" + process.StartTime.ToUniversalTime().Ticks);
+}
+
+static void WaitForIdentity(string path, Process child)
+{
+    var deadline = Stopwatch.StartNew();
+    while (!File.Exists(path) && !child.HasExited && deadline.Elapsed < TimeSpan.FromSeconds(3))
+    {
+        Thread.Sleep(10);
+    }
+}

@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #58 follow-up: smoke process deadlines (2026-10-15)
+
+- Authorized scope: benchmark smoke only receives a 300-second completion deadline; sample calls retain 60 seconds. Preserve all success assertions, allocation isolation, symbols validation and workflow gates. No local timing benchmarks.
+- Test-first: subprocess fixtures cover retained bounded stdout/stderr tails, successful full-output compatibility, direct-child termination and inherited pipes after direct-child exit. Keep finite fixture watchdogs and clean up only owned fixture processes.
+- Implementation: drain streams incrementally while retaining complete successful output, add bounded timeout tails and elapsed/cleanup diagnostics, and allow one second after termination request for exit and pipe closure. If inherited descendants cannot be confirmed terminated after the direct child exits, report incomplete cleanup rather than claim success.
+- Validation: focused process regressions against the old helper first, repeat focused checks after implementation, broader correctness/package checks excluding the local benchmark launcher, independent static review, then push the same PR and monitor exact-head CI. No merge, closure, publication or machine setting changes.
+
 ## Issue #58: isolate allocation-regression execution (2026-10-15)
 
 - Scope: a separate test-only child host with background GC disabled. Keep default GC for ordinary tests, all existing exact assertions, and product/runtime mapping behavior unchanged.
