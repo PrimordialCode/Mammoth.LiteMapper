@@ -5,6 +5,8 @@
 ## 4.0.1
 
 - Updated readme, usage guide and agent skill to reflect 4.0.x changes.
+- Updated the specification's release framing and documented the historical diagnostic-ID reconciliation while retaining future diagnostic stability.
+- Fixed automatic nested object helpers to honor `UnmappedTargetMembers`, including collection elements and existing-target replacements. Ordinary configurable diagnostics preserve valid implementations; mandatory targets remain hard errors.
 
 ## 4.0.0
 

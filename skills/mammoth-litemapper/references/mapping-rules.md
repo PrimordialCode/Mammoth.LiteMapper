@@ -1,6 +1,6 @@
 # Mapping rules
 
-Consumer mapping rules for Mammoth.LiteMapper 4.0.0.
+Consumer mapping rules for Mammoth.LiteMapper 4.0.1.
 
 Nested mapper classes may live in non-generic partial records, record structs, or interfaces; every containing type must be partial and the mapper itself must remain a class. For example, a partial record Container can contain a static partial Mapper class. Attribute enum constants are validated by value: `(NameMatching)3` means IgnoreCase and maps source value to target Value; undefined999 is rejected, including in assembly defaults.
 
@@ -51,7 +51,7 @@ A nullable reference or value converter result targeting a non-null member repor
 
 Generated eligible partial mappings are discovered automatically. Handwritten local methods require one of those explicit mechanisms or `[DefaultMapping]`; names such as `ToDto` or a matching scalar/structural signature alone do not make a helper eligible. Explicit registration opts in compatible methods from a static external container. Mark converters used for dictionary keys/values or collection elements with `[MappingConverter]` when they should participate automatically; marked converters outrank identity conversion.
 
-Generated nested and collection helpers are private; do not depend on their names or signatures. Each mapping retains the calling entry's effective options and nullable shape, including when multiple entries use the same model types.
+Generated nested and collection helpers are private; do not depend on their names or signatures. Automatic nested object helpers apply the entry's target policy to ordinary unmatched child members, including collection elements and update replacements. `Ignore` preserves their defaults; `Info`, `Warning`, and `Error` report configurable `LITEMAPPER1001` without dropping valid implementations. Unfulfilled required and non-nullable target obligations remain hard `LITEMAPPER1002` errors. Automatic-helper target-policy handling is corrected in 4.0.1. Each mapping retains the calling entry's effective options and nullable shape, including when multiple entries use the same model types.
 
 Resolve explicit `MapProperty.Use` first, then an explicit source path (completing immediately if directly assignable), local marked converters, the local member convention, local mappings, registered external converters, and registered external mappings, before language/enum/collection/structural conversion. A unique default selects among mapping methods within its stage; it never skips an earlier stage.
 

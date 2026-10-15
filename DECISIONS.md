@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Decision Log
 
+## Nested target-policy conformance and specification framing (2026-10-14)
+
+- Authorization: the user requested updating the specification first, then fixing the reproduced nested target-policy bug on release/4.0.1.
+- Specification: update the current-release framing to 4.0.1; sections 20.1 and 24.5 record the shipped 1.0.0 to 2.0.0 diagnostic reconciliation as fixed historical exceptions without permitting future ID reassignment or retired-ID reuse. Section 14.1 explicitly restates the existing sections 6.4 and 20.1 requirement for automatic nested helpers.
+- Implementation: apply the existing new-object unmatched-target decision in CreateNestedMappingModel. Honor constructor satisfaction of required members, retain non-configurable mandatory errors, and report ordinary LITEMAPPER1001 at the target member without dropping a valid helper.
+- Scope: target policies only. No public API, runtime reflection, new mapping semantics, or change to nested source-completeness scope. Preserve the existing structural-failure diagnostic test using an inaccessible destination constructor.
+- Validation: test-first evidence and final checks are recorded in STATUS.md. No commit, push, tracker mutation, or publication is authorized by this change.
+
 ## Issue #51: classify the selected set element conversion (2026-10-12)
 
 - Context: set construction chose comparer preservation from matching types before resolving element conversion. A same-type custom converter could therefore inherit incompatible equality behavior and silently collapse values distinct under the destination default comparer.

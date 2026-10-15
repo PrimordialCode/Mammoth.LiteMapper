@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Nested target-policy conformance repair (2026-10-14)
+
+- Scope: specification release/history framing first, then honor effective UnmappedTargetMembers in automatic nested object helpers. Preserve required/non-nullable obligations and construction semantics.
+- Test-first: exact Ignore/Info/Warning/Error severities, retained initializers/null defaults, inherited and overridden scopes, collection elements, update replacement, severity overrides, mandatory targets, and SetsRequiredMembers construction.
+- Implementation: use the existing unmatched-member decision inside the nested planner; keep structural failures distinct from configurable ordinary unmapped diagnostics.
+- Acceptance: focused and full solution tests, the consumer sample, current compiler-host checks, packaged consumer checks where available, synchronized usage/skill/changelog and independent review. Record skips or infrastructure failures explicitly; no release-performance claim.
+
 ## Consumer documentation release guidance (2026-10-12)
 
 - Scope: correct README/usage installation, analyzer-property exports, consumer-skill guidance, and prominent changelog compatibility warnings. No product source, public API, specification semantics, or package version changes.

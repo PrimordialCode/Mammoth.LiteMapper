@@ -56,7 +56,7 @@ The [mammoth-litemapper skill](skills/mammoth-litemapper/SKILL.md) provides cons
 Install the skill from the `4.0.0` release tag for matching consumer guidance:
 
 ```sh
-npx skills add https://github.com/PrimordialCode/Mammoth.LiteMapper/tree/4.0.0/skills/mammoth-litemapper --skill mammoth-litemapper
+npx skills add https://github.com/PrimordialCode/Mammoth.LiteMapper/tree/main/skills/mammoth-litemapper --skill mammoth-litemapper
 ```
 
 Append `--agent codex` to target Codex or `--global` for user-level installation. To preview this checkout without installing, run `npx skills add ./skills/mammoth-litemapper --list` from the repository root. The skill includes its supporting reference and needs no source checkout. Installing the skill does not upgrade the NuGet package; check the application's package version and follow the migration steps when upgrading.

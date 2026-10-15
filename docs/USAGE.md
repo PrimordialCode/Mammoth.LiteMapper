@@ -2,7 +2,7 @@
 
 Use Mammoth.LiteMapper to declare compile-time mappings, configure conversions, map collections, and update existing objects.
 
-This guide describes Mammoth.LiteMapper 4.0.0. The installation examples pin that version, and the [4.0.0 samples](https://github.com/PrimordialCode/Mammoth.LiteMapper/tree/4.0.0/samples) demonstrate the supported mappings. See the [4.0.0 changelog](../CHANGELOG.md#400) for the complete release changes.
+This guide describes Mammoth.LiteMapper 4.0.1. The installation examples pin that version, and the [compiling samples](../samples/) demonstrate the supported mappings. See the [4.0.1 changelog](../CHANGELOG.md#401) for the patch changes and the [migration guide](#versions-and-upgrading) for earlier releases.
 
 Runnable examples:
 
@@ -45,10 +45,10 @@ Runnable examples:
 
 For coding-agent assistance, use the repository's [mammoth-litemapper skill](../skills/mammoth-litemapper/SKILL.md). See [agent skill installation](../README.md#agent-skill) for the Skills CLI command. Installing the skill does not install the NuGet package in your application.
 
-Normal consumers reference the primary package only. Without central package management, include the stable version:
+Normal consumers reference the primary package only. Without central package management, pin the release version:
 
 ```xml
-<PackageReference Include="Mammoth.LiteMapper" Version="4.0.0" />
+<PackageReference Include="Mammoth.LiteMapper" Version="4.0.1" />
 ```
 
 With NuGet central package management, enable it and declare the version in `Directory.Packages.props`:
@@ -59,7 +59,7 @@ With NuGet central package management, enable it and declare the version in `Dir
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Mammoth.LiteMapper" Version="4.0.0" />
+    <PackageVersion Include="Mammoth.LiteMapper" Version="4.0.1" />
   </ItemGroup>
 </Project>
 ```
@@ -657,6 +657,8 @@ if (source.Address.Country.Code == null)
 
 ## Nested object mapping
 
+Automatic nested helpers, including collection-element object mappings and replacements during updates, use the calling entry's effective `UnmappedTargetMembers` policy. In the [nested policy sample](../samples/Mammoth.LiteMapper.Samples.Basic/NestedTargetPolicyExample.cs), `Ignore` maps child `Value = 7` while leaving its unmatched ordinary `Extra` initializer at `12` and nullable `Note` at null. `Info`, `Warning`, and `Error` report configurable `LITEMAPPER1001` at the unmatched child member and preserve a valid generated implementation. Unfulfilled required and non-nullable target obligations remain hard `LITEMAPPER1002` errors. This automatic-helper conformance fix is included in 4.0.1.
+
 Nested object mappings are generated as private closed-type helper methods when LiteMapper can construct the nested target type:
 
 ```csharp
@@ -1119,5 +1121,7 @@ The public API remains compatible, but corrected generated behavior can change c
 7. Verify null-element and exception expectations. Structural collection mapping preserves null for nullable element targets. For non-nullable element targets under `Throw`, it raises `InvalidOperationException` before target construction or source-member access; higher-precedence nullable-input converters still receive null. `NullCollectionStrategy.Empty` affects the collection itself, not its null elements.
 8. Update by-name enum exception assertions that depended on generated capture names: nullable-root failures now use the declared input parameter in `ParamName`. Also test missing intermediates in paths such as `Child.State`: nullable enum destinations preserve null; patch mappings retain the existing value when null skipping is enabled.
 9. Run the affected consumer tests, including nested instance converters and recursive mappings where used. Shared references on separate branches remain valid; cycle assertions should check the initiating mapping method and full member path. Private generated helper names and signatures are not a consumer contract.
+
+The 4.0.1 patch also fixes automatic nested target-policy handling: ordinary unmatched child members now follow `UnmappedTargetMembers` instead of causing `LITEMAPPER3004`. Rebuild affected mappings and check any `LITEMAPPER1001` reports under the selected policy.
 
 Installing a newer skill does not upgrade the NuGet package. Build and test against the package your application references.

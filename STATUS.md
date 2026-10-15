@@ -1,5 +1,15 @@
 # Mammoth.LiteMapper Status
 
+## Nested target-policy repair (2026-10-14)
+
+- Specification was updated before implementation: 4.0.1 framing, explicit automatic-helper target-policy conformance, and bounded historical diagnostic reconciliation with future stability preserved.
+- Red evidence: all 11 original focused regressions failed on unchanged production. An additional SetsRequiredMembers constructor case was corrected to use the framework attribute namespace and independently failed before the production change. Tests use built-in MSTest assertions and valid consumer compilations.
+- Implementation: the nested planner now applies the ordinary unmatched-target policy and retains hard required/non-nullable diagnostics. The existing LITEMAPPER3004 fixture uses an inaccessible nested constructor. A normally compiled Basic sample and usage/skill/changelog guidance cover the correction.
+- Core validation: solution build succeeds with zero errors and two existing System.Security.Cryptography.Pkcs 9.0.6 NuGet audit warnings (NU1902/NU1903). All 1,068 generator, five runtime, and one integration tests pass with zero failures/skips. The focused group passes 87/87; the 12 new regressions also pass on Roslyn 4.14.0 and 5.9.0. Default 4.8.0 dependencies/build were restored afterward. The Basic sample and standalone automatic-helper consumer compile and execute; independent review found no actionable findings.
+- Package validation: all 12 framework/language consumers and clean-package samples pass. After initial sandbox TLS restore failures, the normal-network full retry stalled and was stopped. A diagnostic full retry passed 47 cases before its three-minute hang timeout identified TrimmedConsumerPublishesAndRunsWithoutLiteMapperWarnings. A separate run explicitly excluding only that blocked test passes 273 cases with zero failures; Native AOT is inconclusive because the platform linker is missing. Full packaging/release validation is not complete. Evidence: nested-policy-full.trx, nested-policy-packaging-diagnostic.trx, nested-policy-packaging-remaining.trx and artifacts/spec-alignment-probe logs.
+- Documentation validation: 50 local links/fragments, isolated skill references, skill format, and CRLF-aware whitespace checks pass. Usage migration remains last and includes the patch correction.
+- Boundary: existing README edits are preserved. No commit, push, issue, publication, or overall release-readiness claim. The source fix is ready for review; trimming and required Native AOT evidence remain outstanding.
+
 ## Compact cycle tracker production checkpoint (2026-10-13)
 
 - Scope: promote the reviewed compact tracker from isolated experiments onto develop `221459f715f2c4a864212ea6838eebacdf067157`. One private object slot keeps the first source inline, safely escapes sentinel/type-tag collisions, promotes atomically to identity-based spill storage and retains that storage after unwind. Public API, cycle exception metadata, static mapping, finally cleanup and specification semantics remain unchanged.

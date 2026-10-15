@@ -2268,7 +2268,23 @@ namespace Mammoth.LiteMapper.Generator
 
                 if (match.Member == null)
                 {
-                    return null;
+                    if (IsRequired(targetMember))
+                    {
+                        if (!construction.SetsRequiredMembers)
+                        {
+                            diagnostics.Add(Diagnostic.Create(Diagnostics.RequiredTargetMemberNotMapped, targetMember.Locations.FirstOrDefault() ?? rootMethod.Locations.FirstOrDefault(), targetMember.Name));
+                        }
+                        continue;
+                    }
+
+                    if (TargetIsNonNullable(targetMember))
+                    {
+                        diagnostics.Add(Diagnostic.Create(Diagnostics.RequiredTargetMemberNotMapped, targetMember.Locations.FirstOrDefault() ?? rootMethod.Locations.FirstOrDefault(), targetMember.Name));
+                        continue;
+                    }
+
+                    ReportUnmappedTarget(targetMember, options.UnmappedTargetMembers, diagnostics);
+                    continue;
                 }
 
                 var conversion = ResolveConversion(rootMethod, null, match.Member, targetMember, compilation, externalTypes, diagnostics, helpers, helperNames, options);
