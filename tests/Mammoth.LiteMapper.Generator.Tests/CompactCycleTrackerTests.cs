@@ -325,8 +325,12 @@ public static class Probe
         }
 
         [TestMethod]
+        [TestCategory("Allocation")]
         public void CompactLayoutAndGeneratedTraversalAllocationsMatchOriginalOncePromoted()
         {
+            if (AllocationTestProcess.Run(typeof(CompactCycleTrackerTests), nameof(CompactLayoutAndGeneratedTraversalAllocationsMatchOriginalOncePromoted)))
+                return;
+
             var result = Generate(ChainFixture(true) + @"
 public static class Probe
 {

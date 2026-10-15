@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Status
 
+## Issue #58: isolated allocation regressions (2026-10-15)
+
+- Scope: test-only allocation host disables background GC, validates effective configuration, reuses the selected existing assertion body once and fails the parent on child errors or a bounded timeout. Only three existing methods/four rows dispatch through it. Exact assertions, default-GC functional coverage, product sources, workflows and performance gates are unchanged.
+- Test-first evidence: four control cases fail before isolation. The integrated focused set passes 8/8, followed by ten complete repetitions (80/80), zero failures/skips. Exact controls distinguish 0 and 64 bytes; the intentionally incorrect zero-allocation assertion fails in the child and its unique message plus real allocation count reach the parent. A copied-runtimeconfig negative probe fails before invocation when concurrent GC is enabled, then restores the original bytes.
+- Correctness: Release solution build and both solution path lists pass. Full generator suites pass 1,091/1,091 each on Roslyn 4.8.0, 4.14.0 and 5.9.0; runtime 5/5 and integration 1/1 pass, all with zero failures/skips. Independent read-only static review is clean after correcting the test-host dependency closure. Two pre-existing transitive System.Security.Cryptography.Pkcs 9.0.6 audit warnings remain (NU1902/NU1903).
+- Limits: the full local solution-test attempt was stopped after packaging stalled in its first dotnet pack command; completed correctness TRX results are retained, and packaging is not represented as complete. Its separate repair is out of scope. No local benchmark timing runs. The mitigation does not prove throughput or retrospectively establish every historical CI spike's cause.
+- Delivery: isolated feat/codex-allocation-test-isolation originally branched from develop a0e21684000653ae7445d9352e22df0fbd02f642 after 4.0.1 publication, then rebased onto develop c3ef53ec3762d825c2945cbc6394af310bda1933 containing merged symbols PR #59. PR #60 remains open for human review; current exact-head CI evidence is recorded there. No merge, tag, publication or persistent machine-setting changes.
+
 ## Generator symbol packaging checkpoint (2026-10-15)
 
 - Scope: direct user-authorized maintenance from develop after 4.0.1 publication. The old release branch is absent. The isolated fix branch targets develop and stops at draft PR/human review.

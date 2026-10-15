@@ -14,10 +14,14 @@ namespace Mammoth.LiteMapper.Generator.Tests
     public sealed class LazyCyclePathTests
     {
         [TestMethod]
+        [TestCategory("Allocation")]
         [DataRow(false)]
         [DataRow(true)]
         public void SuccessfulChainAllocationsScaleLinearlyAtSafeDepths(bool tracking)
         {
+            if (AllocationTestProcess.Run(typeof(LazyCyclePathTests), nameof(SuccessfulChainAllocationsScaleLinearlyAtSafeDepths), tracking))
+                return;
+
             var result = Generate(ChainFixture(tracking) + @"
 public static class Probe
 {
@@ -59,8 +63,12 @@ public static class Probe
         }
 
         [TestMethod]
+        [TestCategory("Allocation")]
         public void ShallowAndWideTraversalAllocationControls()
         {
+            if (AllocationTestProcess.Run(typeof(LazyCyclePathTests), nameof(ShallowAndWideTraversalAllocationControls)))
+                return;
+
             var result = Generate(ChainFixture(true) + @"
 public static class Probe
 {

@@ -18,6 +18,7 @@
     <Project Path="src/Mammoth.LiteMapper/Mammoth.LiteMapper.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Mammoth.LiteMapper.AllocationTestHost/Mammoth.LiteMapper.AllocationTestHost.csproj" />
     <Project Path="tests/Mammoth.LiteMapper.Generator.Tests/Mammoth.LiteMapper.Generator.Tests.csproj" />
     <Project Path="tests/Mammoth.LiteMapper.IntegrationTests/Mammoth.LiteMapper.IntegrationTests.csproj" />
     <Project Path="tests/Mammoth.LiteMapper.Packaging.Tests/Mammoth.LiteMapper.Packaging.Tests.csproj" />

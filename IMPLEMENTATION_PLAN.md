@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Issue #58: isolate allocation-regression execution (2026-10-15)
+
+- Scope: a separate test-only child host with background GC disabled. Keep default GC for ordinary tests, all existing exact assertions, and product/runtime mapping behavior unchanged.
+- Test-first: verify effective child configuration, parent isolation, zero and real allocation controls, and propagation of an intentional exact-allocation assertion failure. Exercise boolean data rows and fail closed for invalid child execution.
+- Implementation: route only the allocation-sensitive methods through the child, reuse the same test assembly, bound execution and pipe reads, and copy the host with the test build in both solution formats. No tolerance or retry-until-pass.
+- Validation: repeated focused allocation checks, complete correctness tests and Roslyn 4.8/4.14/5.9 hosts, independent review, then draft PR to active develop and exact-head CI. Exclude local timing benchmarks; preserve workflows and gates. Packaging work is separate.
+- Boundary: isolated feat/codex-allocation-test-isolation originally branched from develop a0e21684000653ae7445d9352e22df0fbd02f642 after 4.0.1 publication, then rebased onto develop c3ef53ec3762d825c2945cbc6394af310bda1933 after merged symbols PR #59. No merge, tag, publication or machine setting changes.
+
 ## Generator symbol package repair (2026-10-15)
 
 - Scope: user-authorized packaging maintenance on an isolated branch from develop after the 4.0.1 release. Prepare corrected 4.0.1 symbols separately, then open a draft PR against develop; the release branch has been removed. This is direct maintenance, not a claimed tracker item.

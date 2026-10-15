@@ -4,6 +4,8 @@ Use Mammoth.LiteMapper to declare compile-time mappings, configure conversions, 
 
 This guide describes Mammoth.LiteMapper 4.0.1. The installation examples pin that version, and the [compiling samples](../samples/) demonstrate the supported mappings. See the [4.0.1 changelog](../CHANGELOG.md#401) for the patch changes and the [migration guide](#versions-and-upgrading) for earlier releases.
 
+Repository contributors can follow the [allocation regression validation guide](ALLOCATION_TESTS.md). Its GC isolation applies only to test processes; applications need no GC configuration for LiteMapper.
+
 Runnable examples:
 
 - `samples/Mammoth.LiteMapper.Samples.Basic/Program.cs`
