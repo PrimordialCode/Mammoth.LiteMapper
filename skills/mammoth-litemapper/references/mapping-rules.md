@@ -1,6 +1,6 @@
 # Mapping rules
 
-Consumer mapping rules for the current Mammoth.LiteMapper release.
+Consumer mapping rules for Mammoth.LiteMapper 4.0.1.
 
 Nested mapper classes may live in non-generic partial records, record structs, or interfaces; every containing type must be partial and the mapper itself must remain a class. For example, a partial record Container can contain a static partial Mapper class. Attribute enum constants are validated by value: `(NameMatching)3` means IgnoreCase and maps source value to target Value; undefined999 is rejected, including in assembly defaults.
 
@@ -51,7 +51,7 @@ A nullable reference or value converter result targeting a non-null member repor
 
 Generated eligible partial mappings are discovered automatically. Handwritten local methods require one of those explicit mechanisms or `[DefaultMapping]`; names such as `ToDto` or a matching scalar/structural signature alone do not make a helper eligible. Explicit registration opts in compatible methods from a static external container. Mark converters used for dictionary keys/values or collection elements with `[MappingConverter]` when they should participate automatically; marked converters outrank identity conversion.
 
-Generated nested and collection helpers are private; do not depend on their names or signatures. Each mapping retains the calling entry's effective options and nullable shape, including when multiple entries use the same model types.
+Generated nested and collection helpers are private; do not depend on their names or signatures. Automatic nested object helpers apply the entry's target policy to ordinary unmatched child members, including collection elements and update replacements. `Ignore` preserves their defaults; `Info`, `Warning`, and `Error` report configurable `LITEMAPPER1001` without dropping valid implementations. Unfulfilled required and non-nullable target obligations remain hard `LITEMAPPER1002` errors. Automatic-helper target-policy handling is corrected in 4.0.1. Each mapping retains the calling entry's effective options and nullable shape, including when multiple entries use the same model types.
 
 Resolve explicit `MapProperty.Use` first, then an explicit source path (completing immediately if directly assignable), local marked converters, the local member convention, local mappings, registered external converters, and registered external mappings, before language/enum/collection/structural conversion. A unique default selects among mapping methods within its stage; it never skips an earlier stage.
 
@@ -156,12 +156,47 @@ To enable a diagnostic build property, also export it through a `CompilerVisible
 
 ## Breaking-change migration
 
-- From 1.x or 2.x, check reliance on implicit root null guards, convention-only handwritten helpers, interface collection result types, tuple member names, former diagnostic IDs, and unmapped targets. Root guards require `GuardNonNullSource`, helpers require an explicit eligibility mechanism, equal-arity tuples map positionally, read-only sequence interfaces produce arrays, and ordinary unmapped targets default to `LITEMAPPER1001` errors.
-- From 3.0.0, ambiguous `IgnoreCase` mappings that previously selected an exact member fail with `LITEMAPPER1004`. Select the source with `MapProperty.Source`, or use `Exact`/`ExactThenIgnoreCase` when exact-name priority is intended.
-- From 3.0.0, corrected comparer selection can change collection equality behavior. Dictionary value-only conversions preserve compatible source key comparers; custom key or set-element conversions use destination default comparers. Verify lookups, membership, element counts, and duplicate-key exceptions.
-- From 3.0.0, recheck entries sharing model pairs with distinct conversion, null, enum, or cycle policies. Corrected policy isolation can change results and expose previously masked `LITEMAPPER2001` or `LITEMAPPER2002` errors. Patch updates evaluate each guarded member getter once and preserve the selected nullable updater overload; review side-effectful getters and nullable/non-nullable updater overloads.
-- From 3.0.0, explicit `MapProperty.Use` without `Source` consistently selects the root source. Recheck previously defaulted outputs, including under `UnmappedTargetMembers.Ignore`. In patch updates, an unrelated same-name nullable member no longer prevents the root converter from running.
-- From 3.0.0, structural collection-element fallback preserves null for nullable element targets. With non-nullable element targets under `Throw`, that fallback rejects null with `InvalidOperationException` before helper/member access, rather than an incidental `NullReferenceException`; higher-precedence nullable-input converters still receive null. Nullable-root by-name enum failures now use the declared parameter name in `ParamName`. Recheck exception-type and `ParamName` assertions.
+Apply each transition after the installed major version. A direct upgrade from 1.0.0 to 4.0.0 requires all three checklists; select the desired final package version, restore, and rebuild without installing each intermediate package.
+
+### From 1.0.0 to 2.0.0
+
+1. Make unmarked handwritten helpers eligible explicitly with `MapProperty.Use`, `[MappingConverter]`, `[DefaultMapping]`, or `Map{TargetMember}`. A compatible signature alone is insufficient. Registered external static containers opt in their compatible methods. Test local-before-external precedence and method-level options; defaults select within their mapping stage, not a later global stage.
+2. Recheck configured nullable paths and converter results. Nullable-input converters receive traversal nulls; non-null parameters follow `NullableMismatchPolicy.Error`/`Throw` even for nullable destinations. Converter-result numeric and nullable policy can change values, diagnostics, or exceptions; test the selected converter and once-only evaluation.
+3. Remove concrete `List<T>` assumptions for `IEnumerable<T>`, `IReadOnlyCollection<T>`, and `IReadOnlyList<T>` destinations, which produce arrays. `ICollection<T>` and `IList<T>` still produce lists. Unknown-count array mappings allocate an O(n) temporary buffer and final array while enumerating once. Use an explicit concrete destination when the application requires one.
+4. If adopting the newly implemented tuple mapping, treat equal-arity tuples as positional, ignoring element names; use an explicit converter for reordering. Check by-name flags composites: a matching target composite must equal the OR of the mapped atoms, or generation reports `LITEMAPPER7002`.
+5. Update diagnostic severity rules, assertions, and tooling for these changed meanings:
+
+| Diagnostic ID | Meaning in 1.0.0 | Meaning from 2.0.0 |
+|---|---|---|
+| `LITEMAPPER2005` | Invalid member configuration | Ambiguous conversion |
+| `LITEMAPPER2006` | Invalid converter | Explicit operator disabled |
+| `LITEMAPPER2007` | Ambiguous converter | Narrowing numeric conversion disabled |
+
+   Invalid member configuration now uses specific `LITEMAPPER1006`/`1007`/`1008`/`1014`/`1015` diagnostics; invalid converter signatures use `LITEMAPPER2009`, and ambiguous converters use `LITEMAPPER2011`. Remove retired `LITEMAPPER4003`/`6002`/`6003` rules. Custom collections use `LITEMAPPER4006`; invalid mapper/method option values use `LITEMAPPER0008`/`0009`.
+
+6. Re-run the consumer's nullable, constructor/default, inherited-member, collection, nested-update, and enum cases. Corrected generated behavior can expose prior reliance on wrong results or invalid code.
+
+Root null guards are unchanged: 1.0.0 already supported `GuardNonNullSource` and disabled runtime guards for non-nullable root parameters by default. Keep `GuardNonNullSource = true` on the mapper or `OptionState.Enabled` on the method where rejection is intended. Nullable-source return and mismatch policies still apply.
+
+### From 2.0.0 to 3.0.0
+
+1. Resolve `LITEMAPPER1001`: ordinary unmapped targets now default to `Error`, previously `Warning`. Map the member, use validated `IgnoreTarget` or `UseTargetDefault` intentionally, or explicitly choose `UnmappedTargetMembers = UnmappedMemberPolicy.Warning` at the desired scope for ordinary members.
+2. Do not treat a severity relaxation as completeness proof. Required, non-nullable, inaccessible, invalid, and otherwise mandatory targets still cause hard errors. Unmapped sources remain ignored by default; enable strict `UnmappedSourceMembers` only for an intended boundary and use `IgnoreSource` for deliberate omissions.
+3. Test update failures and destination state: members are evaluated and assigned in ordinal target-member name order, earlier assignments remain after a later failure, and later members are skipped. Guards and nullable nested updater calls consume the shared captured source once. Use handwritten code when rollback is required.
+4. Rebuild after changing assembly defaults or external registrations so affected mappings and diagnostics refresh. Remove consumer dependencies on private generated helper names or signatures.
+5. Closed static external registration containers such as `External<int>` are supported; unbound generic containers, generic mapping methods, and generic mapper classes remain unsupported. When removing older workarounds, test declared recursive mapping paths, nullable nested updates, and destination identity.
+
+### From 3.0.0 to 4.0.0
+
+Update the primary package reference or central `PackageVersion` to `4.0.0`, restore, and rebuild the affected consumer projects. Review these conditional behavior changes before accepting the upgrade:
+
+- Ambiguous `IgnoreCase` mappings that previously selected an exact member fail with `LITEMAPPER1004`. Select the source with `MapProperty.Source`, or use `Exact`/`ExactThenIgnoreCase` when exact-name priority is intended.
+- Corrected comparer selection can change collection equality behavior. Dictionary value-only conversions preserve compatible source key comparers; custom key or set-element conversions use destination default comparers. Verify lookups, membership, element counts, and duplicate-key exceptions.
+- Recheck entries sharing model pairs with distinct conversion, null, enum, or cycle policies. Corrected policy isolation can change results and expose previously masked `LITEMAPPER2001` or `LITEMAPPER2002` errors. Patch updates evaluate each guarded member getter once and preserve the selected nullable updater overload; review side-effectful getters and nullable/non-nullable updater overloads.
+- Explicit `MapProperty.Use` without `Source` consistently selects the root source. Recheck previously defaulted outputs, including under `UnmappedTargetMembers.Ignore`. In patch updates, an unrelated same-name nullable member no longer prevents the root converter from running.
+- Structural collection-element fallback preserves null for nullable element targets. With non-nullable element targets under `Throw`, that fallback rejects null with `InvalidOperationException` before helper/member access, rather than an incidental `NullReferenceException`; higher-precedence nullable-input converters still receive null. Nullable-root by-name enum failures now use the declared parameter name in `ParamName`. Recheck exception-type and `ParamName` assertions.
+
+Recheck missing intermediates in nullable enum paths: a path such as `Child.State` now preserves null for a nullable destination, while patch null skipping retains its existing value. Run the affected mapping tests, including instance-converter state, collection equality, nullable updater overloads, and cycle exception method/path assertions. Generated helper names and signatures remain private implementation details.
 
 ## Validation boundaries
 

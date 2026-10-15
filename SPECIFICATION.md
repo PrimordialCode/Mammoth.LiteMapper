@@ -1,12 +1,12 @@
 # Mammoth.LiteMapper Technical Specification
 
-**Document status:** Canonical implementation specification for Mammoth.LiteMapper 1.0  
-**Specification version:** 1.0-draft.2  
+**Document status:** Canonical product specification for Mammoth.LiteMapper 4.0.1  
+**Specification version:** 4.0.1  
 **Product name:** Mammoth.LiteMapper  
 **License:** MIT  
 **Audience:** implementation agents, maintainers, reviewers, package authors, and contributors
 
-> This file is the sole product specification until implementation stabilizes. A usage guide MUST NOT be treated as authoritative during initial development. Usage documentation MUST later be assembled from compiling sample projects.
+> This file is the sole authoritative product contract for the current release. Usage documentation MUST remain subordinate to this specification and reflect compiling samples and tests.
 
 ---
 
@@ -14,7 +14,7 @@
 
 The terms **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, and **MAY** are normative.
 
-- **MUST / MUST NOT** define mandatory behavior for LiteMapper 1.0.
+- **MUST / MUST NOT** define mandatory behavior for LiteMapper 4.0.1.
 - **SHOULD / SHOULD NOT** define strong recommendations that require a documented reason to violate.
 - **MAY** defines an implementation choice that does not alter the public contract.
 
@@ -28,7 +28,7 @@ LiteMapper is a convention-first, compile-time object mapping library for C#.
 
 A consumer declares partial mapping methods. A Roslyn incremental source generator emits direct C# implementations using constructors, assignments, loops, casts, and ordinary method calls.
 
-LiteMapper 1.0 is intentionally focused. It is not a runtime mapping container.
+LiteMapper 4.0.1 is intentionally focused. It is not a runtime mapping container.
 
 ### 2.1 Naming and identifiers
 
@@ -42,7 +42,7 @@ The diagnostic prefix remains `LITEMAPPER`.
 
 ### 2.2 Primary goals
 
-LiteMapper 1.0 MUST provide:
+LiteMapper 4.0.1 MUST provide:
 
 - compile-time generated object mapping;
 - static and instance mapper classes;
@@ -64,9 +64,9 @@ LiteMapper 1.0 MUST provide:
 - trimming and Native AOT compatibility for all supported generated features;
 - `netstandard2.0` consumer-library compatibility and first-class modern .NET consumer support.
 
-### 2.3 Non-goals for 1.0
+### 2.3 Non-goals for 4.0.1
 
-LiteMapper 1.0 MUST NOT provide:
+LiteMapper 4.0.1 MUST NOT provide:
 
 - a universal runtime `IMapper` or `Map<TDestination>(object)` API;
 - runtime mapper registration or assembly scanning;
@@ -185,7 +185,7 @@ The implementation MUST NOT multi-target assemblies merely to use newer syntax o
 
 ### 4.3 Supported consumer projects
 
-LiteMapper 1.0 MUST test and support consumers targeting:
+LiteMapper 4.0.1 MUST test and support consumers targeting:
 
 - `netstandard2.0`;
 - `net8.0`;
@@ -481,7 +481,7 @@ public sealed class LiteMapperDefaultsAttribute : Attribute
 }
 ```
 
-Assembly defaults MUST be limited to stable cross-cutting behavior. Numeric conversion, explicit operators, enum mapping, reference handling, and patch behavior MUST NOT be assembly-level options in 1.0.
+Assembly defaults MUST be limited to stable cross-cutting behavior. Numeric conversion, explicit operators, enum mapping, reference handling, and patch behavior MUST NOT be assembly-level options in 4.0.1.
 
 ### 5.5 `UseMapperAttribute`
 
@@ -505,7 +505,7 @@ public sealed class UseMapperAttribute : Attribute
 
 A referenced type MAY contain generated mapping methods, handwritten mapping methods, `[MappingConverter]` methods, or any combination.
 
-Externally registered mapper or converter-container types MUST be static in 1.0.
+Externally registered mapper or converter-container types MUST be static in 4.0.1.
 
 An externally registered static type MAY be a closed constructed generic type, such as `typeof(External<int>)` or `typeof(Outer<int>.External)`. An unbound generic type, such as `typeof(External<>)`, MUST be rejected. The closed type MUST expose at least one usable method after type arguments are applied; generic methods remain subject to section 11.4.
 
@@ -539,7 +539,7 @@ public sealed class MappingConstructorAttribute : Attribute
 }
 ```
 
-`MappingConstructorAttribute` is the only LiteMapper attribute permitted on source or destination model declarations in 1.0.
+`MappingConstructorAttribute` is the only LiteMapper attribute permitted on source or destination model declarations in 4.0.1.
 
 ### 5.7 `MapPropertyAttribute`
 
@@ -718,7 +718,7 @@ For method-level Boolean options:
 
 ### 6.2 Library defaults
 
-The 1.0 library defaults MUST be:
+The library defaults MUST be:
 
 | Option | Default |
 |---|---|
@@ -916,7 +916,7 @@ public static partial void ApplyTo(
     ref Destination destination);
 ```
 
-A destination-returning value-type update without `ref` is not supported in 1.0. Implementation MUST NOT claim mutation of a struct passed by value.
+A destination-returning value-type update without `ref` is not supported in 4.0.1. Implementation MUST NOT claim mutation of a struct passed by value.
 
 ### 8.4 Unsupported method forms
 
@@ -1017,7 +1017,7 @@ Source paths MUST NOT contain:
 
 ### 9.5 Target paths
 
-Target names MUST identify direct members. Dotted target paths are unsupported in 1.0.
+Target names MUST identify direct members. Dotted target paths are unsupported in 4.0.1.
 
 ### 9.6 Source methods
 
@@ -1085,7 +1085,7 @@ A parameter MAY be satisfied by:
 
 A target member bound through the selected constructor MUST NOT be assigned again by default.
 
-LiteMapper 1.0 has no declarative option to force duplicate assignment. A user requiring setter execution after construction MUST write the mapping manually.
+LiteMapper 4.0.1 has no declarative option to force duplicate assignment. A user requiring setter execution after construction MUST write the mapping manually.
 
 ### 10.5 Records, `init`, and required members
 
@@ -1364,6 +1364,8 @@ Automatic helpers MUST:
 - participate in recursive type analysis;
 - receive and forward cycle-tracking state only when required.
 
+Automatic nested object helpers, including object mappings used for collection elements, MUST apply the calling entry's effective `UnmappedTargetMembers` policy to ordinary unmatched target members as defined in section 6.4. A configurable `LITEMAPPER1001` diagnostic, including its `Error` severity, MUST NOT suppress an otherwise valid helper implementation. Required, non-nullable, inaccessible, invalid, and otherwise mandatory target obligations remain hard errors.
+
 Generated nested and collection helper names MUST be allocated within the generated mapper that owns them. Handwritten members and every other generated helper signature in that mapper reserve their signatures during allocation. Helper identity MUST include the closed source/destination types and relevant nullable shape, effective mapping options, and resolution and invocation context. Equivalent helper identities MUST reuse one allocated name; a closed type pair alone is insufficient when its effective semantics differ. Distinct identities MUST remain distinct even when their preferred shape-plus-hash names collide; disambiguation MUST be deterministic and independent of syntax-tree order or equivalent compilation order. Helper names are private implementation details and MUST NOT be depended on by consumers.
 
 ### 14.2 Closed generic models
@@ -1406,7 +1408,7 @@ LiteMapper MUST NOT infer nested mutation from the mere presence of a non-null o
 
 ### 15.1 Mandatory collection shapes
 
-LiteMapper 1.0 MUST support automatic element mapping for:
+LiteMapper 4.0.1 MUST support automatic element mapping for:
 
 - one-dimensional arrays;
 - jagged arrays;
@@ -1423,7 +1425,7 @@ LiteMapper 1.0 MUST support automatic element mapping for:
 - `IDictionary<TKey, TValue>`;
 - `IReadOnlyDictionary<TKey, TValue>`.
 
-LiteMapper 1.0 MUST reject automatic mapping for:
+LiteMapper 4.0.1 MUST reject automatic mapping for:
 
 - rectangular arrays such as `T[,]`;
 - queues and stacks;
@@ -1491,7 +1493,7 @@ Mutable source collections MUST be copied even when source and target collection
 
 LiteMapper MUST NOT alias a mutable collection into a destination object.
 
-Known immutable/value-like collection types are outside 1.0 automatic support.
+Known immutable/value-like collection types are outside 4.0.1 automatic support.
 
 ### 15.8 Elements
 
@@ -1681,7 +1683,7 @@ A handwritten converter or handwritten mapping method MAY use these types when l
 
 Tuple-to-tuple mapping is supported when the source and destination tuple arity is equal and each element at the same ordinal position can be converted under the normal pipeline. Tuple element names do not change positional mapping semantics.
 
-Tuple-to-object and object-to-tuple structural mapping are unsupported in 1.0.
+Tuple-to-object and object-to-tuple structural mapping are unsupported in 4.0.1.
 
 Anonymous types receive no explicit support.
 
@@ -1799,7 +1801,7 @@ Generated code MUST NOT depend on:
 
 ### 20.1 Diagnostic policy
 
-Diagnostic IDs are public and stable immediately when introduced.
+Diagnostic IDs are public and stable under section 24.5. The current catalogue in section 20.2 defines their identities and meanings.
 
 The prefix is `LITEMAPPER`.
 
@@ -1905,7 +1907,7 @@ The implementation MUST define and test at least the following stable diagnostic
 
 | ID | Default severity | Name | Meaning |
 |---|---:|---|---|
-| `LITEMAPPER4001` | Error, non-configurable | UnsupportedCollectionShape | Collection shape is outside 1.0 support. |
+| `LITEMAPPER4001` | Error, non-configurable | UnsupportedCollectionShape | Collection shape is outside 4.0.1 support. |
 | `LITEMAPPER4002` | Error, non-configurable | RectangularArrayNotSupported | Mapping uses a multidimensional rectangular array. |
 | `LITEMAPPER4004` | Error, non-configurable | GetOnlyCollectionUpdateNotSupported | Update targets a get-only collection. |
 | `LITEMAPPER4005` | Error, non-configurable | TopLevelArrayUpdateNotSupported | Existing-target array mapping was declared. |
@@ -1986,7 +1988,7 @@ The implementation SHOULD avoid retaining entire `Compilation`, `SemanticModel`,
 
 ### 21.3 Analyzer options
 
-LiteMapper 1.0 MAY consume a small documented set of build properties:
+LiteMapper 4.0.1 MAY consume a small documented set of build properties:
 
 ```text
 LiteMapper_EmitDebugMetadata
@@ -2079,7 +2081,7 @@ The generator package MUST reference Roslyn 4.8.0 for its compile-time API basel
 
 CI MUST run on Windows and Linux.
 
-macOS is not a required 1.0 CI platform.
+macOS is not a required 4.0.1 CI platform.
 
 ### 22.9 Declaration tests
 
@@ -2354,7 +2356,9 @@ Exact generated formatting, local names, and helper organization are not public 
 
 ### 24.5 Diagnostic stability
 
-Diagnostic IDs are stable from the moment they are introduced, including pre-1.0 releases.
+Diagnostic IDs and meanings in the current catalogue are stable from introduction, including prereleases. Future releases MUST NOT reassign an established ID to a different diagnostic or reuse a retired ID.
+
+The historical 1.0.0 to 2.0.0 reconciliation corrected shipped IDs to the canonical catalogue: `LITEMAPPER2005` changed from invalid member configuration to ambiguous conversion, `LITEMAPPER2006` from invalid converter to disabled explicit operator, and `LITEMAPPER2007` from ambiguous converter to disabled narrowing numeric conversion. Unreachable `LITEMAPPER4003`, `LITEMAPPER6002`, and `LITEMAPPER6003` were retired. These documented historical compatibility changes are fixed exceptions; they do not authorize further reassignment or reuse. Section 24.4 continues to govern diagnostic compatibility.
 
 ### 24.6 Reproducible packages
 
@@ -2370,7 +2374,7 @@ Release artifacts MUST use:
 
 ### 24.7 Strong naming
 
-LiteMapper assemblies MUST NOT be strong-name signed in 1.0.
+LiteMapper assemblies MUST NOT be strong-name signed in 4.0.1.
 
 ### 24.8 License
 
@@ -2431,9 +2435,9 @@ The agent MUST NOT continue unaffected milestones while a normative ambiguity re
 
 ## 26. Compiling samples and documentation
 
-Before implementation stabilizes, this specification is the sole source of truth.
+This specification is the sole product contract for every release.
 
-During implementation, sample projects become the authoritative source for usage examples.
+Compiling sample projects are the authoritative source for usage examples; they do not override the product contract.
 
 The eventual usage guide MUST:
 
@@ -2441,7 +2445,7 @@ The eventual usage guide MUST:
 - be validated in CI;
 - use package references rather than project references in release validation;
 - never document an API that does not compile;
-- distinguish required 1.0 behavior from deferred features.
+- distinguish required 4.0.1 behavior from deferred features.
 
 A standalone handwritten usage guide MUST NOT be created in advance and treated as a parallel specification.
 
@@ -2449,7 +2453,7 @@ A standalone handwritten usage guide MUST NOT be created in advance and treated 
 
 ## 27. Explicitly deferred features
 
-The following are deferred and MUST NOT appear as partially functional public APIs in 1.0:
+The following are deferred and MUST NOT appear as partially functional public APIs in 4.0.1:
 
 - EF Core expression projections;
 - expression-tree converter inlining;
@@ -2654,9 +2658,9 @@ mapTracked(source, tracker, memberPath):
 
 ---
 
-## 29. Definition of done for LiteMapper 1.0
+## 29. Definition of done for LiteMapper 4.0.1
 
-LiteMapper 1.0 is complete only when all of the following are true:
+LiteMapper 4.0.1 is complete only when all of the following are true:
 
 - every required feature in this specification is implemented;
 - every required diagnostic exists and has focused tests;
@@ -2686,7 +2690,7 @@ Compilation alone is not completion.
 
 This file supersedes every earlier MinimalMapper or LiteMapper draft, audit bundle, README, usage guide, ZIP archive, chat example, or provisional design note.
 
-During implementation:
+For specification changes:
 
 - approved updates MUST modify this file first;
 - `DECISIONS.md` MUST record the approved reason;

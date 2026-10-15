@@ -8,6 +8,7 @@ namespace Mammoth.LiteMapper.Samples.Basic
     {
         private static void Main()
         {
+            NestedTargetPolicyExample.Run();
             LazyCyclePathExample.Run();
             ConfiguredUpdaterOverloadExample.Run();
             NullableEnumPathExample.Run();

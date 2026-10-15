@@ -22,7 +22,7 @@ using Mammoth.LiteMapper;
 public sealed class Source { public ChildSource Child { get; set; } = new ChildSource(); }
 public sealed class Target { public ChildTarget Child { get; set; } = null!; }
 public sealed class ChildSource { public int Value { get; set; } }
-public sealed class ChildTarget { public int Other { get; set; } }
+public sealed class ChildTarget { private ChildTarget() { } public int Value { get; set; } }
 ");
 
             AssertDiagnostic(result, "LITEMAPPER3004");
