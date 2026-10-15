@@ -1,5 +1,14 @@
 # Mammoth.LiteMapper Status
 
+## Generator symbol packaging checkpoint (2026-10-15)
+
+- Scope: direct user-authorized maintenance from develop after 4.0.1 publication. The old release branch is absent. The isolated fix branch targets develop and stops at draft PR/human review.
+- Reproduction: the retained tag-run generator snupkg has its PDB under lib/netstandard2.0 while the published DLL is under analyzers/dotnet/cs. All six release-artifact hashes were verified. Published nupkg payloads match the retained release packages, and the generator PDB matches the published DLL's portable identity and compiler checksum.
+- Red-first: the shipping-pair regression failed on that exact orphan path while ten fixture checks passed. Three publication-gate tests failed before script integration. After the fix, the focused symbol/gate group passed 14 tests and the release/native safeguard group passed 60 tests. Additional no-PDB and partial-symbol controls document NuGet's supplied-PDB validation direction.
+- Implementation: explicit generator analyzer DLL/PDB packing replaces the build-output-removal target. The shared nonshipping validator checks package metadata, archive paths, portability, PE/PDB association and compiler checksum. Release CI and the manual publishing script validate every shipping pair before promotion or push, including skip-validation and dry-run paths.
+- Validation: Release solution build passes with no compiler errors; two existing generator-test dependency audit warnings remain. Local generator correctness 1,083, runtime five and integration one pass, with allocation measurements and the benchmark launcher excluded from local execution. Package-suite results and terminal exact-head Windows/Linux/Roslyn CI evidence are recorded in the draft PR. Independent read-only review found no remaining actionable issue.
+- Recovery boundary: corrected 4.0.1 symbols preserve every entry's payload and change only the generator PDB archive path. They passed validation against the actual published nupkg and were delivered separately for human re-upload. No NuGet upload, unlist, tag, merge, credential/system change, skill/performance-test edit or local timing benchmark was performed.
+
 ## Release 4.0.1 issues #55 and #56 (2026-10-15)
 
 - Base: remote release/4.0.1 independently verified unchanged at d7d8c3bbc578470ddb9403c2a9064b96d8d87b25. Work uses the isolated feature/4.0.1-mapping-corrections branch; exactly two nonduplicate bug issues were created and claimed through AgentStack.

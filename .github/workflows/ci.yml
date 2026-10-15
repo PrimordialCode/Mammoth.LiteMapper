@@ -328,6 +328,19 @@ jobs:
             throw 'Packages contain Roslyn runtime assets.'
           }
 
+      - name: Validate package symbols
+        shell: pwsh
+        run: |
+          $version = '${{ steps.gitversion.outputs.semver }}'
+          $feed = (Resolve-Path '${{ env.PACKAGE_OUTPUT }}').Path
+          $symbolPairs = @()
+          foreach ($packageId in @('Mammoth.LiteMapper.Abstractions', 'Mammoth.LiteMapper.Generator', 'Mammoth.LiteMapper')) {
+            $symbolPairs += Join-Path $feed "$packageId.$version.nupkg"
+            $symbolPairs += Join-Path $feed "$packageId.$version.snupkg"
+          }
+          dotnet run --project tools/Mammoth.LiteMapper.PackageValidation/Mammoth.LiteMapper.PackageValidation.csproj -c Release --no-restore -- @symbolPairs
+          if ($LASTEXITCODE -ne 0) { throw "Package symbol validation failed with exit code $LASTEXITCODE." }
+
       - name: Validate final package consumers
         shell: pwsh
         run: |

@@ -19,6 +19,8 @@ namespace Mammoth.LiteMapper.Packaging.Tests
             foreach (var step in new[] { "Pack", "Publish exact packages" })
                 for (var position = 0; position <= 3; position++)
                     yield return new object[] { step == "Pack" ? "pack-and-validate" : "publish", step, position, 3, true };
+            for (var position = 0; position <= 1; position++)
+                yield return new object[] { "pack-and-validate", "Validate package symbols", position, 1, true };
             foreach (var job in new[] { "build-and-test", "pack-and-validate" })
                 for (var position = 0; position <= 1; position++)
                     yield return new object[] { job, "Determine version", position, 1, true };
