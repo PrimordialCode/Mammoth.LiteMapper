@@ -260,6 +260,8 @@ public static partial class CustomerMapper
 }
 ```
 
+Automatic target discovery considers public properties. Their setters need to be accessible from the generated mapper under normal C# rules, rather than necessarily public: an `internal set` works in the same assembly, and a mapper nested inside a partial target can use its private setter. Construction can use accessible `init` accessors; existing-target updates still reject `init`. Inaccessible accessors and non-public properties are not made writable by generation. The [nested policy sample](../samples/Mammoth.LiteMapper.Samples.Basic/NestedTargetPolicyExample.cs) maps `Value = 7` through an internal setter.
+
 ### Strict source-member completeness
 
 Strict source-member completeness is an opt-in boundary-mapping guardrail. Set `UnmappedSourceMembers = UnmappedMemberPolicy.Error` on a mapper, on one method with `[MappingOptions]`, or in `[assembly: LiteMapperDefaults(...)]` to report every readable source member that is not used by that mapping. Each report is the configurable `LITEMAPPER1003` diagnostic and names the exact source member. Use `Warning` or `Info` to stage adoption, or `Ignore` to disable the check for a scope. `[IgnoreSource(nameof(Source.LegacyCode))]` records an intentional exception when a source member is known not to belong in the boundary.
@@ -403,6 +405,8 @@ public static partial class CustomerMapper
 ```
 
 For a constructor `Target(int id = 17)` that initializes `Id`, `[UseTargetDefault(nameof(Target.Id))]` omits the argument even if the source contains `Id = 99`; the result keeps `17`. Without the attribute, ordinary matching passes `99`. An initializer alone does not satisfy C# `required`: the selected constructor must carry `SetsRequiredMembers`, or the generated initializer must satisfy the member. Constructor-bound members are not assigned twice.
+
+A constructor-bound `required` member whose selected constructor lacks `SetsRequiredMembers` reports hard `LITEMAPPER1002` and omits the invalid implementation. This also applies to automatic nested helpers, collection elements, and replacements during updates. Add the metadata only when the constructor actually fulfills the required-member contract, or provide a different legal construction path.
 
 ## Explicit member configuration
 
@@ -1123,5 +1127,7 @@ The public API remains compatible, but corrected generated behavior can change c
 9. Run the affected consumer tests, including nested instance converters and recursive mappings where used. Shared references on separate branches remain valid; cycle assertions should check the initiating mapping method and full member path. Private generated helper names and signatures are not a consumer contract.
 
 The 4.0.1 patch also fixes automatic nested target-policy handling: ordinary unmatched child members now follow `UnmappedTargetMembers` instead of causing `LITEMAPPER3004`. Rebuild affected mappings and check any `LITEMAPPER1001` reports under the selected policy.
+
+Accessible non-public setters on public target properties now receive mapped values where ordinary C# permits; recheck values previously left at their defaults, including under `Ignore`. Constructor-bound required members in automatic helpers now report `LITEMAPPER1002` instead of generated-code `CS9035` when the constructor lacks `SetsRequiredMembers`. See the [4.0.1 breaking changes](../CHANGELOG.md#401) and rebuild affected consumers.
 
 Installing a newer skill does not upgrade the NuGet package. Build and test against the package your application references.

@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Implementation Plan
 
+## Release 4.0.1 corrections: issues #55 and #56 (2026-10-15)
+
+- Scope: user-authorized combined repair on an isolated branch from release/4.0.1 at d7d8c3bbc578470ddb9403c2a9064b96d8d87b25, with a draft PR back to that release branch.
+- Test-first: legal non-public target accessor paths for root, nested, collection and update mappings; inaccessible and init-only update controls; constructor-bound required obligations in nested/element/replacement helpers, suppression resistance, sibling isolation and SetsRequiredMembers control.
+- Implementation: use compiler accessibility with the actual receiver type, retain the init-only update restriction, and mirror public required-member validation inside automatic helpers. No new public API or specification semantics.
+- Documentation: latest stable package quickstart, accurate historical 2.0.0 compatibility warnings, synchronized usage and compiling sample. Leave skill content and the entire skill installation section unchanged.
+- Validation: focused regressions, full correctness/package tests, generated-source inspection and exact-commit Windows/Linux and Roslyn CI. Exclude benchmark-launching tests from manually invoked local runs; preserve existing CI policy and do not treat its smoke results as performance acceptance. No local performance measurements, machine changes, release-branch push, merge, tag or publication in this task.
+
 ## Nested target-policy conformance repair (2026-10-14)
 
 - Scope: specification release/history framing first, then honor effective UnmappedTargetMembers in automatic nested object helpers. Preserve required/non-nullable obligations and construction semantics.

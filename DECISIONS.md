@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issues #55 and #56: legal target accessors and required construction (2026-10-15)
+
+- Contract: specification sections 6.4, 9.1, 10.4-10.5, 14.1, 16.1 and 20.1-20.3 already define legal target assignment and mandatory required-member diagnostics. No normative change or new API is needed.
+- Accessors: ask Compilation.IsSymbolAccessibleWithin for the setter from the mapper, including the actual destination receiver type so protected access is not incorrectly granted through a base receiver. Public target-member discovery stays unchanged. Existing-target assignment additionally rejects init-only accessors.
+- Required construction: automatic nested helpers apply the same constructor-bound required-member check as public new-object mappings. Missing SetsRequiredMembers metadata produces non-configurable LITEMAPPER1002 and omits the invalid implementation; a valid constructor binding is never assigned twice.
+- Evidence: before production changes, accessor regressions had eight failures/seven controls and required-constructor regressions had three failures/one control. All nineteen focused cases then passed. Final suite and CI evidence belongs in STATUS.md and the draft PR.
+- Boundaries: the user authorized both issue fixes together, the latest-stable package quickstart and historical changelog corrections. Skill files and skill installation instructions remain unchanged; no performance measurements or release publication is authorized.
+
 ## Nested target-policy conformance and specification framing (2026-10-14)
 
 - Authorization: the user requested updating the specification first, then fixing the reproduced nested target-policy bug on release/4.0.1.

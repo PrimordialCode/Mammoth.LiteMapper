@@ -1,5 +1,14 @@
 # Mammoth.LiteMapper Status
 
+## Release 4.0.1 issues #55 and #56 (2026-10-15)
+
+- Base: remote release/4.0.1 independently verified unchanged at d7d8c3bbc578470ddb9403c2a9064b96d8d87b25. Work uses the isolated feature/4.0.1-mapping-corrections branch; exactly two nonduplicate bug issues were created and claimed through AgentStack.
+- Red/green: eight accessor regressions failed with seven passing controls; three constructor-bound required cases failed with one passing SetsRequiredMembers control. After the compiler-accessibility and nested-required checks, all nineteen focused cases pass, zero skips. Inputs are valid C# before generation apart from missing partial implementations.
+- Implementation: public target properties use setters accessible from the actual mapper/receiver; updates still reject init. Nested/element/replacement construction reports hard LITEMAPPER1002 for unsatisfied constructor-bound required members, preserves independent mappings and does not emit invalid CS9035 construction. The Basic sample covers an internal target setter.
+- Documentation: package quickstart installs latest stable without a version; historical 2.0.0 breaking changes and unchanged 1.0.0 root-guard behavior are corrected. Usage and release notes describe both fixes. Skill files and README skill installation instructions remain unchanged.
+- Validation: full Release solution builds with zero warnings/errors. The full local run passes 1,087 generator, five runtime, one integration and 273 packaging tests with zero failures; the Native AOT case is inconclusive because this shell lacks the platform linker. The benchmark-launching test was explicitly excluded. Packaging passes all twelve framework/language consumers, clean-package samples (including the internal setter), trimming, API compatibility and content determinism. Generated sample source uses direct C# assignments; all seventeen emitted mapper files have no reflection/dynamic mapping lookup. Existing CI workflows remain unchanged; their smoke results do not establish performance acceptance.
+- Boundary: draft PR for human review targeting release/4.0.1; no direct release-branch push, merge, tag, publication or machine configuration changes. Final exact-commit CI and any local prerequisite limits will be reported explicitly.
+
 ## Nested target-policy repair (2026-10-14)
 
 - Specification was updated before implementation: 4.0.1 framing, explicit automatic-helper target-policy conformance, and bounded historical diagnostic reconciliation with future stability preserved.
