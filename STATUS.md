@@ -1,5 +1,13 @@
 # Mammoth.LiteMapper Status
 
+## Linux fixture termination observation (2026-10-15)
+
+- User-approved follow-up starts from develop 1489dad36214161a89ecbe014954cb0fb44ae793 in a separate worktree/branch. Existing work and the merged symbols/allocation/timeout fixes are preserved.
+- Scope: consistent exact-owned Linux snapshots, termination versus zombie reaping, bounded observation, persistent-active and live-sibling rejection, failure diagnostics and regression coverage. TestProcess behavior, deadlines, kill requests, output and pipes remain unchanged.
+- Validation: all 34 new cases fail before implementation. The integrated 48-case process/snapshot set passes three complete local runs (144/144); broader process/release/publication safeguards pass 289/289 and allocation preservation passes 8/8, zero failures/skips. Release solution build passes with two existing transitive Pkcs audit warnings; packaging-test project builds without warnings/errors. Linux execution and final cross-platform evidence belong to exact-head draft-PR CI. No local timing benchmarks, system/security/power changes, workflow retries, merge or publication.
+- Independent read-only static review accepts the snapshot indices, exact ownership, live-sibling/zero-thread rejection, bounded observation and cleanup, retained integration controls and scope with no material findings.
+- Tracking: automatic approval review rejected creating a new issue because the user approved a follow-up PR while the original prohibition on issue creation remains. No issue was created and no tracker-write workaround is used.
+
 ## Issue #58 follow-up: smoke timeout diagnostics (2026-10-15)
 
 - CI correction: b9ae890 passed full Windows validation and all six Roslyn jobs; Linux passed 1,392 cases and failed only the new orphan fixture's cross-process StartTime ownership check. Linux .NET estimates boot time separately per process, making exact converted UTC ticks unsuitable. Fixture ownership now compares the exact kernel start token on Linux and retains UTC ticks elsewhere, without weakening PID reuse protection or the orphan-alive assertion. Seven procfs parser cases fail before implementation; the integrated process set passes three complete local runs (42/42), broader safeguards pass 255/255, and the Release packaging-test project builds without warnings/errors. No test failures/skips. Linux execution awaits corrected-head CI.
