@@ -53,10 +53,16 @@ Ordinary unmapped target members are reported as `LITEMAPPER1001` errors by defa
 
 The [mammoth-litemapper skill](skills/mammoth-litemapper/SKILL.md) provides consumer mapping guidance for compatible coding agents using the [Skills CLI](https://skills.sh/docs).
 
-Install the skill from the `4.0.0` release tag for matching consumer guidance:
+Install the skill from `main` for the latest guidance. This branch can change as the project develops:
 
 ```sh
 npx skills add https://github.com/PrimordialCode/Mammoth.LiteMapper/tree/main/skills/mammoth-litemapper --skill mammoth-litemapper
+```
+
+To install guidance from a release tag, replace `<tag-version>` below with an existing tag matching your NuGet package version, for example `4.0.0` (without a `v` prefix):
+
+```sh
+npx skills add "https://github.com/PrimordialCode/Mammoth.LiteMapper/tree/<tag-version>/skills/mammoth-litemapper" --skill mammoth-litemapper
 ```
 
 Append `--agent codex` to target Codex or `--global` for user-level installation. To preview this checkout without installing, run `npx skills add ./skills/mammoth-litemapper --list` from the repository root. The skill includes its supporting reference and needs no source checkout. Installing the skill does not upgrade the NuGet package; check the application's package version and follow the migration steps when upgrading.
