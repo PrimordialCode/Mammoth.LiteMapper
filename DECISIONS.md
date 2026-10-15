@@ -2,6 +2,7 @@
 
 ## Issue #58 follow-up: benchmark smoke liveness (2026-10-15)
 
+- Linux fixture ownership uses PID plus the exact kernel start token from procfs stat field 22. Cross-process Process.StartTime comparisons are unsuitable on Linux because .NET caches independently estimated wall-clock boot times (dotnet/runtime#108959). Non-Linux fixtures retain exact UTC start ticks. Missing processes are treated as exited; malformed accessible procfs records fail validation. Keep the orphan-alive assertion and exact identity check without a tolerance.
 - The user approved a benchmark-only five-minute process deadline after exact-head Windows CI 38739919081 exceeded the old 60-second limit. This bounds startup, outer build, BenchmarkDotNet generated restore/build, Dry execution, reporting and pipe closure; it is not a throughput gate or a measured runtime percentile. Sample process limits remain 60 seconds.
 - Packaging TestProcess keeps complete successful stdout/stderr. Timeout messages retain only the last 4,096 characters of each stream, configured/elapsed time, termination action and cleanup status. Execution and pipe completion share the primary deadline; a separate one-second cleanup wait allows post-kill exit and draining without an unbounded retry.
 - A direct process that has already exited cannot provide a reliable portable descendant-termination handle. Bound and cancel local pipe reads, report cleanup incomplete when handles remain open, and do not claim orphan cleanup was confirmed. Fixtures explicitly clean up their own known descendants.

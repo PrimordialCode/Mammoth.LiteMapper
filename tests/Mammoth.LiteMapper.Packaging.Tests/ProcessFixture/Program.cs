@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Mammoth.LiteMapper.ProcessFixture;
 
 // Release-script tests launch this native process instead of any real .NET or
 // consumer operation. Returning a real process exit exercises LASTEXITCODE.
@@ -111,7 +112,7 @@ static Process StartFixture(string mode, string identityFile)
 static void WriteIdentity(string path)
 {
     using var process = Process.GetCurrentProcess();
-    File.WriteAllText(path, Environment.ProcessId + "|" + process.StartTime.ToUniversalTime().Ticks);
+    File.WriteAllText(path, Environment.ProcessId + "|" + FixtureProcessIdentity.GetStartStamp(process));
 }
 
 static void WaitForIdentity(string path, Process child)
