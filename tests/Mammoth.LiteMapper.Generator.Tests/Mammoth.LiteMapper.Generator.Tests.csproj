@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Mammoth.LiteMapper.Abstractions\Mammoth.LiteMapper.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Mammoth.LiteMapper.Generator\Mammoth.LiteMapper.Generator.csproj" />
+    <ProjectReference Include="..\Mammoth.LiteMapper.AllocationTestHost\Mammoth.LiteMapper.AllocationTestHost.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
@@ -27,4 +28,22 @@
       <_Parameter2>$(RoslynTestVersion)</_Parameter2>
     </AssemblyAttribute>
   </ItemGroup>
+  <Target Name="CopyAllocationTestHost" AfterTargets="Build">
+    <MSBuild Projects="..\Mammoth.LiteMapper.AllocationTestHost\Mammoth.LiteMapper.AllocationTestHost.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);TargetFramework=net10.0">
+      <Output TaskParameter="TargetOutputs" ItemName="_AllocationTestHostTargetPath" />
+    </MSBuild>
+    <PropertyGroup>
+      <_AllocationTestHostDirectory>@(_AllocationTestHostTargetPath->'%(RootDir)%(Directory)')</_AllocationTestHostDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <_AllocationTestHostFiles Include="$(_AllocationTestHostDirectory)*.dll" />
+      <_AllocationTestHostFiles Include="@(_AllocationTestHostTargetPath->'%(RootDir)%(Directory)%(Filename).deps.json')" />
+      <_AllocationTestHostFiles Include="@(_AllocationTestHostTargetPath->'%(RootDir)%(Directory)%(Filename).runtimeconfig.json')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AllocationTestHostFiles)"
+          DestinationFolder="$(TargetDir)AllocationTestHost"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

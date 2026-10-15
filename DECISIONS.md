@@ -1,5 +1,12 @@
 # Mammoth.LiteMapper Decision Log
 
+## Issue #58: allocation-only GC isolation (2026-10-15)
+
+- No product contract, public API, mapping semantics or performance acceptance policy changes. Test-only reflection dispatch reuses the existing test assembly; emitted mapper code remains static.
+- .NET 10 background GC can charge unused allocation-context bytes to GC.GetAllocatedBytesForCurrentThread (runtime issues #134724/#134855). Exact single-batch comparisons can therefore fail without additional mapper allocations. Historical CI lacks per-window GC traces; the runtime cause is strongly supported by isolated controls, not retrospectively proven for every event.
+- Disable concurrent GC only in a dedicated allocation child process. Keep normal/default GC in the ordinary correctness host. Preserve exact assertions and observable real-allocation controls; do not add tolerances, change equality direction, discard samples or retry until passing.
+- Configuration and child assertion failure must be observable in parent tests. A missing host, invalid child request, nonzero exit or bounded-execution failure cannot silently pass. The mitigation is test infrastructure, not a library performance claim or application configuration recommendation.
+
 ## Generator symbol package layout (2026-10-15)
 
 - Contract: specification sections 4.1, 22.19 and 24.6 require analyzer isolation, valid shipping packages and portable reproducible symbols. No public API or mapping semantic change is needed.
